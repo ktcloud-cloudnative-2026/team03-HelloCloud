@@ -10,15 +10,30 @@
 
 | 영역 | 선택 | 왜 | 어디에 | 버린 대안 |
 |---|---|---|---|---|
-| 서비스 언어 | | | | |
-| DB | | | | |
-| 서비스 사이 호출 | | | | |
-| Gateway | | | | |
-| CI / CD | | | | |
-| 관측 | | | | |
+| 서비스 구조 | 기능별 마이크로서비스 5개, 공용 Helm 차트 | | `services/`, `deploy/charts/` | |
+| 서비스 언어 | Java LTS + Spring Boot, Gradle 멀티 프로젝트 | | `services/` | |
+| 프론트 | React + Vite + TypeScript | | `services/web/` | |
+| 인증 | Keycloak(Operator), OIDC + PKCE | | 클러스터 | |
+| DB | MySQL 8.4 인스턴스 1개, 서비스별 database와 계정, 자체 차트 | | 클러스터(StatefulSet + Longhorn) | |
+| 서비스 사이 호출 | HTTP, 멤버십 확인 1건, 30초 캐시 | | `services/libs/common/` | |
+| 메시징 | Valkey pub/sub | | 클러스터 | |
+| 파일 저장소 | SeaweedFS(S3 API) | | 클러스터 | |
+| 화상 | LiveKit 자체 설치, 내장 TURN | | 클러스터(메시 밖) | |
+| Gateway | Envoy Gateway: TLS 종료, 라우팅, JWT 검증 | | 클러스터 | |
+| 서비스 메시 | Istio 사이드카 모드: mTLS STRICT, `AuthorizationPolicy` | | 클러스터 | |
+| 클러스터 | kubeadm + Calico, Longhorn, MetalLB(사설 IP 풀) | | dev, prod VM | |
+| 인증서 | cert-manager + Let's Encrypt DNS-01(Route 53) | | 클러스터 | |
+| CD | Argo CD(App of Apps) | | `deploy/argocd/` | |
+| CI | Jenkins(JCasC), SCM 폴링 | | CI 전용 VM, `deploy/ci/` | |
+| 레지스트리 | GHCR | | GitHub | |
+| 관측 | kube-prometheus-stack, Kiali, Loki + Alloy | | 클러스터 | |
+| 백엔드 테스트 | JUnit 5, Mockito, Testcontainers(MySQL, Valkey), Spotless | | `services/` | |
+| 프론트 테스트 | Vitest, React Testing Library, ESLint, Prettier | | `services/web/` | |
+| API 계약 | springdoc OpenAPI → `openapi-typescript` | | `services/` | |
+| E2E | 자동화하지 않음 | | | |
 
 ## 고르는 기준
-- 요구사항(특히 [비기능](requirements.md#2-비기능-요구사항-숫자로))에 맞나
+- 요구사항(특히 [비기능](requirements.md#2-비기능-요구사항))에 맞나
 - 팀이 운영할 수 있나 — 배운 것, 익히는 시간
 - 클러스터 자원 안에 들어가나
 - 대안과 비교했나
