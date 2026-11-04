@@ -4,4 +4,4 @@ metadata:
   name: ci-smoke
   namespace: default
 data:
-  a: [1, 2
+  a: "1, 2"
