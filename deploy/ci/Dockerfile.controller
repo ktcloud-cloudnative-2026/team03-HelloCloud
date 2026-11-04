@@ -1,0 +1,8 @@
+FROM jenkins/jenkins:2.580.2-lts-jdk21
+
+# 첫 실행 설정 마법사 끄기 (설정은 JCasC 파일로 함)
+ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
+
+# 플러그인을 이미지 만들 때 미리 설치
+COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
+RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
