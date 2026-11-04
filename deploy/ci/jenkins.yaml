@@ -1,0 +1,85 @@
+jenkins:
+  systemMessage: "IDCN CI - 설정은 deploy/ci/jenkins.yaml(JCasC)로 관리합니다. 화면에서 바꾸지 마세요."
+  numExecutors: 0
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: ${JENKINS_ADMIN_PASSWORD}
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  nodes:
+    - permanent:
+        name: agent
+        labelString: agent
+        remoteFS: /home/jenkins/agent
+        numExecutors: 2
+        retentionStrategy: always
+        launcher:
+          ssh:
+            host: agent
+            port: 22
+            credentialsId: agent-ssh
+            sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: github-token
+              description: "GitHub 상태 체크와 저장소 읽기"
+              username: ${GITHUB_USERNAME}
+              password: ${GITHUB_TOKEN}
+          - basicSSHUserPrivateKey:
+              scope: SYSTEM
+              id: agent-ssh
+              description: "컨트롤러에서 에이전트로 SSH"
+              username: jenkins
+              privateKeySource:
+                directEntry:
+                  privateKey: ${AGENT_SSH_PRIVATE_KEY}
+
+security:
+  globalJobDslSecurityConfiguration:
+    useScriptSecurity: false
+
+unclassified:
+  location:
+    url: http://localhost:8080/
+
+jobs:
+  - script: |
+      multibranchPipelineJob('ideaconnection') {
+        branchSources {
+          branchSource {
+            source {
+              github {
+                id('ideaconnection')
+                repoOwner('ktcloud-cloudnative-2026')
+                repository('team04')
+                repositoryUrl('https://github.com/ktcloud-cloudnative-2026/team04')
+                configuredByUrl(true)
+                credentialsId('github-token')
+                traits {
+                  gitHubBranchDiscovery { strategyId(1) }
+                  gitHubPullRequestDiscovery { strategyId(1) }
+                  headWildcardFilter {
+                    includes('main PR-*')
+                    excludes('')
+                  }
+                }
+              }
+            }
+          }
+        }
+        triggers {
+          periodicFolderTrigger { interval('2m') }
+        }
+        orphanedItemStrategy {
+          discardOldItems { numToKeep(10) }
+        }
+      }
