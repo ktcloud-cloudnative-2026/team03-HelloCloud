@@ -20,7 +20,7 @@ paths:
   /items/{id}:
     get:
       summary: <항목 조회>
-      description: US-01
+      description: USER-1
       parameters:
         - name: id
           in: path
