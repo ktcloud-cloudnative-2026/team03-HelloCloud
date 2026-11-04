@@ -1,0 +1,21 @@
+# 젠킨스 공식 SSH 에이전트 (Debian 13, JDK 21, git 포함) — 지문으로 고정
+FROM jenkins/ssh-agent:jdk21@sha256:a62ab1b4b51fbd77a12ba6382d5f550d105a7ece1cad3b7be49e1df56766d364
+
+# 검사 도구 버전 (올릴 때는 여기만 바꿈)
+ARG YAMLLINT_VERSION=1.37.1-1
+ARG HELM_VERSION=v4.3.1
+ARG KUBECONFORM_VERSION=v0.7.0
+
+# yamllint: YAML 문법·형식 검사
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends yamllint=${YAMLLINT_VERSION} curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# helm: Helm 차트 검사(helm lint, helm template)
+RUN curl -fsSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar xz -C /tmp \
+ && mv /tmp/linux-amd64/helm /usr/local/bin/helm \
+ && rm -rf /tmp/linux-amd64
+
+# kubeconform: 쿠버네티스 YAML이 규칙에 맞는지 검사
+RUN curl -fsSL https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz \
+  | tar xz -C /usr/local/bin kubeconform
