@@ -60,8 +60,8 @@ jobs:
               github {
                 id('ideaconnection')
                 repoOwner('ktcloud-cloudnative-2026')
-                repository('team04')
-                repositoryUrl('https://github.com/ktcloud-cloudnative-2026/team04')
+                repository('team03-HelloCloud')
+                repositoryUrl('https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud')
                 configuredByUrl(true)
                 credentialsId('github-token')
                 traits {
