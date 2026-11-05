@@ -2,40 +2,37 @@
 
 [← 아키텍처](architecture.md) · [README](../README.md) · 다음: [API 명세](api/)
 
-> 팀 논의 전 초안입니다. 기능 범위와 기술 선택은 확정이 아니며, 팀 논의 결과로 바꿉니다.
->
-> 채울 항목의 예입니다. 팀 프로젝트에 맞게 항목을 더하거나 빼도 됩니다.
->
-> 외부 도구로 써도 됩니다(추천: [Notion](https://www.notion.so)). 그 경우 이 파일에는 링크와 한 줄 요약만 남깁니다.
+> 팀이 지금 함께 알아야 할 큰 선택만 적습니다. 세부 도구는 담당자가 구현하면서 정합니다.
 
-영역마다 "왜 이것인가"를 한 줄로 씁니다. 나중에 바꾸면 [결정 기록](adr/)에 이유를 남깁니다.
+## 지금 정한 것
 
-| 영역 | 선택 | 왜 | 어디에 | 버린 대안 |
-|---|---|---|---|---|
-| 서비스 구조 | 기능별 마이크로서비스 5개, 공용 Helm 차트 | | `services/`, `deploy/charts/` | |
-| 서비스 언어 | Java LTS + Spring Boot, Gradle 멀티 프로젝트 | | `services/` | |
-| 프론트 | React + Vite + TypeScript | | `services/web/` | |
-| 인증 | Keycloak(Operator), OIDC + PKCE | | 클러스터 | |
-| DB | MySQL 8.4 인스턴스 1개, 서비스별 database와 계정, 자체 차트 | | 클러스터(StatefulSet + Longhorn) | |
-| 서비스 사이 호출 | HTTP, 멤버십 확인 1건, 30초 캐시 | | `services/libs/common/` | |
-| 메시징 | Valkey pub/sub | | 클러스터 | |
-| 파일 저장소 | SeaweedFS(S3 API) | | 클러스터 | |
-| 화상 | LiveKit 자체 설치, 내장 TURN | | 클러스터(메시 밖) | |
-| Gateway | Envoy Gateway: TLS 종료, 라우팅, JWT 검증 | | 클러스터 | |
-| 서비스 메시 | Istio 사이드카 모드: mTLS STRICT, `AuthorizationPolicy` | | 클러스터 | |
-| 클러스터 | kubeadm + Calico, Longhorn, MetalLB(사설 IP 풀) | | dev, prod VM | |
-| 인증서 | cert-manager + Let's Encrypt DNS-01(Route 53) | | 클러스터 | |
-| CD | Argo CD(App of Apps) | | `deploy/argocd/` | |
-| CI | Jenkins(JCasC), SCM 폴링 | | CI 전용 VM, `deploy/ci/` | |
-| 레지스트리 | GHCR | | GitHub | |
-| 관측 | kube-prometheus-stack, Kiali, Loki + Alloy | | 클러스터 | |
-| 백엔드 테스트 | JUnit 5, Mockito, Testcontainers(MySQL, Valkey), Spotless | | `services/` | |
-| 프론트 테스트 | Vitest, React Testing Library, ESLint, Prettier | | `services/web/` | |
-| API 계약 | springdoc OpenAPI → `openapi-typescript` | | `services/` | |
-| E2E | 자동화하지 않음 | | | |
+| 영역 | 선택 | 하는 일 |
+|---|---|---|
+| 서비스 구조 | 기능별 서비스 8개(MSA) | 기능마다 따로 만들고 따로 배포합니다 |
+| 백엔드 | Java + Spring Boot | 서버 기능을 만듭니다 |
+| 프론트 | React + JavaScript | 웹 화면을 만듭니다 |
+| 로그인 | Keycloak | 가입과 로그인을 대신 처리합니다 |
+| DB | MySQL | 데이터를 저장합니다 |
+| 실시간 전달 | Redis | 채팅 같은 변경 사항을 서버끼리 바로 전달합니다 |
+| 파일 저장소 | SeaweedFS | 업로드한 파일을 보관합니다 |
+| 화상 회의 | LiveKit | 영상, 음성, 화면 공유를 처리합니다 |
+| 음성 변환 | Whisper | 회의 음성을 글로 바꿉니다 |
+| 외부 연동 | Google Calendar, Gmail | 회의실 예약을 일정에 반영하고 이메일 알림을 보냅니다 |
+| 입구 | Envoy Gateway | 외부 요청을 받아 알맞은 서비스로 보냅니다 |
+| 서비스 사이 보안 | Istio | 서비스끼리의 통신을 암호화하고 허용된 호출만 통과시킵니다 |
+| 서버 환경 | Kubernetes(kubeadm), dev · prod | 서비스를 실행하고 관리합니다 |
+| 코드 검사와 빌드 | Jenkins | PR을 검사하고 배포할 이미지를 만듭니다 |
+| 이미지 저장소 | GHCR | 만든 이미지를 보관합니다 |
+| 배포 | Argo CD | GitHub 내용대로 서버에 자동 배포합니다 |
+| 모니터링 | Prometheus, Grafana, Loki | 상태와 로그를 모아 화면에서 보고 장애를 알립니다 |
 
-## 고르는 기준
-- 요구사항(특히 [비기능](requirements.md#2-비기능-요구사항))에 맞나
-- 팀이 운영할 수 있나 — 배운 것, 익히는 시간
-- 클러스터 자원 안에 들어가나
-- 대안과 비교했나
+## 구현하면서 정하는 것
+
+아래는 필요해질 때 담당자가 조사해 정하고, 추가한 이유를 PR에 적습니다. 팀 전체에 영향을 주는 선택은 먼저 팀에 공유합니다.
+
+- 프론트: 개발 도구, 칸반 · 캘린더 · 간트 화면 라이브러리
+- 백엔드: 코드 검사와 테스트 도구, DB 구조 변경 방법, 지표 수집 방법
+- 문서 · 드로잉: 공동 편집 라이브러리와 편집기
+- 로그인: 세부 인증 방식
+- 서버 환경: 네트워크, 저장 공간, 인증서 도구
+- 공통: 정확한 버전(설치하는 PR에서 고정, `latest` 금지)

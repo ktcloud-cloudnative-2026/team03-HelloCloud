@@ -2,98 +2,148 @@
 
 [← 요구사항](requirements.md) · [README](../README.md) · 다음: [기술 스택](tech-stack.md)
 
-> 팀 논의 전 초안입니다. 기능 범위와 기술 선택은 확정이 아니며, 팀 논의 결과로 바꿉니다.
->
-> 초안: `[미정]`은 팀 확인 전입니다.
->
-> 1~4번 그림은 설계 단계에 그려 두기를 권합니다. 그림 내용은 예시이니 팀 서비스에 맞게 바꿉니다.
->
-> 외부 도구로 써도 됩니다(추천: [draw.io](https://app.diagrams.net), [Excalidraw](https://excalidraw.com), [FigJam](https://www.figma.com/figjam/), [Miro](https://miro.com)). 그 경우 이 파일에는 링크와 한 줄 요약만 남깁니다.
-
-> 그림은 Mermaid로 씁니다. GitHub에서 그림으로 바로 보입니다. 그림이 바뀌면 코드와 같은 PR에서 함께 고칩니다.
+> 시스템의 큰 구조만 적습니다. 세부 설계는 담당자가 구현하면서 정하고, 배운 내용에 따라 고칩니다.
 
 ## 1. 시스템 컨텍스트
+
+우리 시스템을 누가 쓰고, 어떤 외부 시스템과 연결되는지 보여 줍니다.
+
 ```mermaid
 flowchart LR
-  user([사용자]) --> svc[<우리 서비스>]
-  svc --> ext[<외부 시스템 — 예: 메일>]
+  owner([조직 소유자]) -->|조직 관리, 팀원 초대| svc[ideaconnection]
+  member([조직 멤버]) -->|협업 기능 사용| svc
+  svc -->|예약 일정 반영| gcal[Google Calendar]
+  svc -->|이메일 알림| mail[Gmail]
+  am[AlertManager] -->|장애 알림| svc
 ```
 
 ## 2. 서비스 구성도
-실선은 동기 호출, 점선은 pub/sub입니다. 브라우저는 파일과 영상을 각각 SeaweedFS와 LiveKit에 직접 주고받습니다.
+
+시스템 안에 무엇이 있고 어떻게 연결되는지 보여 줍니다.
+
 ```mermaid
 flowchart LR
-  user([브라우저]) --> gw[Envoy Gateway]
-  user --> sw[(SeaweedFS)]
-  user --> lk[LiveKit]
-  gw --> web[web]
-  gw --> kc[Keycloak]
-  gw --> us[user-service]
-  gw --> bs[board-service]
-  gw --> fs[file-service]
-  gw --> cs[chat-service]
-  gw --> ms[meeting-service]
-  bs --> us
-  fs --> us
-  cs --> us
-  ms --> us
-  us --> db[(MySQL)]
-  bs --> db
-  fs --> db
-  cs --> db
-  ms --> db
-  fs --> sw
-  cs -.-> vk[(Valkey)]
+  subgraph apps[서비스 8개]
+    us[user]
+    cs[chat]
+    fs[file]
+    cal[calendar]
+    ns[notification]
+    bs[board]
+    ms[meeting]
+    ds[document]
+  end
+  user([브라우저]) --> gw[입구: Envoy Gateway]
+  user -->|영상 · 음성| lk[화상 회의: LiveKit]
+  gw --> web[웹 화면]
+  gw --> kc[로그인: Keycloak]
+  gw --> apps
+  gw --> sw[(파일: SeaweedFS)]
+  apps --> db[(데이터: MySQL)]
+  apps --> rd[(실시간 전달: Redis)]
+  apps --> sw
+  apps --> lk
+  apps --> wh[음성 변환: Whisper]
+  apps --> ext[외부: Google Calendar, Gmail]
 ```
 
-| 서비스 | 책임 | database · 테이블 |
+| 서비스 | 하는 일 | 요구사항 |
 |---|---|---|
-| `user-service` | 프로필, 조직, 초대, 멤버와 역할(OWNER, MEMBER) | `user_service`: `profile`, `organization`, `membership`, `invitation` |
-| `board-service` | 보드, 컬럼, 카드, 순서, 담당자, 기간, 간트 조회 | `board_service`: `board`, `board_column`, `card` |
-| `file-service` | presigned URL 발급, 업로드 완료 확인, 목록과 삭제 | `file_service`: `file_object` |
-| `chat-service` | 채널, 메시지 저장과 조회, WebSocket(STOMP) | `chat_service`: `channel`, `channel_member`, `message` |
-| `meeting-service` | 회의방, LiveKit 입장 토큰 서명(유효 10분) | `meeting_service`: `meeting` |
+| user | 프로필, 조직, 초대, 멤버 권한 | US-01 ~ US-05 |
+| chat | 채널, 실시간 대화, 결정 기록, 확인 요청 | US-06 ~ US-11 |
+| file | 파일 업로드, 다운로드, 미리보기, 삭제 | US-12 |
+| calendar | 팀 · 개인 일정, 회의실 예약, Google Calendar 반영 | US-13 ~ US-16 |
+| notification | 예약 · 즉시 알림, 장애 알림 전달 | US-17 ~ US-19 |
+| board | 칸반 보드, 카드, 타임라인 | US-20 ~ US-22 |
+| meeting | 회의방, 화상 회의 입장, 음성 변환 요청 | US-23 ~ US-27 |
+| document | 문서와 드로잉 공동 편집 | US-28 |
 
-- 사용자 ID는 Keycloak `sub`(UUID)를 그대로 쓰고, 사용자 테이블은 두지 않습니다
-- 다른 서비스의 데이터는 ID로만 참조합니다. 서비스 간 외래 키와 JOIN은 금지합니다
-- 서비스 간 호출은 멤버십 확인 하나뿐입니다
+서비스 사이의 약속입니다.
 
-## 3. 핵심 시나리오 시퀀스 (1~2개)
+- 서비스마다 자기 데이터만 직접 다룹니다. 다른 서비스의 데이터가 필요하면 그 서비스에 요청합니다
+- 서비스끼리는 세 가지만 호출합니다: 조직 소속 확인(모든 조직 서비스 → user), 메시지를 카드로 변환(chat → board), 이메일 주소 조회(notification → user)
+- 소속 확인 결과는 3초만 기억합니다. 멤버가 나가면 5초 안에 접근을 막기 위해서입니다
+
+## 3. 핵심 시나리오
+
+### 채팅 전달과 복구 (US-06, US-07)
+
+메시지를 먼저 저장하므로, 연결이 끊겨도 다시 연결하면 놓친 메시지를 볼 수 있습니다.
+
 ```mermaid
 sequenceDiagram
-  actor U as 사용자
-  participant G as Gateway
-  participant B as <서비스 B>
-  participant A as <서비스 A>
-  U->>G: POST /<경로>
-  G->>B: 요청 전달
-  B->>A: GET /<경로>/{id}
-  A-->>B: 200 {...}
-  B-->>U: 201 {...}
-  Note over B,A: A가 응답하지 않으면 <타임아웃 2초 후 503>
+  actor A as 보내는 사람
+  participant C1 as chat 서버 1
+  participant D as MySQL
+  participant R as Redis
+  participant C2 as chat 서버 2
+  actor B as 받는 사람
+  A->>C1: 메시지 보내기
+  C1->>D: 메시지 저장
+  C1->>R: 새 메시지 알리기
+  R-->>C2: 새 메시지 전달
+  C2-->>B: 1초 이내 표시
+  Note over C2,B: 연결이 끊겨도 메시지는 DB에 남아 있음
+  B->>C2: 다시 연결해 놓친 메시지 요청
+  C2->>D: 놓친 메시지 조회
+  C2-->>B: 순서대로 표시
+```
+
+### 회의실 예약과 Google 반영 (US-15, US-16)
+
+같은 시간에 동시에 예약해도 한 건만 성공합니다.
+
+```mermaid
+sequenceDiagram
+  actor M as 멤버
+  participant C as calendar 서비스
+  participant D as MySQL
+  participant G as Google Calendar
+  M->>C: 회의실 예약 요청
+  C->>D: 같은 시간 예약이 있는지 확인
+  alt 예약 없음
+    C->>D: 예약과 일정 저장
+    C-->>M: 예약 성공
+    C->>G: 연동한 사용자의 일정에 1분 이내 반영
+  else 예약 있음
+    C-->>M: 예약 실패
+  end
 ```
 
 ## 4. 배포 구성도
+
+코드가 서버에 올라가는 과정입니다.
+
 ```mermaid
 flowchart LR
-  dev([개발자]) -->|PR · merge| gh[GitHub]
-  gh -->|SCM 폴링| jk[Jenkins: CI 전용 VM]
-  jk -->|이미지 push| reg[(GHCR)]
-  jk -->|이미지 태그 PR| gh
-  gh -->|deploy/| argo[Argo CD]
-  argo --> cdev[dev 클러스터]
-  argo --> cprod[prod 클러스터]
+  dev([개발자]) -->|PR, 머지| gh[GitHub]
+  gh --> jk[Jenkins]
+  jk -->|이미지 저장| reg[(GHCR)]
+  gh --> adev[dev의 Argo CD]
+  gh --> aprod[prod의 Argo CD]
+  adev --> cdev[dev 클러스터]
+  aprod --> cprod[prod 클러스터]
   reg --> cdev
   reg --> cprod
 ```
 
-- PR: Jenkins가 변경된 부분만 검증합니다. `services/`는 빌드, 테스트, 린트를, `deploy/`는 `validate.sh`를 실행합니다
-- `main` 머지: `services/`가 바뀌면 이미지를 커밋 SHA 태그로 push하고 `image.tag` 변경 PR을 만듭니다. 이 PR을 리뷰 후 머지하면 Argo CD가 동기화합니다
-- 롤백: `git revert` 후 머지
-- `[미정]` prod 반영 시점, Argo CD 설치 위치(클러스터별 또는 한 곳), prod 노드 구성
+1. 개발자가 PR을 올리면 Jenkins가 코드를 검사합니다
+2. 머지하면 Jenkins가 이미지를 만들어 GHCR에 저장하고, 새 이미지 번호를 바꾸는 PR을 올립니다
+3. 그 PR을 머지하면 Argo CD가 dev에 배포합니다
+4. dev에서 확인한 이미지는 스프린트 데모 전에 PR로 prod에 올립니다
+5. 문제가 생기면 `git revert`로 되돌립니다
 
-## 5. 네트워크 · 보안 (보안 영역 담당)
-<외부 진입점, 서비스 사이 허용 통신(NetworkPolicy), 비밀값 위치>
+## 5. 네트워크 · 보안
 
-## 6. 관측 구성 (관측 영역 담당)
-<지표 · 로그 수집 흐름 — 자세한 기준은 [관측 설계](observability.md)>
+- 사용자 요청은 Envoy Gateway 하나로 들어오고 암호화된 통신만 허용합니다. 화상 회의의 영상과 음성만 LiveKit으로 직접 연결합니다
+- 서비스는 내부망에만 두고, 외부에서는 bastion을 거쳐 접속합니다
+- 로그인은 Keycloak이 처리하고, Gateway와 서비스가 로그인 토큰(JWT)을 확인합니다
+- 서비스끼리의 통신은 Istio로 암호화하고, 2번의 세 가지 호출만 허용합니다
+- 소속되지 않은 조직의 데이터는 볼 수 없습니다
+- 비밀번호와 키는 Git에 넣지 않고 Kubernetes Secret에 둡니다
+
+## 6. 모니터링
+
+- 서비스 상태는 Prometheus가 모으고 Grafana 화면에서 봅니다
+- 모든 서비스가 같은 형식으로 로그를 남기고 Loki에 모읍니다
+- 에러율 5%가 5분을 넘으면 AlertManager가 notification 서비스와 Discord로 알립니다. Discord는 우리 서비스가 멈췄을 때를 대비한 경로입니다
