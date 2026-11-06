@@ -8,8 +8,8 @@
 2. 저장소를 받고 이름과 이메일을 설정합니다. 이메일은 GitHub 계정에 등록된 것이어야 커밋이 본인 기여로 잡힙니다.
 
 ```bash
-git clone https://github.com/ktcloud-cloudnative-2026/team0N.git
-cd team0N
+git clone https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+cd team03-HelloCloud
 git config user.name "이름"
 git config user.email "GitHub 계정 이메일"
 ```
@@ -29,7 +29,7 @@ git config user.email "GitHub 계정 이메일"
 
 ## 작업 순서
 
-이슈 하나에 브랜치 하나, PR 하나로 작업합니다.
+이슈 하나에 브랜치 하나, PR 하나로 작업합니다. 오타, 깨진 링크, 예시 이름 변경 같은 작은 수정은 이슈와 보드 없이 PR만 올려도 됩니다.
 
 1. Issues → New issue → 일감 양식으로 이슈를 만들고, 보드에서 In Progress로 옮깁니다.
 2. 최신 main에서 브랜치를 만듭니다.
@@ -37,20 +37,20 @@ git config user.email "GitHub 계정 이메일"
 ```bash
 git switch main
 git pull
-git switch -c feat/12-seat-list
+git switch -c feat/12-room-list
 ```
 
 3. 작업하고 커밋합니다.
 
 ```bash
 git add .
-git commit -m "feat: 좌석 조회 API (#12)"
+git commit -m "feat: 회의실 조회 API (#12)"
 ```
 
 4. 브랜치를 올립니다.
 
 ```bash
-git push -u origin feat/12-seat-list
+git push -u origin feat/12-room-list
 ```
 
 5. 저장소 화면의 Compare & pull request 버튼으로 PR을 엽니다. 본문에 `Closes #12`를 적습니다.
@@ -60,7 +60,7 @@ git push -u origin feat/12-seat-list
 ```bash
 git switch main
 git pull
-git branch -D feat/12-seat-list
+git branch -D feat/12-room-list
 ```
 
 ## 리뷰

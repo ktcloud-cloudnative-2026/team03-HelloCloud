@@ -1,4 +1,4 @@
-# team04 — ideaconnection
+# team03-HelloCloud — ideaconnection
 
 > 이 저장소가 프로젝트의 원본입니다. 기획 · 설계 문서, 코드, 배포 파일, 결정 기록을 모두 여기에 둡니다.
 >

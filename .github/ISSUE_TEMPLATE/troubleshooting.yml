@@ -8,7 +8,7 @@ body:
     attributes:
       label: 증상
       description: 한 문장으로
-      placeholder: "예) dev에서 booking 파드가 CrashLoopBackOff"
+      placeholder: "예) dev에서 calendar 파드가 CrashLoopBackOff"
     validations:
       required: true
   - type: textarea
