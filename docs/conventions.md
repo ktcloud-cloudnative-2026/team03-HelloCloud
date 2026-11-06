@@ -2,34 +2,127 @@
 
 [← README](../README.md)
 
-## 1. Git 전략
-- 트렁크 기반으로 `main`만 오래 유지하고, 브랜치는 3일 안에 PR로 머지합니다. `main`에 직접 push와 force push는 금지합니다
+> 팀 모두가 같은 방식으로 일하기 위한 약속입니다. 사람과 AI 에이전트 모두 따릅니다. 이름과 명령어는 그대로 써야 하므로 정확히 적었습니다.
+
+## 1. 코드를 올리는 방법 (Git)
+
+오래 유지하는 브랜치는 `main` 하나뿐입니다. 작업은 짧은 브랜치에서 하고, PR(코드를 합쳐 달라는 요청)로 `main`에 합칩니다.
+
+자세한 작업 순서는 [GitHub 사용 가이드](github-guide.md)에 있습니다.
+
+### GitHub 설정
+
+저장소에 실제로 걸려 있는 설정입니다.
+
+| 항목 | 현재 설정 |
+|---|---|
+| `main`에 합치기 | PR로만 합칠 수 있습니다. 바로 push하면 거절됩니다 |
+| force push(기록 덮어쓰기), `main` 삭제 | 막혀 있습니다 |
+| 머지 방식 | Squash merge(커밋을 하나로 묶어 합치기)만 쓸 수 있습니다 |
+| 머지한 브랜치 | GitHub에서 자동으로 지워집니다 |
+| 리뷰 | 선택입니다. 승인 없이도 머지할 수 있습니다 |
+| CI(자동 검사) | 머지 조건이 아닙니다. 아직 PR에 연결된 자동 검사가 없습니다 |
+
+관리자 계정에는 이 제한이 적용되지 않는 설정이지만, 관리자도 똑같이 PR로 작업합니다.
+
+### 팀 약속
+
+GitHub가 검사하지 않으므로 각자 지킵니다.
 
 | 항목 | 규칙 | 예 |
 |---|---|---|
-| 브랜치 이름 | `<type>/<이슈번호>-<짧은-설명>` | `feat/12-seat-list`, `fix/15-booking-409` |
-| 커밋 메시지 | [Conventional Commits](https://www.conventionalcommits.org): `<type>: <subject>` | `feat: 좌석 조회 API 추가` |
-| type | `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci` | |
-| subject | 50자 이내, 명령형, 마침표 없음. 한 커밋은 한 목적만 담음 | |
+| 브랜치 기간 | 3일 안에 머지합니다. 오래 두면 다른 사람의 변경과 충돌하기 쉽습니다 | |
+| 브랜치 이름 | `<type>/<이슈번호>-<짧은-설명>` | `feat/12-room-list`, `fix/15-room-booking-409` |
+| 커밋 메시지 | `<type>: <subject>` 형식([Conventional Commits](https://www.conventionalcommits.org)) | `feat: 회의실 조회 API 추가` |
+| subject(제목) | 50자 이내, 명령형, 마침표 없음. 한 커밋에는 한 가지 목적만 담습니다 | |
+| PR 제목 | 커밋 메시지와 같은 형식입니다. 커밋이 여러 개면 PR 제목이 `main`의 커밋 제목이 됩니다 | |
 | PR 크기 | 이슈 하나에 PR 하나 | |
-| PR 본문 | 변경 내용, 확인 방법, `Closes #<이슈번호>` | |
-| 리뷰 | 1명 이상 승인과 CI 통과 후 머지 | |
-| merge 방식 | Squash merge 후 브랜치 삭제 | |
-| 충돌 | main을 내 브랜치에 먼저 합침 | `git pull origin main` |
-| 배포 | `deploy/` 변경이 `main`에 머지되면 Argo CD가 배포(서비스는 이미지 태그 PR 머지 시), 롤백은 `git revert` | |
+| PR 본문 | PR 양식을 채웁니다. `Closes #<이슈번호>`를 적으면 머지할 때 이슈가 닫힙니다 | |
+| 충돌이 나면 | `main`을 내 브랜치에 먼저 합쳐서 해결합니다 | `git pull origin main` |
 
-작업 순서는 [GitHub 사용 가이드](github-guide.md)를 따릅니다.
+type은 변경의 종류를 나타냅니다.
 
-## 2. 코드 · 서비스 공통
+| type | 언제 쓰나 |
+|---|---|
+| `feat` | 새 기능 |
+| `fix` | 버그 수정 |
+| `docs` | 문서 |
+| `refactor` | 동작은 그대로 두고 코드만 정리 |
+| `test` | 테스트 |
+| `ci` | 자동 검사와 빌드 설정 |
+| `chore` | 그 밖의 잡일 |
+
+## 2. 코드 작성
+
 | 항목 | 규칙 |
 |---|---|
-| 기술 스택 | [기술 스택](tech-stack.md) |
-| 폴더 구조 | `services/<서비스>/` 아래 `src/main` · `src/test` · `Dockerfile` |
-| 공통 API | `/actuator/health/liveness`, `/actuator/health/readiness` |
-| 환경변수 이름 | `DB_URL`, `DB_USERNAME`, `MYSQL_SERVICE_PASSWORD`, `OIDC_ISSUER_URI` |
-| 에러 · 로그 형식 | [API 명세 공통 규칙](api/README.md#공통-규칙), [관측 설계](observability.md#3-로그-형식-모든-서비스-같게) |
-| 작업 범위 | 이슈 범위 안에서 고침. 새 패키지는 PR에 이유 |
+| 사용 기술 | [기술 스택](tech-stack.md)을 따릅니다 |
+| 폴더 구조 | `services/<이름>-service/` 아래에 `src/main`, `src/test`, `Dockerfile`을 둡니다 |
+| 코드 스타일 | 언어별 포매터(코드 모양을 맞추는 도구)와 린터(실수를 찾는 도구)를 따릅니다 |
+| 테스트 | 새 기능과 버그 수정에는 테스트를 함께 씁니다. PR에 테스트 방법을 적습니다 |
+| 주석 | 코드만 봐서는 이유를 알 수 없는 곳에만 답니다 |
+| 작업 범위 | 이슈 범위 안에서만 고칩니다. 새 패키지를 넣으면 PR에 이유를 적습니다 |
+| 버전 | 이미지, 차트, 패키지 버전을 고정합니다. `latest`는 쓰지 않습니다. 언제 무엇이 설치될지 모르기 때문입니다 |
+| lock 파일 | `gradle.lockfile`, `package-lock.json`을 커밋해 모두 같은 버전을 쓰게 합니다 |
+| 에러와 로그 | 모든 서비스가 같은 형식을 씁니다. [API 명세 공통 규칙](api/README.md#공통-규칙)과 [관측 설계](observability.md#3-로그-형식-모든-서비스-같게)를 따릅니다 |
 
-## 3. 비밀값 · 환경
-- 비밀번호 · 토큰 · 키는 Git에 넣지 않습니다. 형식만 [.env.example](../.env.example)에
-- 실제 값은 Kubernetes Secret으로
+모든 서비스는 아래 주소를 제공합니다. 서비스가 정상인지 Kubernetes가 확인할 때 씁니다.
+
+| 주소 | 알려 주는 것 |
+|---|---|
+| `/actuator/health/liveness` | 서비스가 살아 있는지 |
+| `/actuator/health/readiness` | 요청을 받을 준비가 됐는지 |
+
+## 3. 설정과 비밀값
+
+설정은 코드에 직접 쓰지 않고 환경 변수로 넣습니다. 그래야 코드를 고치지 않고 dev와 prod에 다른 값을 줄 수 있습니다. 이름은 모든 서비스가 똑같이 씁니다.
+
+| 환경 변수 | 내용 |
+|---|---|
+| `DB_URL` | DB 주소 |
+| `DB_USERNAME` | DB 계정 |
+| `MYSQL_SERVICE_PASSWORD` | DB 비밀번호 |
+| `OIDC_ISSUER_URI` | 로그인 서버(Keycloak) 주소 |
+
+- 비밀번호, 토큰, 키, kubeconfig(서버 접속 정보)는 Git에 넣지 않습니다. [.env.example](../.env.example)에는 형식만 적습니다.
+- 실제 값은 Kubernetes Secret(서버에 비밀값을 보관하는 곳)에 둡니다.
+- 비밀값을 실수로 커밋했다면 바로 알리고 그 값을 바꿉니다. 커밋을 지워도 기록에 남기 때문입니다.
+
+## 4. 배포
+
+`main`의 내용이 곧 서버의 상태입니다. Argo CD(GitHub 내용대로 서버에 배포하는 도구)가 자동으로 맞춰 주므로, 머지하면 바로 배포됩니다.
+
+- **배포:** `deploy/` 변경이 `main`에 머지되면 배포됩니다. 서비스 코드는 이미지 태그를 바꾸는 PR이 머지될 때 배포됩니다.
+- **이미지 태그:** 커밋 SHA(커밋마다 붙는 고유 번호)를 씁니다. 어떤 코드로 만든 이미지인지 바로 알 수 있습니다.
+- **되돌리기:** `git revert`로 변경을 취소합니다.
+- **서버를 손으로 바꾸지 않습니다:** 손으로 바꾸면 Git과 실제 서버가 달라지기 때문입니다. 예외는 kubeadm, CNI, Argo CD 설치와 시크릿 생성이며, 절차는 `deploy/cluster/`에 둡니다.
+- **환경:** dev와 prod 클러스터 두 개를 둡니다. 앱마다 공통 설정은 `values.yaml`에, 환경별 차이만 `values-dev.yaml`과 `values-prod.yaml`에 씁니다.
+- **Helm 차트(설치 묶음):** 공개 차트를 먼저 찾고, 없거나 맞지 않으면 직접 만듭니다. 공개 차트 버전은 `targetRevision`에 고정합니다.
+- **작성 형식:** 이름은 `kebab-case`, YAML 들여쓰기는 2칸으로 쓰고, 리소스마다 `namespace`를 적습니다.
+- **PR 확인 방법:** `helm template` 또는 `argocd app diff` 결과를 적습니다.
+
+## 5. 문서
+
+- 문서는 적게 두고 최신으로 유지합니다. 낡은 문서는 지웁니다.
+- 코드를 바꾸면 관련 문서도 같은 커밋에서 고칩니다.
+- 기획서, 요구사항, 아키텍처, 기술 스택은 처음 배우는 팀원도 읽히도록 쉽게 씁니다.
+  - 팀이 지금 함께 알아야 할 큰 구조와 결정만 씁니다. 세부 도구와 설정은 담당자가 구현하면서 정하고 이유를 PR에 적습니다.
+  - 기술 이름에는 하는 일을 함께 쓰고, 팀이 모르는 약어는 쓰지 않습니다.
+  - 방법이 여러 개면 배우기 쉬운 쪽을 고르고, 포기하는 점을 함께 씁니다.
+- API 명세, ERD, 런북처럼 구현에 그대로 쓰는 내용은 정확하게 씁니다.
+
+## 6. AI 에이전트를 쓸 때
+
+- 작업 전에 `docs/`의 관련 문서를 읽습니다.
+- 사용자가 요청하기 전에는 커밋, 푸시, PR 생성을 하지 않습니다.
+- 요청 범위를 넘는 리팩터링과 파일 추가를 하지 않습니다.
+- 비밀값을 출력하거나 파일에 쓰지 않습니다.
+
+| 구분 | 명령 |
+|---|---|
+| 실행 전에 확인받음(실제 환경이 바뀜) | `helm install/upgrade/uninstall`, `kubectl apply/delete`, `argocd app sync/delete`, DB 마이그레이션, 데이터 삭제 |
+| 자유롭게 실행 | 테스트, 린트, `helm template`, `argocd app diff`, `--dry-run` |
+
+## 7. 규칙을 바꾸려면
+
+[AGENTS.md](../AGENTS.md)나 이 문서를 고치는 PR로 제안합니다.
