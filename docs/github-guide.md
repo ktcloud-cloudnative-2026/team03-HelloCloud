@@ -44,7 +44,7 @@ git switch -c feat/12-room-list
 
 ```bash
 git add .
-git commit -m "feat: 회의실 조회 API (#12)"
+git commit -m "feat: 회의실 조회 API 추가"
 ```
 
 4. 브랜치를 올립니다.
@@ -53,7 +53,7 @@ git commit -m "feat: 회의실 조회 API (#12)"
 git push -u origin feat/12-room-list
 ```
 
-5. 저장소 화면의 Compare & pull request 버튼으로 PR을 엽니다. 본문에 `Closes #12`를 적습니다.
+5. 저장소 화면의 Compare & pull request 버튼으로 PR을 엽니다. 제목은 커밋 메시지와 같은 형식으로 쓰고 이슈 번호는 넣지 않습니다. 본문에 `Closes #12`를 적습니다.
 6. Squash and merge 합니다(팀원 리뷰는 선택). 이슈가 닫히고 보드 카드가 Done으로 이동합니다.
 7. main으로 돌아와 정리합니다.
 
