@@ -15,7 +15,7 @@ body:
     id: requirement
     attributes:
       label: 근거 요구사항
-      placeholder: "예) USER-2"
+      placeholder: "예) US-02"
   - type: input
     id: service
     attributes:
