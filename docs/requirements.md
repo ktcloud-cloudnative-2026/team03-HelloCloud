@@ -158,7 +158,7 @@
 | 사용자 스토리 | 멤버로서 회의실 예약을 일정에 자동으로 남기고 싶다. |
 | 수용 기준 | 회의실 예약, 변경, 취소 사항이 3초 이내에 캘린더에 반영된다. Google Calendar를 연동한 사용자는 같은 내용이 1분 이내에 Google Calendar에도 반영된다. |
 | 서비스 | calendar |
-| API | `/api/rooms/{id}/reservations`<br />`/api/users/me/google-calendar` |
+| API | `/api/rooms/{id}/reservations`<br />`/api/calendars/me/google-calendar` |
 
 #### US-16. 회의실 중복 예약 방지
 
@@ -180,7 +180,7 @@
 | 사용자 스토리 | 예약 알림을 보내고 싶다. |
 | 수용 기준 | 예약한 알림은 예약 시각부터 5초 이내에 발송된다. 사용자는 웹, 이메일 중 알림을 받을 경로를 선택할 수 있다. |
 | 서비스 | notification |
-| API | `/api/users/me/working-hours`<br />`/api/users/me/notification-channels`<br />`POST /api/notifications/scheduled` |
+| API | `/api/notifications/me/working-hours`<br />`/api/notifications/me/channels`<br />`POST /api/notifications/scheduled` |
 
 #### US-18. 즉시 알림 발송
 

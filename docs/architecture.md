@@ -39,11 +39,17 @@ flowchart LR
   gw --> kc[로그인: Keycloak]
   gw --> apps
   gw --> sw[(파일: SeaweedFS)]
-  apps --> db[(데이터: MySQL)]
-  apps --> rd[(실시간 전달: Redis)]
+  us & fs & ns & bs --> my[(데이터: MySQL)]
+  cal & ms --> pg[(데이터: PostgreSQL)]
+  cs & ds --> mg[(데이터: MongoDB)]
+  apps --> rd[(실시간 전달 · 메시지 큐: Redis)]
   apps --> sw
   apps --> lk
-  apps --> wh[음성 변환: Whisper]
+  rd --> wh[음성 변환: Whisper]
+  wh --> pg
+  lk --> eg[음성 임시 저장: LiveKit Egress]
+  eg --> sw
+  wh --> sw
   apps --> ext[외부: Google Calendar, Gmail]
 ```
 
@@ -61,8 +67,11 @@ flowchart LR
 서비스 사이의 약속입니다.
 
 - 서비스마다 자기 데이터만 직접 다룹니다. 다른 서비스의 데이터가 필요하면 그 서비스에 요청합니다
-- 서비스끼리는 세 가지만 호출합니다: 조직 소속 확인(모든 조직 서비스 → user), 메시지를 카드로 변환(chat → board), 이메일 주소 조회(notification → user)
+- 서비스끼리는 네 가지만 호출합니다: 조직 소속 확인(모든 조직 서비스 → user), 메시지를 카드로 변환(chat → board), 이메일 주소 조회(notification → user), 장애 알림을 채팅 채널로 전달(notification → chat)
+- 사용자 요청에서 시작한 호출은 로그인 토큰을 그대로 넘깁니다. 예약 알림과 장애 알림처럼 사용자가 없는 호출은 Istio로 호출 서비스만 확인합니다
+- 그 밖에 모니터링과 장애 알림을 위한 호출(Prometheus → 서비스, AlertManager → notification)과 회의 종료 알림(LiveKit → meeting)을 허용합니다
 - 소속 확인 결과는 3초만 기억합니다. 멤버가 나가면 5초 안에 접근을 막기 위해서입니다
+- 소속 확인은 새 요청만 막습니다. 그래서 멤버가 나가면 user가 Redis로 알리고, chat, document, meeting이 그 사용자의 실시간 연결을 끊습니다
 
 ## 3. 핵심 시나리오
 
@@ -74,7 +83,7 @@ flowchart LR
 sequenceDiagram
   actor A as 보내는 사람
   participant C1 as chat 서버 1
-  participant D as MySQL
+  participant D as MongoDB
   participant R as Redis
   participant C2 as chat 서버 2
   actor B as 받는 사람
@@ -91,24 +100,42 @@ sequenceDiagram
 
 ### 회의실 예약과 Google 반영 (US-15, US-16)
 
-같은 시간에 동시에 예약해도 한 건만 성공합니다.
+같은 시간에 동시에 예약해도 한 건만 성공합니다. Google 반영은 메시지 큐(할 일을 쌓아 두고 차례로 처리하는 대기열)를 거칩니다. 예약 응답이 Google을 기다리지 않고, 실패해도 다시 시도할 수 있습니다.
 
 ```mermaid
 sequenceDiagram
   actor M as 멤버
   participant C as calendar 서비스
-  participant D as MySQL
+  participant D as PostgreSQL
+  participant Q as Redis 메시지 큐
+  participant W as calendar 작업 프로그램
   participant G as Google Calendar
   M->>C: 회의실 예약 요청
   C->>D: 같은 시간 예약이 있는지 확인
   alt 예약 없음
     C->>D: 예약과 일정 저장
+    C->>Q: Google 반영 작업 넣기
     C-->>M: 예약 성공
-    C->>G: 연동한 사용자의 일정에 1분 이내 반영
+    Q-->>W: 작업 가져가기
+    W->>G: 연동한 사용자의 일정에 1분 이내 반영
+    W->>Q: 처리 완료 표시
   else 예약 있음
     C-->>M: 예약 실패
   end
 ```
+
+메시지 큐는 학습을 위해 Google 반영과 음성 변환 작업에 씁니다. 도구를 늘리지 않도록 Redis의 메시지 보관 기능(Redis Streams)을 씁니다. Redis가 멈춰도 예약은 성공하고 Google 반영만 빠질 수 있습니다.
+
+### 회의 음성 변환 (US-24)
+
+영상은 녹화하지 않고, 글로 바꾸는 데 필요한 음성만 잠시 저장합니다.
+
+1. 회의 중에 LiveKit Egress(회의 음성을 파일로 내보내는 프로그램)가 음성을 SeaweedFS에 임시로 저장합니다
+2. 회의가 끝나면 meeting 서비스가 Redis 메시지 큐에 작업을 넣고, 음성 변환 프로그램이 가져갑니다
+3. 음성 변환 프로그램이 Whisper로 음성을 글로 바꾸고, 결과를 meeting의 PostgreSQL에 저장합니다
+4. 변환이 끝나면 원본 음성을 지웁니다
+
+변환은 오래 걸리므로 API 서버와 음성 변환 프로그램을 나누어 실행합니다. 그래야 회의방 요청이 밀리지 않습니다.
 
 ## 4. 배포 구성도
 
@@ -137,8 +164,9 @@ flowchart LR
 
 - 사용자 요청은 Envoy Gateway 하나로 들어오고 암호화된 통신만 허용합니다. 화상 회의의 영상과 음성만 LiveKit으로 직접 연결합니다
 - 서비스는 내부망에만 두고, 외부에서는 bastion을 거쳐 접속합니다
+- 데모는 내부망에서 합니다. 화상 회의는 브라우저가 LiveKit에 직접 연결하므로, 구현 초기에 내부망에서 실제 통화로 확인합니다
 - 로그인은 Keycloak이 처리하고, Gateway와 서비스가 로그인 토큰(JWT)을 확인합니다
-- 서비스끼리의 통신은 Istio로 암호화하고, 2번의 세 가지 호출만 허용합니다
+- 서비스끼리의 통신은 Istio로 암호화하고, 2번에 적은 호출만 허용합니다
 - 소속되지 않은 조직의 데이터는 볼 수 없습니다
 - 비밀번호와 키는 Git에 넣지 않고 Kubernetes Secret에 둡니다
 
