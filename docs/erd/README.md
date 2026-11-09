@@ -2,25 +2,19 @@
 
 [← README](../../README.md)
 
-> 채울 항목의 예입니다. 팀 프로젝트에 맞게 항목을 더하거나 빼도 됩니다.
->
-> 외부 도구로 써도 됩니다(추천: [dbdiagram.io](https://dbdiagram.io), [ERDCloud](https://www.erdcloud.com)). 그 경우 이 파일에는 링크와 한 줄 요약만 남깁니다.
+서비스마다 자기 DB를 가집니다. 다른 서비스의 DB는 직접 읽지 않고 API를 호출합니다. 다른 서비스의 데이터는 외래 키 없이 ID로만 저장합니다.
 
-- 서비스마다 자기 DB를 가집니다. 다른 서비스의 DB는 직접 읽지 않고 API를 호출합니다
-- [dbdiagram.io](https://dbdiagram.io)의 DBML 또는 아래처럼 Mermaid로 씁니다
+| 서비스 | DB | 파일 |
+|---|---|---|
+| user | MySQL | [user.md](user.md) |
+| chat | MongoDB | [chat.md](chat.md) |
+| file | MySQL | [file.md](file.md) |
+| calendar | PostgreSQL | [calendar.md](calendar.md) |
+| notification | MySQL | [notification.md](notification.md) |
+| board | MySQL | [board.md](board.md) |
+| meeting | PostgreSQL | [meeting.md](meeting.md) |
+| document | MongoDB | [document.md](document.md) |
 
-## <서비스 A>
-```mermaid
-erDiagram
-  ITEM {
-    int id PK
-    string status
-    datetime created_at
-  }
-```
-
-## DB 테이블 변경 · 시드 데이터
-| 항목 | 방법 |
-|---|---|
-| 테이블 변경 | <서비스 시작 때 생성 / migrations 스크립트> |
-| 시드 데이터 | <scripts/seed 실행 방법> |
+- 그림은 Mermaid로 씁니다. GitHub에서 바로 그림으로 보입니다
+- 원본은 노션의 서비스별 ERD · API 페이지입니다. 바꿀 때는 노션과 이 폴더를 함께 고칩니다
+- 테이블 변경 방법과 시드 데이터는 담당자가 구현하면서 정하고 이유를 PR에 적습니다
