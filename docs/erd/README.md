@@ -1,6 +1,6 @@
 # ERD
 
-[← README](../README.md)
+[← README](../../README.md)
 
 서비스마다 자기 DB를 가집니다. 다른 서비스의 DB는 직접 읽지 않고 API를 호출합니다. 다른 서비스의 데이터는 외래 키 없이 ID로만 저장합니다.
 
