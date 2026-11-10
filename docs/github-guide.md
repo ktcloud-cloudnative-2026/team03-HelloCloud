@@ -21,6 +21,7 @@ git config user.email "GitHub 계정 이메일"
 - [ ] README 맨 위 `<팀 이름> — <서비스 이름>`과 한 줄 소개를 바꿈
 - [ ] [역할](roles.md)에 팀원, GitHub 아이디, 맡은 서비스, 공통 영역 적기
 - [ ] [CODEOWNERS](../.github/CODEOWNERS)에 서비스 폴더별 담당자 적기
+- [ ] 저장소 관리자가 [CodeRabbit](https://www.coderabbit.ai) GitHub 앱을 이 저장소에 설치
 - [ ] Projects 보드 만들기: 조직 Projects → New project → Board → Status에 In Review 추가(Todo · In Progress · In Review · Done) → 필드 "서비스" 추가 → 이 저장소 Projects 탭에서 Link a project → README 링크 표에 주소 적기
 - [ ] [팀 운영 약속](team.md) 채우기
 - [ ] 일감 양식으로 첫 이슈 만들기: [기획서](plan.md) 작성
@@ -64,6 +65,15 @@ git branch -D feat/12-room-list
 ```
 
 ## 리뷰
+
+PR을 열면 CodeRabbit(AI 리뷰 봇)이 몇 분 안에 리뷰를 답니다. 사람 승인 없이 머지하므로 머지 전에 아래를 지킵니다.
+
+1. 봇의 요약과 댓글을 읽습니다. 모르는 내용은 댓글에 `@coderabbitai`를 붙여 물어보면 봇이 답합니다.
+2. 맞는 지적은 같은 브랜치에서 고치고 push 합니다. 봇이 바뀐 부분을 다시 봅니다.
+3. 동의하지 않는 지적은 이유를 댓글로 남깁니다.
+4. 남은 지적이 없으면 직접 Squash and merge 합니다.
+
+팀원도 리뷰할 수 있습니다(선택).
 
 1. PR의 Files changed 탭에서 바뀐 내용을 봅니다.
 2. 궁금한 줄에 댓글을 답니다.

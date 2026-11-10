@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit(AI 리뷰 봇) 설정. 사람 승인 없이 머지하므로 모든 PR에 이 봇의 리뷰가 달린다.
+language: ko-KR
+tone_instructions: "처음 배우는 팀원에게 설명하듯 쉬운 말로 씁니다. 약어와 기술 이름은 하는 일을 함께 풀어 쓰고, 지적할 때는 왜 문제인지와 고치는 방법을 함께 적습니다."
+reviews:
+  # chill: 사소한 스타일 지적을 줄이고 중요한 문제 위주로 남긴다
+  profile: chill
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_instructions:
+    - path: "services/**"
+      instructions: |
+        docs/conventions.md의 규칙을 기준으로 봅니다.
+        새 기능과 버그 수정에 테스트가 함께 있는지 확인합니다.
+        설정이 코드에 직접 쓰였거나 비밀번호, 토큰, 키가 들어 있으면 반드시 지적합니다.
+        코드가 하는 일을 초보자가 이해할 수 있게 요약합니다.
+    - path: "deploy/**"
+      instructions: |
+        머지하면 Argo CD가 바로 클러스터에 배포합니다. 배포가 실패하거나 서비스가 멈출 수 있는 변경을 먼저 지적합니다.
+        이미지와 차트 버전이 고정됐는지(latest 금지), 리소스마다 namespace가 있는지, 시크릿 값이 들어 있지 않은지 확인합니다.
+    - path: "docs/**"
+      instructions: |
+        AGENTS.md의 "설계 산출물" 규칙대로 처음 배우는 팀원이 읽기 쉬운지 봅니다.
+        다른 문서와 내용이 어긋나는 곳을 찾습니다.
+chat:
+  auto_reply: true
