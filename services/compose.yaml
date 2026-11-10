@@ -9,7 +9,7 @@ services:
       MYSQL_RANDOM_ROOT_PASSWORD: "yes"
       MYSQL_DATABASE: user_service
       MYSQL_USER: user_service
-      MYSQL_PASSWORD: ${MYSQL_SERVICE_PASSWORD:?}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?}
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:

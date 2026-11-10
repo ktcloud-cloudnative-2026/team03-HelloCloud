@@ -6,7 +6,7 @@ spring:
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
-    password: ${MYSQL_SERVICE_PASSWORD}
+    password: ${DB_PASSWORD}
   jpa:
     open-in-view: false
     hibernate:
@@ -33,7 +33,6 @@ management:
       exposure:
         include: health,prometheus
       path-mapping:
-        health: actuator/health
         prometheus: metrics
   endpoint:
     health:

@@ -23,7 +23,7 @@
 |---|---|
 | `DB_URL` | `jdbc:mysql://localhost:3306/user_service` |
 | `DB_USERNAME` | `user_service` |
-| `MYSQL_SERVICE_PASSWORD` | `.env`에 정한 값 |
+| `DB_PASSWORD` | `.env`에 정한 값 |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/auth/realms/ideaconnection` |
 
 테스트 계정은 `http://localhost:8180/auth/realms/ideaconnection/account`의 회원가입 화면에서 만듭니다.

@@ -69,8 +69,8 @@ class UserApiIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void healthProbesAreOpen() throws Exception {
-    mvc.perform(get("/actuator/health/liveness")).andExpect(status().isOk());
-    mvc.perform(get("/actuator/health/readiness")).andExpect(status().isOk());
+    mvc.perform(get("/health/liveness")).andExpect(status().isOk());
+    mvc.perform(get("/health/readiness")).andExpect(status().isOk());
   }
 
   @Test

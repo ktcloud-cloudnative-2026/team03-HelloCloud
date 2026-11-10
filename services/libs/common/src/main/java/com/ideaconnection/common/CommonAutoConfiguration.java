@@ -71,7 +71,7 @@ public class CommonAutoConfiguration {
             .authorizeHttpRequests(
                 requests ->
                     requests
-                        .requestMatchers("/actuator/health/**", "/metrics")
+                        .requestMatchers("/health/**", "/metrics")
                         .permitAll()
                         .anyRequest()
                         .authenticated())
