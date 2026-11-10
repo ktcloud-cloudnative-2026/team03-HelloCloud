@@ -1,21 +1,107 @@
+
+import { useState } from 'react'
+import OrganizationSelect from './pages/OrganizationSelect'
+import OrganizationCreate from './pages/OrganizationCreate'
 import './App.css'
 
+const initialOrganizations = [
+  {
+    id: 1,
+    name: 'HelloCloud 개발팀',
+    description: '우리 팀의 협업 공간',
+    members: 6,
+    initials: 'HC',
+  },
+  {
+    id: 2,
+    name: '클라우드 스터디',
+    description: '클라우드 네이티브 기술 학습',
+    members: 4,
+    initials: 'CS',
+  },
+]
+
 function App() {
+  const [currentPage, setCurrentPage] = useState('login')
+  const [organizations, setOrganizations] = useState(initialOrganizations)
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    // 개발용 임시 화면 이동: 실제 인증은 Keycloak 연동 예정
+    setCurrentPage('organizations')
+  }
+
+  const handleCreateOrganization = (newOrganization) => {
+    setOrganizations((prev) => [...prev, newOrganization])
+    setCurrentPage('organizations')
+  }
+
+  const handleSelectOrganization = (org) => {
+    alert(`${org.name} 조직을 선택했습니다! 대시보드는 다음 단계에서 구현할 예정입니다.`)
+  }
+
+  if (currentPage === 'organizations') {
+    return (
+      <OrganizationSelect
+        organizations={organizations}
+        onCreate={() => setCurrentPage('create')}
+        onSelect={handleSelectOrganization}
+      />
+    )
+  }
+
+  if (currentPage === 'create') {
+    return (
+      <OrganizationCreate
+        onBack={() => setCurrentPage('organizations')}
+        onCreate={handleCreateOrganization}
+      />
+    )
+  }
+
   return (
-    <div>
-      <h1>☁️ HelloCloud</h1>
-      <h2>우리 팀의 협업 플랫폼</h2>
+    <main className="login-container">
+      <div className="login-card">
+        <div className="brand">
+          <span className="brand-icon" aria-hidden="true">☁</span>
+          <h1>HelloCloud</h1>
+        </div>
 
-      <p>HelloCloud에 오신 것을 환영합니다!</p>
+        <p className="subtitle">우리 팀의 협업을 하나로</p>
 
-      <button onClick={() => alert('로그인 기능 준비 중입니다!')}>
-        로그인
-      </button>
+        <form onSubmit={handleLogin}>
+          <div className="form-group">
+            <label htmlFor="email">이메일</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="example@hellocloud.com"
+              autoComplete="email"
+              required
+            />
+          </div>
 
-      <button onClick={() => alert('조직 생성 기능 준비 중입니다!')}>
-        조직 생성
-      </button>
-    </div>
+          <div className="form-group">
+            <label htmlFor="password">비밀번호</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="비밀번호를 입력하세요"
+              autoComplete="current-password"
+              required
+            />
+          </div>
+
+          <button className="login-button" type="submit">
+            로그인
+          </button>
+        </form>
+
+        <p className="signup-text">
+          아직 계정이 없으신가요? <a href="#signup">회원가입</a>
+        </p>
+      </div>
+    </main>
   )
 }
 
