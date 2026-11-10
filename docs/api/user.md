@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|
 | `GET /api/users/me` | 로그인 | 내 프로필 조회. 첫 로그인이면 생성 | 200 | | US-01 |
 | `GET /api/orgs` | 로그인 | 내가 속한 조직 목록 | 200 | | US-02 |
-| `POST /api/orgs` | 로그인 | 조직 생성. 만든 사람은 OWNER | 201 | 400 | US-02 |
+| `POST /api/orgs` | 로그인 | 조직 생성. 프로필이 없으면 먼저 만든다. 만든 사람은 OWNER | 201 | 400 | US-02 |
 | `GET /api/orgs/{id}/members` | 멤버 | 멤버 목록 | 200 | 403, 404 | US-05 |
 | `POST /api/orgs/{id}/invitations` | OWNER | 초대 링크 생성 | 201 | 403, 404 | US-03 |
 | `POST /api/invitations/{token}/accept` | 로그인 | 초대 수락. MEMBER로 가입 | 200 | 404, 409 | US-03 |
@@ -42,6 +42,8 @@
 ```json
 { "id": "1", "name": "HelloCloud", "role": "OWNER", "createdAt": "2026-11-06T09:00:00+09:00" }
 ```
+
+조직 이름은 앞뒤 공백을 뺀 1자 이상 100자 이하입니다. `GET /api/orgs`의 항목은 `POST /api/orgs`의 응답과 같습니다.
 
 `GET /api/orgs`와 `GET /api/orgs/{id}/members`는 공통 규칙의 목록 형식(`items`, `page`, `size`, `total`)을 씁니다. 멤버 목록의 항목은 아래와 같습니다.
 

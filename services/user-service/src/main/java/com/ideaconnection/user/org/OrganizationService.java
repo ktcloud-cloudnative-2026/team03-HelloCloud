@@ -2,7 +2,11 @@ package com.ideaconnection.user.org;
 
 import com.ideaconnection.common.error.ApiException;
 import com.ideaconnection.common.security.CurrentUser;
+import com.ideaconnection.common.web.PageQuery;
+import com.ideaconnection.common.web.PageResponse;
 import com.ideaconnection.user.user.UserProfileService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +17,15 @@ public class OrganizationService {
 
   private final UserProfileService profiles;
   private final OrganizationWriter writer;
+  private final OrganizationMemberRepository members;
 
-  OrganizationService(UserProfileService profiles, OrganizationWriter writer) {
+  OrganizationService(
+      UserProfileService profiles,
+      OrganizationWriter writer,
+      OrganizationMemberRepository members) {
     this.profiles = profiles;
     this.writer = writer;
+    this.members = members;
   }
 
   // 프로필 생성이 조직 트랜잭션에 묶이지 않도록 여기에는 트랜잭션을 걸지 않는다.
@@ -24,6 +33,16 @@ public class OrganizationService {
     String name = validName(rawName);
     profiles.getOrCreate(user);
     return writer.create(name, user.id());
+  }
+
+  public PageResponse<OrganizationResponse> list(String userId, PageQuery query) {
+    Page<OrganizationMember> page =
+        members.findPageByUserId(userId, PageRequest.of(query.page(), query.size()));
+    return new PageResponse<>(
+        page.map(OrganizationResponse::from).getContent(),
+        query.page(),
+        query.size(),
+        page.getTotalElements());
   }
 
   private static String validName(String rawName) {
