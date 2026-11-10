@@ -1,11 +1,14 @@
 package com.ideaconnection.user;
 
 import com.ideaconnection.common.test.TestTokens;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -20,6 +23,15 @@ public abstract class AbstractIntegrationTest {
 
   static {
     MYSQL.start();
+  }
+
+  @Autowired private JdbcTemplate jdbc;
+
+  @BeforeEach
+  void cleanDatabase() {
+    jdbc.update("delete from organization_members");
+    jdbc.update("delete from organizations");
+    jdbc.update("delete from users");
   }
 
   @DynamicPropertySource

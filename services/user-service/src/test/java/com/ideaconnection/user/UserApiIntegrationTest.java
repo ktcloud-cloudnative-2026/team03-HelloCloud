@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ideaconnection.common.test.TestTokens;
 import com.ideaconnection.user.user.UserProfileRepository;
 import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
@@ -29,11 +28,6 @@ class UserApiIntegrationTest extends AbstractIntegrationTest {
 
   private final String bearer =
       TestTokens.bearer("3f2c8e1a", Map.of("email", "a@example.com", "name", "김민준"));
-
-  @BeforeEach
-  void clean() {
-    repository.deleteAll();
-  }
 
   @Test
   void firstLoginCreatesAndReturnsProfile() throws Exception {
