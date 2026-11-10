@@ -1,0 +1,33 @@
+name: ideaconnection
+
+services:
+  mysql:
+    image: mysql:8.4.13
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: user_service
+      MYSQL_USER: user_service
+      MYSQL_PASSWORD: ${DB_PASSWORD:?}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u user_service --password=$$MYSQL_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    command: ["start-dev", "--import-realm", "--http-relative-path=/auth"]
+    ports:
+      - "127.0.0.1:8180:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?}
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+
+volumes:
+  mysql-data:
