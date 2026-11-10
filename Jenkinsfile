@@ -10,8 +10,9 @@ pipeline {
   }
   // triggers 없음: 멀티브랜치 잡이 2분마다 GitHub를 확인한다 (deploy/ci/jenkins.yaml)
 
+  // GitHub 토큰은 여기서 꺼내지 않는다. 쓰기 권한이 필요한 main의 '올리기', '매니페스트 갱신'에서만
+  // withCredentials로 꺼낸다 (최소 권한. PR 검사는 토큰 없이 돈다)
   environment {
-    GH       = credentials('github-token')         // GH_USR, GH_PSW 가 생긴다
     ORG      = 'ktcloud-cloudnative-2026'
     REPO     = 'team03-HelloCloud'
     REGISTRY = 'ghcr.io/ktcloud-cloudnative-2026'  // 이미지는 개인 계정이 아니라 조직 아래에 올린다
@@ -89,10 +90,12 @@ pipeline {
     stage('올리기') {
       when { allOf { branch 'main'; expression { env.SERVICES } } }   // PR에서는 검사만, main에 머지된 뒤에만 올린다
       steps {
-        sh 'echo "$GH_PSW" | docker login ghcr.io -u "$GH_USR" --password-stdin'
-        script {
-          for (svc in env.SERVICES.split(' ')) {
-            sh "docker push ${REGISTRY}/idcn-${svc}:${TAG}"
+        withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GH_USR', passwordVariable: 'GH_PSW')]) {
+          sh 'echo "$GH_PSW" | docker login ghcr.io -u "$GH_USR" --password-stdin'
+          script {
+            for (svc in env.SERVICES.split(' ')) {
+              sh "docker push ${REGISTRY}/idcn-${svc}:${TAG}"
+            }
           }
         }
       }
@@ -102,25 +105,27 @@ pipeline {
       // 수업과 같이 main에 바로 push (main 보호 규칙에서 Jenkins 토큰 계정만 예외로 허용해야 함)
       when { allOf { branch 'main'; expression { env.SERVICES } } }
       steps {
-        sh '''
-          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
-          git checkout -B main origin/main
-          for svc in $SERVICES; do
-            f="deploy/values/${svc}/values-dev.yaml"
-            if [ -f "$f" ]; then
-              yq -i '.image.tag = strenv(TAG)' "$f"
-            else
-              echo "values 파일 없음: $f (건너뜀)"
+        withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GH_USR', passwordVariable: 'GH_PSW')]) {
+          sh '''
+            git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+            git checkout -B main origin/main
+            for svc in $SERVICES; do
+              f="deploy/values/${svc}/values-dev.yaml"
+              if [ -f "$f" ]; then
+                yq -i '.image.tag = strenv(TAG)' "$f"
+              else
+                echo "values 파일 없음: $f (건너뜀)"
+              fi
+            done
+            if git diff --quiet; then
+              echo "바꿀 values 파일이 없어 push하지 않습니다"
+              exit 0
             fi
-          done
-          if git diff --quiet; then
-            echo "바꿀 values 파일이 없어 push하지 않습니다"
-            exit 0
-          fi
-          git -c user.name="idcn-jenkins" -c user.email="jenkins@idcn.local" commit -am "ci: dev 이미지 ${TAG} 반영 [skip ci]"
-          git pull --rebase "https://${GH_USR}:${GH_PSW}@github.com/${ORG}/${REPO}.git" main
-          git push "https://${GH_USR}:${GH_PSW}@github.com/${ORG}/${REPO}.git" main
-        '''
+            git -c user.name="idcn-jenkins" -c user.email="jenkins@idcn.local" commit -am "ci: dev 이미지 ${TAG} 반영 [skip ci]"
+            git pull --rebase "https://${GH_USR}:${GH_PSW}@github.com/${ORG}/${REPO}.git" main
+            git push "https://${GH_USR}:${GH_PSW}@github.com/${ORG}/${REPO}.git" main
+          '''
+        }
       }
     }
   }
