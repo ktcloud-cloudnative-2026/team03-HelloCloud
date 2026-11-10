@@ -1,5 +1,6 @@
 package com.ideaconnection.common;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -12,8 +13,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ideaconnection.common.test.TestTokens;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(classes = CommonTestApplication.class)
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension.class)
 class CommonWebIntegrationTest {
 
   private static final MediaType PROBLEM = MediaType.APPLICATION_PROBLEM_JSON;
@@ -109,6 +114,25 @@ class CommonWebIntegrationTest {
         .andExpect(jsonPath("$.detail").value("서버 오류가 발생했습니다."))
         .andExpect(content().string(not(containsString("secret-host"))))
         .andExpect(content().string(not(containsString("trace"))));
+  }
+
+  @Test
+  void missingPathVariableHidesInternalsAndIsLogged(CapturedOutput output) throws Exception {
+    mvc.perform(get("/api/test/missing-path").header(HttpHeaders.AUTHORIZATION, token()))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.detail").value("서버 오류가 발생했습니다."))
+        .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
+
+    assertThat(output).contains("처리하지 못한 오류");
+  }
+
+  @Test
+  void unwritableResponseIsLogged(CapturedOutput output) throws Exception {
+    mvc.perform(get("/api/test/unwritable").header(HttpHeaders.AUTHORIZATION, token()))
+        .andExpect(status().isInternalServerError())
+        .andExpect(jsonPath("$.detail").value("서버 오류가 발생했습니다."));
+
+    assertThat(output).contains("처리하지 못한 오류");
   }
 
   @Test

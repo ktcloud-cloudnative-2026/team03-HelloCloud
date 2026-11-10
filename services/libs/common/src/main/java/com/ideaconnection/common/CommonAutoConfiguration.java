@@ -2,6 +2,7 @@ package com.ideaconnection.common;
 
 import com.ideaconnection.common.error.GlobalExceptionHandler;
 import com.ideaconnection.common.security.CurrentUserArgumentResolver;
+import com.ideaconnection.common.security.FilterExceptionProblemFilter;
 import com.ideaconnection.common.security.ProblemSecurityHandlers;
 import com.ideaconnection.common.web.RequestIdFilter;
 import java.util.List;
@@ -15,6 +16,9 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.OAuth2ProtectedResourceMetadataFilter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import org.springframework.security.web.DefaultSecurityFilterChain;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -55,26 +59,36 @@ public class CommonAutoConfiguration {
   }
 
   @Bean
-  SecurityFilterChain commonSecurityFilterChain(HttpSecurity http, ProblemSecurityHandlers handlers)
+  SecurityFilterChain commonSecurityFilterChain(
+      HttpSecurity http,
+      ProblemSecurityHandlers handlers,
+      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver resolver)
       throws Exception {
-    return http.csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(
-            requests ->
-                requests
-                    .requestMatchers("/actuator/health/**", "/metrics")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
-        .oauth2ResourceServer(
-            server ->
-                server
-                    .jwt(Customizer.withDefaults())
-                    .authenticationEntryPoint(handlers)
-                    .accessDeniedHandler(handlers))
-        .exceptionHandling(
-            handling -> handling.authenticationEntryPoint(handlers).accessDeniedHandler(handlers))
-        .build();
+    DefaultSecurityFilterChain chain =
+        http.csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(
+                session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(
+                requests ->
+                    requests
+                        .requestMatchers("/actuator/health/**", "/metrics")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
+            .oauth2ResourceServer(
+                server ->
+                    server
+                        .jwt(Customizer.withDefaults())
+                        .authenticationEntryPoint(handlers)
+                        .accessDeniedHandler(handlers))
+            .exceptionHandling(
+                handling ->
+                    handling.authenticationEntryPoint(handlers).accessDeniedHandler(handlers))
+            .addFilterBefore(
+                new FilterExceptionProblemFilter(resolver), BearerTokenAuthenticationFilter.class)
+            .build();
+    // Spring Security 7이 토큰 없이 여는 주소다. 끄는 설정이 없어 필터를 직접 뺀다.
+    chain.getFilters().removeIf(OAuth2ProtectedResourceMetadataFilter.class::isInstance);
+    return chain;
   }
 }
