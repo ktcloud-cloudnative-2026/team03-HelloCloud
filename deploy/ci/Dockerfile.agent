@@ -1,0 +1,48 @@
+# 젠킨스 공식 SSH 에이전트 (Debian 13, JDK 21, git 포함) — 지문으로 고정
+FROM jenkins/ssh-agent:jdk21@sha256:a62ab1b4b51fbd77a12ba6382d5f550d105a7ece1cad3b7be49e1df56766d364
+
+# 도구 버전 (올릴 때는 여기만 바꿈)
+ARG YAMLLINT_VERSION=1.37.1-1
+ARG HELM_VERSION=v4.3.1
+ARG KUBECONFORM_VERSION=v0.7.0
+ARG DOCKER_CLI_VERSION=27.3.1
+# trivy는 2026년 3월 공급망 사고로 0.69.4가 오염됐고 옛 릴리스가 지워졌다. 안전 확인된 0.69.3을 체크섬과 함께 고정
+ARG TRIVY_VERSION=0.69.3
+ARG TRIVY_SHA256=1816b632dfe529869c740c0913e36bd1629cb7688bd5634f4a858c1d57c88b75
+ARG YQ_VERSION=v4.44.3
+# VM의 docker 그룹 번호 (getent group docker | cut -d: -f3). .env의 DOCKER_GID로 받는다
+ARG DOCKER_GID=999
+
+# yamllint: YAML 문법·형식 검사
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends yamllint=${YAMLLINT_VERSION} curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# helm: Helm 차트 검사(helm lint, helm template)
+RUN curl -fsSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar xz -C /tmp \
+ && mv /tmp/linux-amd64/helm /usr/local/bin/helm \
+ && rm -rf /tmp/linux-amd64
+
+# kubeconform: 쿠버네티스 YAML이 규칙에 맞는지 검사
+RUN curl -fsSL https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz \
+  | tar xz -C /usr/local/bin kubeconform
+
+# docker CLI: VM의 Docker에 이미지 빌드 · push를 시킨다 (Docker 엔진은 VM 것을 씀)
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz | tar xz -C /tmp \
+ && mv /tmp/docker/docker /usr/local/bin/docker \
+ && rm -rf /tmp/docker
+
+# trivy: 이미지 취약점 스캔
+RUN curl -fsSL -o /tmp/trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz \
+ && echo "${TRIVY_SHA256}  /tmp/trivy.tar.gz" | sha256sum -c - \
+ && tar xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy \
+ && rm /tmp/trivy.tar.gz
+
+# yq: values-dev.yaml의 image.tag 수정
+RUN curl -fsSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 \
+ && chmod +x /usr/local/bin/yq
+
+# jenkins 사용자가 VM의 Docker 소켓을 쓸 수 있게 같은 그룹 번호로 docker 그룹을 만든다
+RUN groupadd -g ${DOCKER_GID} docker-host \
+ && usermod -aG docker-host jenkins \
+ && mkdir -p /home/jenkins/.trivy && chown jenkins:jenkins /home/jenkins/.trivy
