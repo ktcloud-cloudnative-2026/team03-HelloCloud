@@ -20,6 +20,7 @@ subprojects {
 
     dependencies {
         implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.2')
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     }
 
     dependencyLocking {
