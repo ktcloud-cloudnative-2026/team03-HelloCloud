@@ -68,12 +68,12 @@ type은 변경의 종류를 나타냅니다.
 | lock 파일 | `gradle.lockfile`, `package-lock.json`을 커밋해 모두 같은 버전을 쓰게 합니다 |
 | 에러와 로그 | 모든 서비스가 같은 형식을 씁니다. [API 명세 공통 규칙](api/README.md#공통-규칙)과 [관측 설계](observability.md#3-로그-형식-모든-서비스-같게)를 따릅니다 |
 
-모든 서비스는 아래 주소를 제공합니다. 서비스가 정상인지 Kubernetes가 확인할 때 씁니다.
+모든 서비스는 언어와 상관없이 아래 주소를 제공합니다. 서비스가 정상인지 Kubernetes가 확인할 때 씁니다. 주소가 같아야 Helm 차트의 확인 설정을 모든 서비스가 함께 쓸 수 있습니다. Spring Boot는 기본 주소(`/actuator/health/...`)를 설정으로 바꿉니다.
 
 | 주소 | 알려 주는 것 |
 |---|---|
-| `/actuator/health/liveness` | 서비스가 살아 있는지 |
-| `/actuator/health/readiness` | 요청을 받을 준비가 됐는지 |
+| `/health/liveness` | 서비스가 살아 있는지 |
+| `/health/readiness` | 요청을 받을 준비가 됐는지 |
 
 ## 3. 설정과 비밀값
 
@@ -81,10 +81,17 @@ type은 변경의 종류를 나타냅니다.
 
 | 환경 변수 | 내용 |
 |---|---|
-| `DB_URL` | DB 주소 |
-| `DB_USERNAME` | DB 계정 |
-| `MYSQL_SERVICE_PASSWORD` | DB 비밀번호 |
+| `DB_URL` | 그 서비스 DB의 주소. MySQL, PostgreSQL, MongoDB 모두 같은 이름을 씁니다 |
+| `DB_USERNAME` | 그 서비스 전용 DB 계정 |
+| `DB_PASSWORD` | 그 서비스 전용 DB 비밀번호 |
 | `OIDC_ISSUER_URI` | 로그인 서버(Keycloak) 주소 |
+
+DB 말고 다른 곳에 연결하면 대상 이름을 앞에 붙입니다. 예: `REDIS_URL`, `REDIS_PASSWORD`. 한 서비스가 DB와 Redis를 함께 써도 값이 헷갈리지 않습니다.
+
+이름은 같아도 값은 서비스마다 다릅니다. 안전은 이름이 아니라 아래 규칙으로 지킵니다.
+
+- 서비스마다 DB 계정을 따로 두고, 자기 데이터에만 권한을 줍니다. 한 서비스가 뚫려도 다른 서비스의 데이터를 읽지 못합니다. MySQL 하나를 user, file, notification, board가 함께 쓰므로 특히 중요합니다.
+- 서비스마다 Kubernetes Secret을 따로 둡니다. 비밀번호 하나가 새어도 피해가 그 서비스에서 끝납니다.
 
 - 비밀번호, 토큰, 키, kubeconfig(서버 접속 정보)는 Git에 넣지 않습니다. [.env.example](../.env.example)에는 형식만 적습니다.
 - 실제 값은 Kubernetes Secret(서버에 비밀값을 보관하는 곳)에 둡니다.

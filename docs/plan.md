@@ -67,7 +67,7 @@
 
 | 주 | 김민준(팀장) | 김기선 | 주연후 | 박건률 | 김준형 | 정호윤 |
 |---|---|---|---|---|---|---|
-| S2 | user 백엔드: 로그인, 조직 만들기 | 인프라: Jenkins 자동 검사·이미지 빌드 | 인프라: Argo CD 자동 배포, 공통 Helm 차트 | 인프라: Envoy Gateway, Keycloak | 인프라: MySQL, PostgreSQL, MongoDB, Redis | 화면: 웹 기본 틀, 로그인·조직 화면 |
+| S2 | 인프라: MySQL, PostgreSQL, MongoDB, Redis | 인프라: Jenkins 자동 검사·이미지 빌드 | 인프라: Argo CD 자동 배포, 공통 Helm 차트 | 인프라: Envoy Gateway, Keycloak | user 백엔드: 로그인, 조직 만들기 | 화면: 웹 기본 틀, 로그인·조직 화면 |
 | S3 | 화면: 파일 | 백엔드: board | 화면: 칸반 | 백엔드: file, SeaweedFS 설치 | 백엔드: 초대, 권한 회수, 소속 확인 | 인프라: Istio |
 | S4 | 인프라: 모니터링 | 백엔드: calendar 일정·회의실 예약 | 백엔드: chat 저장·복구 | 화면: 캘린더 | 화면: 채팅 | 백엔드: chat 실시간 전달, 메시지로 카드 만들기 |
 | S5 | 백엔드+화면: 결정 로그, 확인 요청, 파일 미리보기 | 화면: 화상 회의 | 화면: 알림, 근무시간·수신 경로 설정 | 백엔드: Google Calendar 연동 | 인프라+백엔드: LiveKit 설치, meeting | 백엔드: notification, AlertManager 연결 |
