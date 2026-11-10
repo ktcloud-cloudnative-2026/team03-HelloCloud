@@ -139,7 +139,8 @@ class OrganizationApiIntegrationTest extends AbstractIntegrationTest {
 
   @Test
   void invalidPagingIs400Problem() throws Exception {
-    for (String query : List.of("?size=0", "?size=101", "?page=-1", "?page=abc")) {
+    for (String query :
+        List.of("?size=0", "?size=101", "?page=-1", "?page=abc", "?page=2147483647&size=100")) {
       list(alice, query)
           .andExpect(status().isBadRequest())
           .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))

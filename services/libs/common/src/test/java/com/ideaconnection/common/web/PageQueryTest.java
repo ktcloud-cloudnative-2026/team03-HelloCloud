@@ -32,6 +32,22 @@ class PageQueryTest {
     assertRejected(0, 101);
   }
 
+  @Test
+  void acceptsLargestOffset() {
+    assertThat(PageQuery.of(21474836, 100)).isEqualTo(new PageQuery(21474836, 100));
+  }
+
+  @Test
+  void rejectsOffsetBeyondIntegerRange() {
+    assertThatThrownBy(() -> PageQuery.of(21474837, 100))
+        .isInstanceOfSatisfying(
+            ApiException.class,
+            e -> {
+              assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+              assertThat(e.getCode()).isEqualTo("BAD_REQUEST");
+            });
+  }
+
   private static void assertRejected(int page, int size) {
     assertThatThrownBy(() -> PageQuery.of(page, size))
         .isInstanceOfSatisfying(
