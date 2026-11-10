@@ -19,7 +19,7 @@ DB: MongoDB
 }
 ```
 
-`type`은 `NORMAL`, `DECISION`(결정 로그), `SYSTEM`(장애 알림) 중 하나입니다.
+`type`은 `NORMAL` 또는 `DECISION`(결정 로그)입니다.
 
 ## messages
 
@@ -39,7 +39,6 @@ DB: MongoDB
     "requiredUserIds": ["a", "b"],
     "confirmed": [{ "userId": "a", "at": "시각" }]
   },
-  "alertId": null,
   "createdAt": "시각"
 }
 ```
@@ -65,7 +64,6 @@ DB: MongoDB
 |---|---|---|
 | `messages` | `channelId + seq` 중복 금지 | 순서대로 조회하고 번호 중복을 막습니다 |
 | `messages` | `channelId + clientMessageId` 중복 금지 | 재전송 메시지를 막습니다 |
-| `messages` | `alertId` 값이 있을 때 중복 금지 | 장애 알림 재전송을 막습니다 |
 | `decisions` | `sourceMessageId` 중복 금지 | 같은 메시지를 두 번 등록하지 않습니다 |
 
 번호는 `channels.lastSeq`를 원자적으로 1 올려 만듭니다. 저장 실패로 번호가 비어도 `after` 조회는 정상 동작합니다.

@@ -5,7 +5,7 @@
 > `docs/`의 문서와 규칙은 시작용 예시입니다. 팀에 맞게 고치거나 지우고, 필요한 문서는 새로 만들어도 됩니다.
 
 ## 한 줄 소개
-대화, 할 일, 파일, 화상 회의를 조직 하나로 묶은 협업 툴
+대화와 파일 공유를 조직 하나로 묶은 협업 툴
 
 ## 문서
 
@@ -32,7 +32,7 @@
 | 문서 | 잘 맞는 도구 |
 |---|---|
 | 기획서 · 기술 스택 · 팀 운영 약속 · 회의록 | [Notion](https://www.notion.so), [Google Docs](https://docs.google.com) |
-| 요구사항 · 할 일 | GitHub Projects · Issues, [Notion](https://www.notion.so) 데이터베이스 |
+| 요구사항 · 할 일 | GitHub Projects, [Notion](https://www.notion.so) 데이터베이스 |
 | 아키텍처 그림 | [draw.io](https://app.diagrams.net), [Excalidraw](https://excalidraw.com), [FigJam](https://www.figma.com/figjam/), [Miro](https://miro.com), [Mermaid](https://mermaid.js.org)(Markdown 안에 바로) |
 | 화면 설계 · 와이어프레임 | [Figma](https://www.figma.com) |
 | API 명세 | [Swagger Editor](https://editor.swagger.io)(OpenAPI 파일), [Postman](https://www.postman.com) |

@@ -9,18 +9,13 @@
 | user | `/api/users`, `/api/orgs`, `/api/invitations` | [user.md](user.md) |
 | chat | `/api/chat` | [chat.md](chat.md) |
 | file | `/api/files` | [file.md](file.md) |
-| calendar | `/api/calendars`, `/api/rooms` | [calendar.md](calendar.md) |
-| notification | `/api/notifications` | [notification.md](notification.md) |
-| board | `/api/boards` | [board.md](board.md) |
-| meeting | `/api/meetings` | [meeting.md](meeting.md) |
-| document | `/api/documents` | [document.md](document.md) |
 
 ## 공통 규칙
 
 ### 주소
 
 - 경로의 첫 부분만 보면 어느 서비스인지 알 수 있게 합니다. 입구(Envoy Gateway)가 이 값으로 요청을 나누기 때문입니다
-- 주소는 소문자와 `-`를 쓰고, 대상은 복수형 명사로 씁니다. 예: `/api/boards/{id}/cards`
+- 주소는 소문자와 `-`를 쓰고, 대상은 복수형 명사로 씁니다. 예: `/api/chat/channels/{id}/messages`
 - 주소에 버전(`/v1`)은 넣지 않습니다. 앱이 웹 하나뿐이라 화면과 함께 바꿀 수 있기 때문입니다. **포기하는 점:** 예전 형식을 함께 유지할 수 없습니다
 - 조회는 `GET`, 생성은 `POST`, 일부 수정은 `PATCH`, 삭제는 `DELETE`를 씁니다
 
@@ -31,7 +26,7 @@ API에서는 모든 ID를 문자열로 주고받습니다. 저장 방식은 서�
 | 대상 | DB에 저장하는 값 | API 예 |
 |---|---|---|
 | 사용자 | Keycloak 사용자 ID(UUID) | `"3f2c8e1a-..."` |
-| MySQL · PostgreSQL 데이터 | 자동 증가 숫자 | `"1024"` |
+| MySQL 데이터 | 자동 증가 숫자 | `"1024"` |
 | MongoDB 데이터 | MongoDB 기본 ID(ObjectId) | `"6721f0..."` |
 
 서비스마다 DB가 달라 형식을 숫자로 통일할 수 없고, 큰 숫자를 JavaScript가 정확히 다루지 못하는 문제도 피합니다. 채팅 메시지는 ID로 정렬하지 않고 채널마다 1씩 늘어나는 `seq`를 씁니다(US-07).
@@ -71,8 +66,8 @@ Problem Details(`application/problem+json`) 형식을 쓰고, 화면에서 오�
   "type": "about:blank",
   "title": "Conflict",
   "status": 409,
-  "detail": "이미 예약된 시간입니다.",
-  "code": "ROOM_ALREADY_RESERVED"
+  "detail": "이미 사용한 초대 링크입니다.",
+  "code": "INVITATION_ALREADY_USED"
 }
 ```
 
@@ -82,7 +77,7 @@ Problem Details(`application/problem+json`) 형식을 쓰고, 화면에서 오�
 | 401 | 로그인 필요 |
 | 403 | 권한 없음 |
 | 404 | 대상이 없음 |
-| 409 | 현재 상태와 충돌함(예: 회의실 중복 예약, 이미 쓴 초대 링크) |
+| 409 | 현재 상태와 충돌함(예: 이미 쓴 초대 링크) |
 | 500 | 서버 오류 |
 | 503 | 필요한 서비스를 쓸 수 없음 |
 
@@ -92,7 +87,7 @@ Problem Details(`application/problem+json`) 형식을 쓰고, 화면에서 오�
 
 일반 목록은 페이지 번호로 나눕니다. `size`는 기본 20, 최대 100입니다.
 
-`GET /api/boards?orgId=1&page=0&size=20`
+`GET /api/files?orgId=1&page=0&size=20`
 
 ```json
 { "items": [], "page": 0, "size": 20, "total": 0 }
@@ -111,13 +106,8 @@ Problem Details(`application/problem+json`) 형식을 쓰고, 화면에서 오�
 | 기능 | 방식 | 이유 |
 |---|---|---|
 | chat | WebSocket + Redis | 1초 안에 전달해야 합니다(US-06) |
-| document | Hocuspocus 자체 형식 | Yjs 데이터를 도구가 처리합니다(US-28) |
-| meeting의 참여자 · 마이크 상태 | LiveKit | 별도 API 없이 처리합니다(US-26) |
-| board | 2초마다 조회 | 3초 안에 반영하면 되고, 만들기 쉽습니다(US-21) |
-| 웹 알림 | 3초마다 조회 | 5초 안에 전달하면 되고, 만들기 쉽습니다(US-17, US-18) |
-| calendar | 화면을 보는 동안 2초마다 조회 | 3초 안에 반영하면 되고, 만들기 쉽습니다(US-15) |
 
-**포기하는 점:** 주기적 조회는 변경이 없어도 요청을 보냅니다. 부하가 문제 되면 WebSocket으로 바꿉니다.
+실시간 전달은 chat만 합니다. 파일 목록 같은 나머지 화면은 열 때 다시 조회합니다.
 
 ## 서비스끼리 쓰는 내부 API
 
@@ -125,21 +115,15 @@ Problem Details(`application/problem+json`) 형식을 쓰고, 화면에서 오�
 
 | # | 호출 | 언제 쓰나요? | 관련 요구사항 |
 |---|---|---|---|
-| 1 | 조직 서비스 → user | 이 사용자가 조직 멤버인지 확인할 때 | US-04, US-05 |
-| 2 | chat → board | 메시지를 칸반 카드로 만들 때 | US-09 |
-| 3 | notification → user | 알림 메일을 보낼 주소를 찾을 때 | US-17, US-18 |
-| 4 | notification → chat | 장애 알림을 채팅 채널에 보낼 때 | US-19 |
-
-회의 음성 변환 작업은 HTTP 호출이 아니라 Redis 메시지 큐로 전달합니다([meeting](meeting.md#4-음성-변환-순서)).
+| 1 | chat, file → user | 이 사용자가 조직 멤버인지 확인할 때 | US-04, US-05 |
 
 | 항목 | 규칙 | 이유 |
 |---|---|---|
 | 주소 | `/internal/서비스/...`. 입구는 `/internal` 요청을 외부에서 받지 않습니다 | 내부 호출을 외부에서 막습니다 |
 | 허용 | Istio로 위 표의 호출만 허용합니다 | |
-| 사용자 확인 | 소속 확인과 메시지를 카드로: 브라우저에서 받은 `Authorization` 헤더를 그대로 넘기고, 받는 서비스도 토큰을 확인합니다. 이메일 조회와 장애 알림: 로그인 사용자가 없으므로 토큰 없이 Istio 허용 목록으로 호출 서비스만 확인합니다 | |
+| 사용자 확인 | 브라우저에서 받은 `Authorization` 헤더를 그대로 넘기고, 받는 서비스도 토큰을 확인합니다 | |
 | 토큰 만료 | 호출 중에 만료되면 401을 돌려주고, 브라우저가 토큰을 새로 받아 다시 요청합니다 | |
 | 요청 번호 | `X-Request-Id`를 이어서 넘깁니다 | 장애가 난 위치를 로그로 찾습니다 |
 | 소속 확인 제한 시간 | 1초, 다시 시도 안 함. 실패하면 503 | 일반 API 응답 목표가 0.5초이므로 오래 기다리지 않습니다 |
-| 나머지 호출 제한 시간 | 2초, 1번 다시 시도 | 잠깐 끊긴 경우를 살립니다. 그래서 같은 요청이 두 번 와도 결과가 같게 만듭니다 |
 
 제한 시간은 시작값입니다. 실제로 재 보고 고칩니다.

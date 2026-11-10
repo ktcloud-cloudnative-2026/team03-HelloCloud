@@ -20,20 +20,17 @@
 |---|---|---|---|---|---|
 | `GET /api/chat/channels?orgId=` | 멤버 | 채널 목록 | 200 | 403 | US-06 |
 | `POST /api/chat/channels` | 멤버 | 채널 생성 | 201 | 400, 403 | US-06 |
-| `POST /api/chat/channels/{id}/messages` | 멤버 | 메시지 보내기 | 201 | 400, 403, 404 | US-06, US-11 |
+| `POST /api/chat/channels/{id}/messages` | 멤버 | 메시지 보내기 | 201 | 400, 403, 404 | US-06, US-10 |
 | `GET /api/chat/channels/{id}/messages?after=&limit=` | 멤버 | 놓친 메시지 조회 | 200 | 403, 404 | US-07 |
 | `WS /api/chat/ws` | 멤버 | 새 메시지 받기 | 연결 | 401, 403 | US-06 |
-| `POST /api/chat/messages/{id}/card` | 멤버 | 메시지를 칸반 카드로 변환 | 201 또는 200 | 403, 404, 503 | US-09 |
-| `POST /api/chat/messages/{id}/decision` | 멤버 | 결정 로그 등록 | 201 또는 200 | 403, 404 | US-10 |
-| `GET /api/chat/decisions?orgId=` | 멤버 | 결정 로그 조회 | 200 | 403 | US-10 |
-| `GET /api/chat/messages/{id}/acknowledgements` | 보낸 사람 | 확인, 미확인자 조회 | 200 | 403, 404 | US-11 |
-| `POST /api/chat/messages/{id}/acknowledgements` | 지정된 사용자 | 확인 처리 | 200 | 403, 404 | US-11 |
-| `POST /api/chat/messages/{id}/reactions` | 멤버 | 이모지 추가 | 200 | 400, 403, 404 | US-11 |
-| `DELETE /api/chat/messages/{id}/reactions/{emoji}` | 본인 | 이모지 취소 | 204 | 403, 404 | US-11 |
+| `POST /api/chat/messages/{id}/decision` | 멤버 | 결정 로그 등록 | 201 또는 200 | 403, 404 | US-09 |
+| `GET /api/chat/decisions?orgId=` | 멤버 | 결정 로그 조회 | 200 | 403 | US-09 |
+| `GET /api/chat/messages/{id}/acknowledgements` | 보낸 사람 | 확인, 미확인자 조회 | 200 | 403, 404 | US-10 |
+| `POST /api/chat/messages/{id}/acknowledgements` | 지정된 사용자 | 확인 처리 | 200 | 403, 404 | US-10 |
+| `POST /api/chat/messages/{id}/reactions` | 멤버 | 이모지 추가 | 200 | 400, 403, 404 | US-10 |
+| `DELETE /api/chat/messages/{id}/reactions/{emoji}` | 본인 | 이모지 취소 | 204 | 403, 404 | US-10 |
 
 파일 미리보기(US-08)는 메시지의 `fileId`로 file 서비스의 `preview-url`을 호출합니다.
-
-메시지를 카드로 바꿀 때 board가 멈춰 있으면 503을 돌려주고 사용자가 다시 시도합니다.
 
 ### 요청과 응답 예시
 
@@ -46,12 +43,6 @@
   "attachments": [{ "fileId": "5", "name": "기획서.pdf" }],
   "acknowledgementUserIds": ["a", "b"]
 }
-```
-
-`POST /api/chat/messages/{id}/card`
-
-```json
-{ "boardId": "1" }
 ```
 
 ### WebSocket
@@ -70,25 +61,7 @@
 
 이모지와 확인 변경은 `MESSAGE_UPDATED`로 보냅니다. 멤버 제거를 알리는 `MEMBER_REMOVED`를 받으면 그 사용자의 연결을 끊습니다.
 
-## 3. 내부 API
-
-| 주소 | 호출하는 곳 | 사용자 확인 | 응답 | 요구사항 |
-|---|---|---|---|---|
-| `POST /internal/chat/channels/{channelId}/system-messages` | notification | 토큰 없음, Istio 허용 목록 | 201 또는 200(이미 처리) | US-19 |
-
-```json
-{
-  "alertId": "지문-상태-시작시각",
-  "title": "에러율 높음",
-  "text": "chat 서비스 에러율이 5%를 넘었습니다.",
-  "severity": "CRITICAL"
-}
-```
-
-- 같은 `alertId`는 한 번만 저장합니다. 다시 시도해도 메시지가 늘지 않습니다.
-- chat이 멈추면 notification이 실패로 답해 AlertManager가 다시 보내게 합니다.
-
-## 4. 만들 때 확인할 것
+## 3. 만들 때 확인할 것
 
 - 다른 파드에 연결된 사용자에게 1초 안에 전달되는지 100건 측정(US-06)
 - 재연결 후 놓친 메시지가 순서대로 누락 없이 오는지(US-07)
@@ -96,6 +69,6 @@
 - 내보낸 멤버의 연결이 끊기는지(US-04)
 - 서버 여러 대에서 연결이 안정적인지. WebSocket 도구 설정을 함께 확인합니다
 
-## 5. 이번에 만들지 않는 것
+## 4. 이번에 만들지 않는 것
 
 메시지 수정과 삭제, 비공개 채널, 메시지 검색, 읽음 표시는 요구사항에 없어 빼두었습니다.

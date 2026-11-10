@@ -9,7 +9,6 @@
 | 초대 링크 기한 | 7일 | 링크가 유출되어도 시간이 지나면 쓸 수 없습니다 |
 | OWNER 탈퇴 | 나갈 수 없음 | 소유자 없는 조직이 생기지 않습니다. **포기하는 점:** 소유자를 바꾸는 기능이 없습니다 |
 | 소속 확인 | 호출한 서비스의 로그인 토큰을 받아 확인합니다 | 서비스 간 호출의 결정입니다 |
-| 이메일 조회 | 토큰 없이 Istio 허용 목록으로 확인합니다 | 예약 알림에는 로그인 사용자가 없습니다 |
 
 ## 2. 외부 API
 
@@ -79,23 +78,12 @@
 
 | 주소 | 호출하는 곳 | 사용자 확인 | 응답 | 요구사항 |
 |---|---|---|---|---|
-| `GET /internal/users/orgs/{orgId}/members/{userId}` | 조직 서비스 | 로그인 토큰 전달 | `{ "member": true, "role": "OWNER" }` 또는 `{ "member": false }` | US-04, US-05 |
-| `POST /internal/users/emails` | notification | 토큰 없음, Istio 허용 목록 | `{ "users": [], "notFound": [] }` | US-17, US-18 |
-
-이메일 조회는 ID 목록을 한 번에 받습니다. 이메일만 돌려주고 한 번에 최대 100명까지 받습니다.
-
-```json
-{ "userIds": ["a", "b"] }
-```
-
-```json
-{ "users": [{ "id": "a", "email": "a@example.com" }], "notFound": ["b"] }
-```
+| `GET /internal/users/orgs/{orgId}/members/{userId}` | chat, file | 로그인 토큰 전달 | `{ "member": true, "role": "OWNER" }` 또는 `{ "member": false }` | US-04, US-05 |
 
 ## 4. 멤버가 나갈 때
 
 1. `organization_members` 행을 지웁니다. 다른 서비스의 소속 기억은 3초 뒤 사라지므로 새 요청은 5초 안에 막힙니다.
-2. Redis로 `MEMBER_REMOVED`를 알려, chat, document, meeting이 그 사용자의 실시간 연결을 끊습니다.
+2. Redis로 `MEMBER_REMOVED`를 알려, chat이 그 사용자의 실시간 연결을 끊습니다.
 
 ```json
 { "type": "MEMBER_REMOVED", "orgId": "1", "userId": "3f2c8e1a-..." }

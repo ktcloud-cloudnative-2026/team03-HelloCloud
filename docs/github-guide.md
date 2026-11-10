@@ -23,44 +23,42 @@ git config user.email "GitHub 계정 이메일"
 - [ ] [CODEOWNERS](../.github/CODEOWNERS)에 서비스 폴더별 담당자 적기
 - [ ] Projects 보드 만들기: 조직 Projects → New project → Board → Status에 In Review 추가(Todo · In Progress · In Review · Done) → 필드 "서비스" 추가 → 이 저장소 Projects 탭에서 Link a project → README 링크 표에 주소 적기
 - [ ] [팀 운영 약속](team.md) 채우기
-- [ ] 일감 양식으로 첫 이슈 만들기: [기획서](plan.md) 작성
 
 채울 순서는 [기획서](plan.md) → [요구사항](requirements.md) → [아키텍처](architecture.md) → [기술 스택](tech-stack.md) → [API 명세](api/)입니다.
 
 ## 작업 순서
 
-이슈 하나에 브랜치 하나, PR 하나로 작업합니다. 오타, 깨진 링크, 예시 이름 변경 같은 작은 수정은 이슈와 보드 없이 PR만 올려도 됩니다.
+이슈는 만들지 않습니다. 작업 하나에 브랜치 하나, PR 하나로 작업합니다.
 
-1. Issues → New issue → 일감 양식으로 이슈를 만들고, 보드에서 In Progress로 옮깁니다.
-2. 최신 main에서 브랜치를 만듭니다.
+1. 최신 main에서 브랜치를 만듭니다.
 
 ```bash
 git switch main
 git pull
-git switch -c feat/12-room-list
+git switch -c feat/file-upload
 ```
 
-3. 작업하고 커밋합니다.
+2. 작업하고 커밋합니다.
 
 ```bash
 git add .
-git commit -m "feat: 회의실 조회 API 추가"
+git commit -m "feat: 파일 업로드 API 추가"
 ```
 
-4. 브랜치를 올립니다.
+3. 브랜치를 올립니다.
 
 ```bash
-git push -u origin feat/12-room-list
+git push -u origin feat/file-upload
 ```
 
-5. 저장소 화면의 Compare & pull request 버튼으로 PR을 엽니다. 제목은 커밋 메시지와 같은 형식으로 쓰고 이슈 번호는 넣지 않습니다. 본문에 `Closes #12`를 적습니다.
-6. Squash and merge 합니다(팀원 리뷰는 선택). 이슈가 닫히고 보드 카드가 Done으로 이동합니다.
-7. main으로 돌아와 정리합니다.
+4. 저장소 화면의 Compare & pull request 버튼으로 PR을 엽니다. 제목은 커밋 메시지와 같은 형식으로 씁니다. Assignees에 본인을, Projects에 팀 보드를 지정하고 보드에서 In Review로 옮깁니다.
+5. Squash and merge 합니다(팀원 리뷰는 선택). 보드의 PR 카드가 Done으로 이동합니다.
+6. main으로 돌아와 정리합니다.
 
 ```bash
 git switch main
 git pull
-git branch -D feat/12-room-list
+git branch -D feat/file-upload
 ```
 
 ## 리뷰

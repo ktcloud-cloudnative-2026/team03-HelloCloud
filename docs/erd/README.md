@@ -9,13 +9,8 @@
 | user | MySQL | [user.md](user.md) |
 | chat | MongoDB | [chat.md](chat.md) |
 | file | MySQL | [file.md](file.md) |
-| calendar | PostgreSQL | [calendar.md](calendar.md) |
-| notification | MySQL | [notification.md](notification.md) |
-| board | MySQL | [board.md](board.md) |
-| meeting | PostgreSQL | [meeting.md](meeting.md) |
-| document | MongoDB | [document.md](document.md) |
 
-- MySQL · PostgreSQL은 Mermaid 그림으로, MongoDB는 문서 구조 예시로 씁니다. GitHub에서 바로 그림으로 보입니다
+- MySQL은 Mermaid 그림으로, MongoDB는 문서 구조 예시로 씁니다. GitHub에서 바로 그림으로 보입니다
 - 원본은 노션의 서비스별 ERD · API 페이지입니다. 바꿀 때는 노션과 이 폴더를 함께 고칩니다
 - 테이블 변경 방법과 시드 데이터는 담당자가 구현하면서 정하고 이유를 PR에 적습니다
 
@@ -27,11 +22,11 @@
 - 조직 데이터에는 `org_id`를 넣고, 조회할 때 항상 조건에 포함합니다(US-05)
 - 비밀번호는 저장하지 않습니다. Keycloak이 관리합니다
 
-### MySQL · PostgreSQL
+### MySQL
 
 | 항목 | 규칙 | 예 |
 |---|---|---|
-| 표와 열 이름 | 복수형 표, `snake_case` | `room_reservations`, `start_at` |
+| 표와 열 이름 | 복수형 표, `snake_case` | `organization_members`, `created_at` |
 | 기본 키 | `id` | |
 | 생성 · 수정 시각 | `created_at`, `updated_at` | |
 | 시각 저장 | UTC | |

@@ -20,7 +20,7 @@ body:
     id: service
     attributes:
       label: 서비스 · 영역
-      placeholder: "예) calendar / CI/CD / 관측"
+      placeholder: "예) file / CI/CD / 관측"
     validations:
       required: true
   - type: textarea
