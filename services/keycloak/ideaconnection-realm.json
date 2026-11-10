@@ -1,0 +1,17 @@
+{
+  "realm": "ideaconnection",
+  "enabled": true,
+  "registrationAllowed": true,
+  "sslRequired": "none",
+  "clients": [
+    {
+      "clientId": "web",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"]
+    }
+  ]
+}
