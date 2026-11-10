@@ -37,6 +37,8 @@
 ./gradlew spotlessApply # 포맷 자동 수정
 ```
 
+Jenkins가 쓰는 `docker build --target test -f user-service/Dockerfile .`는 포맷, 린트와 `libs/common` 테스트만 돌립니다. MySQL이 필요한 user-service 테스트는 `./gradlew check`로 돌려야 합니다.
+
 Java 17에서 돌아야 하므로 google-java-format은 1.28.0, Checkstyle은 12.3.1에 고정했습니다.
 
 의존성을 바꾸면 `./gradlew resolveAndLockAll --write-locks`로 `gradle.lockfile`을 갱신합니다.
