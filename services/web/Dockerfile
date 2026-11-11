@@ -7,11 +7,11 @@ COPY package*.json ./
 RUN npm ci
 
 
-# 2단계: 코드 검사 (CI 검증 단계)
+# 2단계: 코드 검사 및 빌드 검증 (CI 검증 단계)
 FROM deps AS test
 
 COPY . .
-RUN npm run lint
+RUN npm test
 
 
 # 3단계: React + Vite 빌드
