@@ -46,7 +46,7 @@
 
 | 항목 | 링크 |
 |---|---|
-| 할 일 보드 (GitHub Projects) | [team04 보드](https://github.com/orgs/ktcloud-cloudnative-2026/projects/8) |
+| 할 일 보드 (GitHub Projects) | [team03 보드](https://github.com/orgs/ktcloud-cloudnative-2026/projects/8) |
 | dev 주소 | <dev 주소> |
 | prod 주소 | <prod 주소> |
 | 대시보드 | <Grafana 주소> |
