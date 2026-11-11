@@ -6,23 +6,6 @@ import Dashboard from './pages/Dashboard'
 import { getOrganizations, createOrganization } from './api/organizations'
 import './App.css'
 
-const initialOrganizations = [
-  {
-    id: 1,
-    name: 'HelloCloud 개발팀',
-    description: '우리 팀의 협업 공간',
-    members: 6,
-    initials: 'HC',
-  },
-  {
-    id: 2,
-    name: '클라우드 스터디',
-    description: '클라우드 네이티브 기술 학습',
-    members: 4,
-    initials: 'CS',
-  },
-]
-
 function App() {
   const [currentPage, setCurrentPage] = useState('login')
   const [organizations, setOrganizations] = useState([])
