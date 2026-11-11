@@ -5,23 +5,30 @@ import './OrganizationCreate.css'
 function OrganizationCreate({ onBack, onCreate }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (submitting) return
 
     const trimmedName = name.trim()
 
-    if (!trimmedName) {
-      return
-    }
+    if (!trimmedName) return
 
-    onCreate?.({
-      id: crypto.randomUUID(),
-      name: trimmedName,
-      description: description.trim(),
-      members: 1,
-      initials: trimmedName.slice(0, 2).toUpperCase(),
-    })
+    setSubmitting(true)
+    setError('')
+
+    try {
+      await onCreate?.({
+        name: trimmedName,
+      })
+    } catch (err) {
+      setError(err.message || '조직 생성에 실패했습니다.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -70,8 +77,18 @@ function OrganizationCreate({ onBack, onCreate }) {
             />
           </div>
 
-          <button className="create-submit" type="submit">
-            조직 만들기 →
+          {error && (
+            <p role="alert">
+              조직 생성에 실패했습니다: {error}
+            </p>
+          )}
+
+          <button
+            className="create-submit"
+            type="submit"
+            disabled={submitting}
+          >
+            {submitting ? '조직 생성 중...' : '조직 만들기 →'}
           </button>
         </form>
       </div>

@@ -1,8 +1,9 @@
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import OrganizationSelect from './pages/OrganizationSelect'
 import OrganizationCreate from './pages/OrganizationCreate'
 import Dashboard from './pages/Dashboard'
+import { getOrganizations, createOrganization } from './api/organizations'
 import './App.css'
 
 const initialOrganizations = [
@@ -24,8 +25,46 @@ const initialOrganizations = [
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login')
-  const [organizations, setOrganizations] = useState(initialOrganizations)
+  const [organizations, setOrganizations] = useState([])
   const [selectedOrganization, setSelectedOrganization] = useState(null)
+  
+  const [organizationsLoading, setOrganizationsLoading] = useState(false)
+  const [organizationsError, setOrganizationsError] = useState('')
+
+  useEffect(() => {
+    if (currentPage !== 'organizations') return
+
+    let cancelled = false
+
+    async function loadOrganizations() {
+      setOrganizationsLoading(true)
+      setOrganizationsError('')
+
+      try {
+        const data = await getOrganizations()
+
+        if (!cancelled) {
+          setOrganizations(data.items)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setOrganizationsError(error.message)
+        }
+      } finally {
+        if (!cancelled) {
+          setOrganizationsLoading(false)
+        }
+      }
+    }
+
+    loadOrganizations()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentPage])
+
+  
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -34,8 +73,10 @@ function App() {
     setCurrentPage('organizations')
   }
 
-  const handleCreateOrganization = (newOrganization) => {
-    setOrganizations((prev) => [...prev, newOrganization])
+  const handleCreateOrganization = async (newOrganization) => {
+    const created = await createOrganization(newOrganization.name)
+
+    setOrganizations((prev) => [...prev, created])
     setCurrentPage('organizations')
   }
 
@@ -62,6 +103,8 @@ function App() {
     return (
       <OrganizationSelect
         organizations={organizations}
+        loading={organizationsLoading}
+        error={organizationsError}
         onCreate={() => setCurrentPage('create')}
         onSelect={handleSelectOrganization}
       />
