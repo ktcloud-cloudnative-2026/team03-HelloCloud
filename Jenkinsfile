@@ -31,10 +31,10 @@ pipeline {
           }
           def files = sh(script: "git diff --name-only ${base}...HEAD", returnStdout: true).trim().split('\n').findAll { it }
 
-          // services/board-service/src/... → board-service
+          // services/user-service/src/... → user-service
           def dirs = files.findAll { it.startsWith('services/') }.collect { it.tokenize('/')[1] }.unique()
-          // 공통 라이브러리(libs)를 바꾸면 Spring 서비스 5개를 모두 다시 검사
-          def spring = ['user-service', 'file-service', 'calendar-service', 'notification-service', 'board-service']
+          // 공통 라이브러리(libs)를 바꾸면 Spring 서비스(user, file)를 모두 다시 검사
+          def spring = ['user-service', 'file-service']
           if (dirs.contains('libs')) { dirs = (dirs + spring).unique() }
           // Dockerfile이 있는 서비스 폴더와 web만 남긴다
           env.SERVICES = dirs.findAll { (it.endsWith('-service') || it == 'web') && fileExists("services/${it}/Dockerfile") }.join(' ')

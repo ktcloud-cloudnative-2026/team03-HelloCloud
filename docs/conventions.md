@@ -103,7 +103,7 @@ DB 말고 다른 곳에 연결하면 대상 이름을 앞에 붙입니다. 예: 
 
 - **배포:** `deploy/` 변경이 `main`에 머지되면 배포됩니다. 서비스 코드는 `main`에 머지되면 Jenkins가 이미지를 GHCR에 올리고 dev 이미지 태그를 바꿔 배포됩니다.
 - **이미지 태그:** 커밋 SHA(커밋마다 붙는 고유 번호)를 씁니다. 어떤 코드로 만든 이미지인지 바로 알 수 있습니다.
-- **이미지 이름:** `ghcr.io/ktcloud-cloudnative-2026/idcn-<서비스 폴더 이름>:<커밋 7자리>`입니다. 예) `idcn-board-service:3f2c8e1`
+- **이미지 이름:** `ghcr.io/ktcloud-cloudnative-2026/idcn-<서비스 폴더 이름>:<커밋 7자리>`입니다. 예) `idcn-user-service:3f2c8e1`
 - **되돌리기:** `git revert`로 변경을 취소합니다.
 - **서버를 손으로 바꾸지 않습니다:** 손으로 바꾸면 Git과 실제 서버가 달라지기 때문입니다. 예외는 kubeadm, CNI, Argo CD 설치와 시크릿 생성이며, 절차는 `deploy/cluster/`에 둡니다.
 - **환경:** dev와 prod 클러스터 두 개를 둡니다. 앱마다 공통 설정은 `values.yaml`에, 환경별 차이만 `values-dev.yaml`과 `values-prod.yaml`에 씁니다.
