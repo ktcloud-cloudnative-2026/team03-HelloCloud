@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import OrganizationSelect from './pages/OrganizationSelect'
 import OrganizationCreate from './pages/OrganizationCreate'
+import Dashboard from './pages/Dashboard'
 import './App.css'
 
 const initialOrganizations = [
@@ -24,10 +25,12 @@ const initialOrganizations = [
 function App() {
   const [currentPage, setCurrentPage] = useState('login')
   const [organizations, setOrganizations] = useState(initialOrganizations)
+  const [selectedOrganization, setSelectedOrganization] = useState(null)
 
   const handleLogin = (e) => {
     e.preventDefault()
-    // 개발용 임시 화면 이동: 실제 인증은 Keycloak 연동 예정
+
+    // 개발용 임시 로그인 (Keycloak 연동 예정)
     setCurrentPage('organizations')
   }
 
@@ -36,8 +39,23 @@ function App() {
     setCurrentPage('organizations')
   }
 
-  const handleSelectOrganization = (org) => {
-    alert(`${org.name} 조직을 선택했습니다! 대시보드는 다음 단계에서 구현할 예정입니다.`)
+  const handleSelectOrganization = (organization) => {
+    setSelectedOrganization(organization)
+    setCurrentPage('dashboard')
+  }
+
+  const handleBackToOrganizations = () => {
+    setSelectedOrganization(null)
+    setCurrentPage('organizations')
+  }
+
+  if (currentPage === 'dashboard' && selectedOrganization) {
+    return (
+      <Dashboard
+        organization={selectedOrganization}
+        onBack={handleBackToOrganizations}
+      />
+    )
   }
 
   if (currentPage === 'organizations') {
@@ -63,7 +81,9 @@ function App() {
     <main className="login-container">
       <div className="login-card">
         <div className="brand">
-          <span className="brand-icon" aria-hidden="true">☁</span>
+          <span className="brand-icon" aria-hidden="true">
+            ☁
+          </span>
           <h1>HelloCloud</h1>
         </div>
 
