@@ -1,6 +1,7 @@
 # deploy
 
-Helm 차트와 values, Argo CD 앱, CI 서버. `main`에 머지하면 Argo CD가 배포합니다.
+Helm 차트와 values, Argo CD 앱, 배포 검증 스크립트.
+Argo CD에 등록된 앱은 `main`의 배포 설정 변경을 감지해 배포합니다.
 
 ```
 deploy/
@@ -9,8 +10,7 @@ deploy/
   charts/            자체 차트: spring-service(서비스 공용), mysql
   values/<앱>/       values.yaml, values-dev.yaml, values-prod.yaml
   manifests/         Gateway, Certificate, MetalLB IP 풀 등
-  ci/                Jenkins VM: docker-compose, JCasC
-  scripts/           validate.sh
+  scripts/           validate-helm.sh: 공통 Spring 차트 검증
 ```
 
 ## 공통 Spring 차트 로컬 검증
@@ -48,7 +48,8 @@ helm template user-service deploy/charts/spring-service \
 
 prod도 같은 명령에서 `values-prod.yaml`과 `ideaconnection-prod`로 바꿔 검증합니다.
 두 환경의 lint·렌더링과 이미지 설정 누락 시 실패하는 동작은 한 번에 검사할 수 있습니다.
-GitHub Actions에서도 아래 명령을 실행하도록 CI 담당자와 연결합니다.
+GitHub Actions에서 이 검사를 호출하는 코드는 PR #71에 반영돼 있습니다.
+로컬에서는 아래 명령으로 실행합니다.
 
 ```bash
 bash deploy/scripts/validate-helm.sh
@@ -118,12 +119,15 @@ Argo CD는 main의 태그 변경을 감지해 dev에 배포합니다.
 SHA를 줄이면 CI와 values에서 같은 길이를 사용합니다.
 이미지 주소도 CI 담당자와 확인합니다. 현재 주소는 기존 CI 브랜치를 기준으로 한 값입니다.
 
-`ci/github-actions-draft`의 초안을 반영할 때 CI 담당자와 다음을 맞춥니다.
-아래 항목은 연결할 내용이며, 현재 배포 PR에서 Actions 워크플로를 구현한 것은 아닙니다.
+Actions 워크플로와 공통 배포 검사는 [PR #71](https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud/pull/71)에서 관리합니다.
+코드에서 확인한 연결과 실제 환경에서 확인할 항목은 다음과 같습니다.
 
-- `deploy/scripts/validate.sh`의 차트 기본값만 사용하는 검사는 이 차트에서
-  실패합니다. Spring 차트 검증은 `bash deploy/scripts/validate-helm.sh`를 호출하도록
-  바꾸고 기존 YAML·리소스 검사도 유지합니다.
+- PR #71의 Actions는 `bash deploy/scripts/validate.sh`를 실행합니다.
+  이 스크립트는 `validate-helm.sh`가 있으면 공통 Spring 차트 검사를 맡기고,
+  기존 YAML·리소스 검사도 수행합니다.
+- 이미지 태그 갱신 경로와 `image.tag` 키는 PR #71 코드와 일치합니다.
+  두 PR을 main에 반영한 상태에서의 검사와 실제 이미지 업로드·자동 배포는
+  별도로 확인해야 합니다.
 - CI 담당자는 저장소 Secret `CI_PUSH_TOKEN`과 main 직접 push에 필요한 권한·보호 규칙
   예외를 준비합니다. 토큰 등록만으로 보호 규칙을 우회할 수 있는 것은 아닙니다.
   토큰 값은 문서나 Git에 기록하지 않습니다. 팀 공통 규칙의 변경은 CI 전환 작업
