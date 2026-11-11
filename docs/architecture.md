@@ -144,7 +144,7 @@ sequenceDiagram
 ```mermaid
 flowchart LR
   dev([개발자]) -->|PR, 머지| gh[GitHub]
-  gh --> jk[Jenkins]
+  gh --> jk[GitHub Actions]
   jk -->|이미지 저장| reg[(GHCR)]
   gh --> adev[dev의 Argo CD]
   gh --> aprod[prod의 Argo CD]
@@ -154,9 +154,9 @@ flowchart LR
   reg --> cprod
 ```
 
-1. 개발자가 PR을 올리면 Jenkins가 코드를 검사합니다
-2. 머지하면 Jenkins가 이미지를 만들어 GHCR에 저장하고, 새 이미지 번호를 바꾸는 PR을 올립니다
-3. 그 PR을 머지하면 Argo CD가 dev에 배포합니다
+1. 개발자가 PR을 올리면 GitHub Actions가 코드를 검사합니다
+2. 머지하면 GitHub Actions가 이미지를 만들어 GHCR에 저장하고, dev의 이미지 번호를 바꿔 `main`에 바로 올립니다
+3. 그러면 Argo CD가 dev에 배포합니다
 4. dev에서 확인한 이미지는 스프린트 데모 전에 PR로 prod에 올립니다
 5. 문제가 생기면 `git revert`로 되돌립니다
 

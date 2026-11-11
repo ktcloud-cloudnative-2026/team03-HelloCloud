@@ -4,10 +4,10 @@
 
 ## 구조
 
-*   `deploy/`: k8s 클러스터 구성, Helm 차트와 values, Argo CD 앱, CI 서버(`deploy/ci/`)
+*   `deploy/`: k8s 클러스터 구성, Helm 차트와 values, Argo CD 앱, 검사 스크립트(`deploy/scripts/`)
 *   `services/`: 백엔드 서비스, 웹 프론트, 테스트, Dockerfile, 로컬 개발 환경
 *   `docs/`: 기획, 설계, 협업, 운영 문서(목록은 `README.md`)
-*   `Jenkinsfile`: CI 파이프라인
+*   `.github/workflows/ci.yaml`: CI 파이프라인(GitHub Actions)
 
 ## 공통
 

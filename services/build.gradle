@@ -1,0 +1,58 @@
+plugins {
+    id 'org.springframework.boot' version '4.1.2' apply false
+    id 'com.diffplug.spotless' version '8.11.0' apply false
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'checkstyle'
+    apply plugin: 'com.diffplug.spotless'
+
+    repositories {
+        mavenCentral()
+    }
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    dependencies {
+        implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.2')
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    dependencyLocking {
+        lockAllConfigurations()
+    }
+
+    tasks.withType(Test).configureEach {
+        useJUnitPlatform()
+    }
+
+    spotless {
+        java {
+            // Spotless는 Java 17에서 1.28.0까지만 허용한다. Java 버전을 올리기 전에는 올리지 않는다.
+            googleJavaFormat('1.28.0')
+            target 'src/**/*.java'
+        }
+    }
+
+    checkstyle {
+        // 13부터 Java 21이 필요하다. 프로젝트가 Java 17이므로 올리지 않는다.
+        toolVersion = '12.3.1'
+        configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+        maxWarnings = 0
+    }
+
+    tasks.register('resolveAndLockAll') {
+        notCompatibleWithConfigurationCache('모든 configuration을 해석해야 한다')
+        doFirst {
+            assert gradle.startParameter.writeDependencyLocks
+        }
+        doLast {
+            configurations.findAll { it.canBeResolved }.each { it.resolve() }
+        }
+    }
+}

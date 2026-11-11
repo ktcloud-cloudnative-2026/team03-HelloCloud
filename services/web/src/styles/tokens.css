@@ -1,0 +1,56 @@
+
+:root {
+  /* 1. HelloCloud 브랜드 */
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-soft: #eff6ff;
+  --color-primary-light: #dbeafe;
+
+  /* 2. 몽돌 스타일의 부드러운 배경 */
+  --color-background: #f3f6f7;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+
+  /* 3. 글자 및 테두리 */
+  --color-text: #23292d;
+  --color-text-muted: #64748b;
+  --color-border: #dbe3ee;
+
+  /* 4. 상태 색상 */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+
+  /* 5. 둥근 모서리 */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  /* 6. 공통 간격 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 72px;
+
+  /* 7. 부드러운 그림자 */
+  --shadow-sm:
+    0 2px 8px rgba(35, 41, 45, 0.04);
+
+  --shadow-md:
+    0 8px 24px rgba(35, 41, 45, 0.08);
+
+  --shadow-lg:
+    0 16px 48px rgba(35, 41, 45, 0.12);
+
+  /* 8. 자연스러운 애니메이션 */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-smooth:
+    350ms cubic-bezier(0.22, 1, 0.36, 1);
+}

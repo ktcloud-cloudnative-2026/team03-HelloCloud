@@ -1,0 +1,4 @@
+rootProject.name = 'ideaconnection-services'
+
+include 'common', 'user-service'
+project(':common').projectDir = file('libs/common')

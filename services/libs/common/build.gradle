@@ -1,0 +1,17 @@
+plugins {
+    id 'java-library'
+    id 'java-test-fixtures'
+}
+
+dependencies {
+    api platform('org.springframework.boot:spring-boot-dependencies:4.1.2')
+    api 'org.springframework.boot:spring-boot-starter-webmvc'
+    api 'org.springframework.boot:spring-boot-starter-security'
+    api 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
+
+    testFixturesApi platform('org.springframework.boot:spring-boot-dependencies:4.1.2')
+    testFixturesApi 'org.springframework.security:spring-security-oauth2-jose'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+}
