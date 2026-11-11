@@ -56,7 +56,7 @@
 | 주 | 목표 | 데모 때 보여 줄 것 |
 |---|---|---|
 | S1 (11/4~) | 설계 산출물 확정 | 요구사항부터 서비스별 ERD·API까지, dev 클러스터 노드 |
-| S2 (11/9~) | 클러스터 구축 검증, 자동 검사와 배포(Jenkins, Argo CD), 입구(Envoy Gateway), 로그인(Keycloak), DB와 Redis 설치, 웹 기본 화면, user의 로그인과 조직 만들기 | PR을 올리면 자동 검사, 머지하면 dev에 자동 배포, 로그인한 뒤 조직 만들기 |
+| S2 (11/9~) | 클러스터 구축 검증, 자동 검사와 배포(GitHub Actions, Argo CD), 입구(Envoy Gateway), 로그인(Keycloak), DB와 Redis 설치, 웹 기본 화면, user의 로그인과 조직 만들기 | PR을 올리면 자동 검사, 머지하면 dev에 자동 배포, 로그인한 뒤 조직 만들기 |
 | S3 (11/16~) | 초대와 권한 회수, 서비스 사이 보안(Istio), 칸반(board), 파일(file) | 초대 링크로 합류, 탈퇴 후 5초 안에 403, 다른 조직 접근 차단, 카드 이동이 3초 안에 반영, 내려받은 파일이 원본과 일치 |
 | S4 (11/23~) | 채팅(chat), 캘린더 일정과 회의실 예약(calendar), 모니터링(Prometheus, Grafana, Loki) | 다른 파드 사용자에게 1초 안에 전달, 다시 연결하면 놓친 메시지 복구, 메시지로 카드 만들기, 동시에 예약하면 한 건만 성공, Grafana 화면 |
 | S5 (11/30~) | 화상 회의(LiveKit), 알림(notification), 채팅의 결정 로그·확인 요청·파일 미리보기, Google Calendar 연동 | 4명 통화와 화면 공유, 예약 알림과 즉시 알림이 5초 안에 도착, 장애 알림이 채팅 채널에 도착, 예약이 1분 안에 Google에 반영 |
@@ -68,7 +68,7 @@
 
 | 주 | 김민준(팀장) | 김기선 | 주연후 | 박건률 | 김준형 | 정호윤 |
 |---|---|---|---|---|---|---|
-| S2 | 인프라: MySQL, PostgreSQL, MongoDB, Redis | 인프라: Jenkins 자동 검사·이미지 빌드 | 인프라: Argo CD 자동 배포, 공통 Helm 차트 | 인프라: Envoy Gateway, Keycloak | user 백엔드: 로그인, 조직 만들기 | 화면: 웹 기본 틀, 로그인·조직 화면 |
+| S2 | 인프라: MySQL, PostgreSQL, MongoDB, Redis | 인프라: GitHub Actions 자동 검사·이미지 빌드 | 인프라: Argo CD 자동 배포, 공통 Helm 차트 | 인프라: Envoy Gateway, Keycloak | user 백엔드: 로그인, 조직 만들기 | 화면: 웹 기본 틀, 로그인·조직 화면 |
 | S3 | 화면: 파일 | 백엔드: board | 화면: 칸반 | 백엔드: file, SeaweedFS 설치 | 백엔드: 초대, 권한 회수, 소속 확인 | 인프라: Istio |
 | S4 | 인프라: 모니터링 | 백엔드: calendar 일정·회의실 예약 | 백엔드: chat 저장·복구 | 화면: 캘린더 | 화면: 채팅 | 백엔드: chat 실시간 전달, 메시지로 카드 만들기 |
 | S5 | 백엔드+화면: 결정 로그, 확인 요청, 파일 미리보기 | 화면: 화상 회의 | 화면: 알림, 근무시간·수신 경로 설정 | 백엔드: Google Calendar 연동 | 인프라+백엔드: LiveKit 설치, meeting | 백엔드: notification, AlertManager 연결 |

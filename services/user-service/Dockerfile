@@ -4,7 +4,7 @@ WORKDIR /workspace
 COPY . .
 RUN ./gradlew :user-service:bootJar --no-daemon
 
-# Jenkins가 docker build --target test로 실행한다. docker build 안에는 Docker가 없어
+# CI가 docker build --target test로 실행한다. docker build 안에는 Docker가 없어
 # MySQL을 띄우는 user-service 테스트는 제외한다. 그 테스트는 ./gradlew check로 돌린다.
 FROM build AS test
 RUN ./gradlew :common:check :user-service:check -x :user-service:test --no-daemon
