@@ -1,0 +1,5 @@
+apiVersion: v2
+name: web
+description: ideaconnection 웹 화면 배포 차트
+type: application
+version: 0.1.0
