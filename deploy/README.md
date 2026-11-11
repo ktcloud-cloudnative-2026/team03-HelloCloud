@@ -9,5 +9,6 @@ deploy/
   charts/            자체 차트: spring-service(서비스 공용), mysql
   values/<앱>/       values.yaml, values-dev.yaml, values-prod.yaml
   manifests/         Gateway, Certificate, MetalLB IP 풀 등
+  ci/                Jenkins VM: docker-compose, JCasC
   scripts/           validate.sh
 ```
