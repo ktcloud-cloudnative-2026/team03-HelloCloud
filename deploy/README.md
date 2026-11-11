@@ -23,7 +23,7 @@ deploy/
 실제 업로드된 태그는 확인되지 않아 비워 두었습니다. dev는 파드 1개,
 prod는 파드 2개로 시작하며, prod의 파드 수는 실제 부하를 확인하고 조정합니다.
 
-Helm `v4.3.1`로 검증했습니다. CI 도구는 Jenkins 또는 GitHub Actions 중 결정 예정입니다.
+Helm `v4.3.1`로 검증했습니다. CI는 GitHub Actions를 사용하기로 결정했습니다.
 저장소 루트에서 실행합니다. 아래 이미지 주소와 SHA는 설정 생성만 확인하는
 가짜 값입니다. 실제 배포에 사용하지 않습니다. namespace도 검증용 이름입니다.
 
@@ -48,7 +48,7 @@ helm template user-service deploy/charts/spring-service \
 
 prod도 같은 명령에서 `values-prod.yaml`과 `ideaconnection-prod`로 바꿔 검증합니다.
 두 환경의 lint·렌더링과 이미지 설정 누락 시 실패하는 동작은 한 번에 검사할 수 있습니다.
-Jenkins와 GitHub Actions 어느 쪽에서도 같은 명령을 실행합니다.
+GitHub Actions에서도 아래 명령을 실행하도록 CI 담당자와 연결합니다.
 
 ```bash
 bash deploy/scripts/validate-helm.sh
@@ -107,20 +107,27 @@ Keycloak issuer는 토큰의 issuer와 정확히 일치하고 서비스에서도
 주소의 주입 방식을 받은 뒤 배포 구성을 추가합니다. 개발 서버 포트 5173을
 운영 이미지 포트로 가정하지 않습니다.
 
-## CI 연결
+## GitHub Actions 연결
 
-CI 도구가 정해지면 이미지 빌드·GHCR 업로드 후
-`deploy/values/user-service/values-dev.yaml`의 `image.tag`를 변경하는 PR을 만듭니다.
-main에 머지되면 Argo CD가 배포합니다. 업로드된 이미지와 동일한 커밋 SHA를
-사용하며, SHA를 줄이면 CI와 values에서 같은 길이를 사용합니다.
+서비스 코드는 PR로 검사한 뒤 main에 머지합니다. 이후 GitHub Actions가
+이미지를 빌드해 GHCR에 업로드하고,
+`deploy/values/user-service/values-dev.yaml`의 `image.tag`를 갱신합니다.
+이 태그 변경은 별도 PR 없이 Actions가 자동으로 커밋해 main에 직접 push합니다.
+Argo CD는 main의 태그 변경을 감지해 dev에 배포합니다.
+업로드된 이미지와 동일한 커밋 SHA를 사용하며,
+SHA를 줄이면 CI와 values에서 같은 길이를 사용합니다.
 이미지 주소도 CI 담당자와 확인합니다. 현재 주소는 기존 CI 브랜치를 기준으로 한 값입니다.
 
-기존 `ci/50-jenkins-pipeline` 브랜치와 합칠 경우 다음을 조정합니다.
+`ci/github-actions-draft`의 초안을 반영할 때 CI 담당자와 다음을 맞춥니다.
+아래 항목은 연결할 내용이며, 현재 배포 PR에서 Actions 워크플로를 구현한 것은 아닙니다.
 
 - `deploy/scripts/validate.sh`의 차트 기본값만 사용하는 검사는 이 차트에서
   실패합니다. Spring 차트 검증은 `bash deploy/scripts/validate-helm.sh`를 호출하도록
   바꾸고 기존 YAML·리소스 검사도 유지합니다.
-- Jenkinsfile의 dev 태그 main 직접 push는 팀 규칙에 맞춰 PR 생성으로 바꿉니다.
+- CI 담당자는 저장소 Secret `CI_PUSH_TOKEN`과 main 직접 push에 필요한 권한·보호 규칙
+  예외를 준비합니다. 토큰 등록만으로 보호 규칙을 우회할 수 있는 것은 아닙니다.
+  토큰 값은 문서나 Git에 기록하지 않습니다. 팀 공통 규칙의 변경은 CI 전환 작업
+  #70에서 함께 정리합니다.
 
 ## 실제 배포 확인 순서
 
