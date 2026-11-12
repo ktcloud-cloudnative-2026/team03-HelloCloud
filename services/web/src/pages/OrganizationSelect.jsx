@@ -1,6 +1,8 @@
 
 import './OrganizationSelect.css'
 
+const ROLE_LABELS = { OWNER: '소유자', MEMBER: '멤버' }
+
 function OrganizationSelect({
   organizations = [],
   loading = false,
@@ -56,12 +58,13 @@ function OrganizationSelect({
                 key={org.id}
                 onClick={() => onSelect?.(org)}
               >
-                <span className="org-avatar">{org.initials}</span>
+                <span className="org-avatar">
+                  {org.name.slice(0, 2).toUpperCase()}
+                </span>
 
                 <span className="org-details">
                   <strong>{org.name}</strong>
-                  <span>{org.description}</span>
-                  <small>멤버 {org.members}명</small>
+                  <small>{ROLE_LABELS[org.role] ?? org.role}</small>
                 </span>
 
                 <span className="org-arrow" aria-hidden="true">→</span>
