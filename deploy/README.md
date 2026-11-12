@@ -5,9 +5,9 @@ Argo CD에 등록된 앱은 `main`의 배포 설정 변경을 감지해 배포�
 
 ```
 deploy/
-  cluster/           손 작업 절차: kubeadm, Calico, Argo CD
+  cluster/           손 작업 절차: kubeadm, Calico, Argo CD, DB VM(MySQL)
   argocd/            Application (root.yaml, platform/, data/, services/)
-  charts/            자체 차트: spring-service(서비스 공용), mysql
+  charts/            자체 차트: spring-service(서비스 공용), web
   values/<앱>/       values.yaml, values-dev.yaml, values-prod.yaml
   manifests/         Gateway, Certificate, MetalLB IP 풀 등
   scripts/           validate-helm.sh: 공통 Spring 차트 검증
