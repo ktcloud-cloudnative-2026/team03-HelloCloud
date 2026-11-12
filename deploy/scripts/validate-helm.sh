@@ -29,7 +29,8 @@ for app in user-service web; do
 
   if helm template "$app" "$CHART" \
     -f "$DEPLOY_DIR/values/$app/values.yaml" \
-    -f "$DEPLOY_DIR/values/$app/values-dev.yaml" >/dev/null 2>&1; then
+    -f "$DEPLOY_DIR/values/$app/values-dev.yaml" \
+    --set-string 'image.tag=' >/dev/null 2>&1; then
     echo '오류: 배포 이미지 태그 없이 렌더링되었습니다.' >&2
     exit 1
   fi
