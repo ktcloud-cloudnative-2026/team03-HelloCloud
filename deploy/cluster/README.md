@@ -124,6 +124,28 @@ user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 
 - Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
 - dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
 
+## SSH 접속
+
+내 PC에서 bastion을 거쳐 각 VM에 접속합니다. 설정은 [ssh_config.example](ssh_config.example)을 `~/.ssh/config`에 붙여 넣고 `<...>`를 채웁니다. bastion 주소·포트는 팀 채널에서 받습니다.
+
+처음 접속하거나 `REMOTE HOST IDENTIFICATION HAS CHANGED` 경고가 나오면 화면의 지문을 아래 표와 비교합니다. 지문은 비밀값이 아닙니다.
+
+| 이름 | IP | ED25519 지문 (2026-11-12 확인) |
+| --- | --- | --- |
+| `t4-bastion` | 팀 채널 | `SHA256:Zic8ySmi6IAyqpp3qXbUYFVY19Om5spP+o2xVpIUW2A` |
+| `t4-db` | 10.10.24.10 | `SHA256:oj1qDJIqdYRQ3J2JCY8NbnCwwowGySLIyUdNubMXeng` |
+| `t4-dev-cp` | 10.10.24.11 | `SHA256:O0I5yeIiTYBBwdhM6bCvuS9Kqx0t1mA+7zsyqvxdZt8` |
+| `t4-dev-w1` | 10.10.24.12 | `SHA256:u/t9EDyEN6eWcdmdoh6lQ/NMpk8YqirW+Z0HfoeoAR0` |
+| `t4-dev-w2` | 10.10.24.13 | `SHA256:iJ9pvTjQeDldYKkzTs7NE+FfIkbaLFwylM3R0/vEWM4` |
+| `t4-prod-cp` | 10.10.24.21 | `SHA256:KrVEQlRsBfIKUBrUzq1BpERf4lp2cDDTc4EB/JkEOFc` |
+| `t4-prod-w1` | 10.10.24.22 | `SHA256:JgYpn7p58RWgSnNjwgQBVOHoTlJyAozXIC7Q9iVMMrU` |
+| `t4-prod-w2` | 10.10.24.23 | `SHA256:HpLY5G985iDlCBjTZcYBdlcVmv3NIK5FKoPgbeElVt0` |
+
+- **같으면** 예전 기록을 지우고 다시 접속해 `yes`: `ssh-keygen -R <이름>` (예전 설정으로 저장했다면 `<IP>`, bastion은 `'[<주소>]:<포트>'`)
+- **다르면** 접속하지 않고 팀 채널에 알립니다
+- VM을 다시 만들면 키가 바뀝니다. 만든 사람이 팀 채널에 알리고 이 표를 고칩니다. 내부 VM 지문은 cp에서 `ssh-keyscan -t ed25519 <IP> | ssh-keygen -lf -`로 확인합니다
+- `StrictHostKeyChecking no`로 경고를 끄지 않습니다
+
 ## 주의
 
 - `admin.conf`, `~/.kube/config`, join 토큰, Argo CD 비밀번호, DB VM의 `.env`는 저장소·채팅에 올리지 않습니다
