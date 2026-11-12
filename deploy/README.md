@@ -20,7 +20,7 @@ deploy/
 공통 이미지 주소는 CI 작업 브랜치의
 `ghcr.io/ktcloud-cloudnative-2026/idcn-user-service`에 맞췄습니다.
 환경별 커밋 SHA는 `values-dev.yaml`, `values-prod.yaml`에 넣습니다.
-실제 업로드된 태그는 확인되지 않아 비워 두었습니다. dev는 파드 1개,
+dev는 파드 1개,
 prod는 파드 2개로 시작하며, prod의 파드 수는 실제 부하를 확인하고 조정합니다.
 
 Helm `v4.3.1`로 검증했습니다. CI는 GitHub Actions를 사용하기로 결정했습니다.
@@ -70,18 +70,19 @@ dev values를 순서대로 읽어 `ideaconnection-dev` namespace에 배포합니
 실제 dev 배포 전 다음 항목을 준비합니다.
 
 - GHCR에 업로드된 이미지의 커밋 SHA를 dev values의 `image.tag`에 입력합니다.
-  CI 작업 브랜치는 접두사 없이 커밋 SHA 앞 7자리를 태그로 사용합니다. 비공개 이미지라면
-  대상 namespace에 이미지 다운로드용 Secret을 준비하고 `imagePullSecrets`에 참조합니다.
+  CI 작업 브랜치는 접두사 없이 커밋 SHA 앞 7자리를 태그로 사용합니다. GHCR 패키지는
+  공개라서 이미지 다운로드용 Secret은 필요 없습니다.
 - 대상 namespace에 `user-service-env` Secret을 준비합니다. 필요한 키는
   `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `OIDC_ISSUER_URI`입니다.
 - 최신 main의 서비스 설정은 8081 포트와 `/health/liveness`, `/health/readiness`로
   차트와 일치합니다. 실제 이미지에서도 해당 주소가 응답하는지 확인합니다.
-- Argo CD가 이 Git 저장소를 읽을 수 있는지 확인합니다. Application을 등록하는
-  상위 앱은 아직 없으므로 최초 등록은 별도로 진행해야 합니다.
+- 저장소가 공개라서 Argo CD는 따로 등록하지 않아도 읽을 수 있습니다. Application을
+  등록하는 상위 앱은 아직 없으므로 처음 등록은 [cluster/README.md](cluster/README.md#argo-cd-dev)의
+  절차로 합니다.
 
 실제 환경 변경은 승인 후 진행합니다. 배포 후에는 Argo CD의 `Synced`, `Healthy`,
 Deployment의 준비된 파드 1개, 파드 이벤트와 로그의 DB·로그인 서버 연결 상태를
-확인합니다. 현재는 이미지와 연결 정보가 없어 실제 배포 검증을 진행하지 않았습니다.
+확인합니다.
 
 ## 담당자 간 연결 정보
 
@@ -110,7 +111,7 @@ startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니
 
 - 공통 values: `deploy/values/web/values.yaml`
 - 환경별 values: `deploy/values/web/values-dev.yaml`, `values-prod.yaml`
-- 이미지: `ghcr.io/ktcloud-cloudnative-2026/idcn-web` (태그는 실제 SHA 확인 후 입력)
+- 이미지: `ghcr.io/ktcloud-cloudnative-2026/idcn-web`
 - dev Application: `deploy/argocd/services/web-dev.yaml`
 - Gateway 연결 대상: `ideaconnection-dev` namespace의 `web:80`
 - dev는 파드 1개, prod는 2개로 설정합니다. prod Application은 아직 작성하지 않았습니다.
@@ -120,8 +121,7 @@ startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니
 검증용 이미지 주소는 실제 배포에 사용하지 않습니다.
 
 웹 Application은 main의 웹 차트와 공통·dev values를 읽습니다.
-실제 배포 전 이미지 태그와 비공개 이미지의 다운로드 권한을 준비하고,
-Gateway 담당자와 웹 경로 및 `/api`의 백엔드 연결을 확인합니다.
+실제 배포 전 Gateway 담당자와 웹 경로 및 `/api`의 백엔드 연결을 확인합니다.
 웹 이미지에는 DB·Keycloak Secret을 주입하지 않습니다. 정적 화면의 API·Keycloak
 주소는 프론트 담당자와 빌드 시 주입 여부를 확인해야 합니다.
 컨테이너 환경 변수만 추가한다고 이미 빌드된 화면의 설정이 바뀌지는 않습니다.
@@ -155,7 +155,7 @@ Actions 워크플로와 공통 배포 검사는 [PR #71](https://github.com/ktcl
 
 ## 실제 배포 확인 순서
 
-현재는 실제 이미지 태그가 비어 있어 배포할 수 없습니다. 클러스터 배포는 검증하지 않았습니다.
+dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 클러스터 배포는 아직 검증하지 않았습니다.
 다음 준비를 마친 뒤 실제 환경 변경 승인을 받고 진행합니다.
 
 1. 백엔드 담당자와 배포할 이미지 SHA를 확인하고 dev values에 반영합니다.
