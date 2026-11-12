@@ -1,7 +1,15 @@
 
 import './OrganizationSelect.css'
 
-function OrganizationSelect({ organizations = [], onCreate, onSelect }) {
+const ROLE_LABELS = { OWNER: '소유자', MEMBER: '멤버' }
+
+function OrganizationSelect({
+  organizations = [],
+  loading = false,
+  error = '',
+  onCreate,
+  onSelect,
+}) {
 
   return (
     <main className="org-page">
@@ -27,7 +35,22 @@ function OrganizationSelect({ organizations = [], onCreate, onSelect }) {
             <span>{organizations.length}개의 조직</span>
           </div>
 
+          
           <div className="org-list">
+            {loading && (
+              <p role="status">조직 목록을 불러오는 중...</p>
+            )}
+
+            {error && (
+              <p role="alert">
+                조직 목록을 불러오지 못했습니다: {error}
+              </p>
+            )}
+
+            {!loading && !error && organizations.length === 0 && (
+              <p>아직 참여 중인 조직이 없습니다.</p>
+            )}
+
             {organizations.map((org) => (
               <button
                 type="button"
@@ -35,12 +58,13 @@ function OrganizationSelect({ organizations = [], onCreate, onSelect }) {
                 key={org.id}
                 onClick={() => onSelect?.(org)}
               >
-                <span className="org-avatar">{org.initials}</span>
+                <span className="org-avatar">
+                  {org.name.slice(0, 2).toUpperCase()}
+                </span>
 
                 <span className="org-details">
                   <strong>{org.name}</strong>
-                  <span>{org.description}</span>
-                  <small>멤버 {org.members}명</small>
+                  <small>{ROLE_LABELS[org.role] ?? org.role}</small>
                 </span>
 
                 <span className="org-arrow" aria-hidden="true">→</span>
