@@ -32,7 +32,40 @@
 - 노드 3대 Ready (v1.37.2)
 - web 파드 4개(w1 2개, w2 2개) 간 통신 4/4 OK
 
+## Argo CD (dev)
+
+Argo CD(Git 내용대로 클러스터에 배포하는 도구)는 손으로 한 번 설치합니다. prod도 같은 버전, 같은 절차로 설치합니다.
+
+| 항목 | 값 |
+| --- | --- |
+| 버전 | v3.6.1 (2026-11-12 dev 설치) |
+| namespace | `argocd` |
+| 저장소 접근 | 공개 저장소라 등록하지 않음 |
+| 이미지 접근 | GHCR 패키지 `idcn-user-service`, `idcn-web`은 공개라 pull Secret 없음 |
+
+1. **설치 (cp에서)** — 이미 설치돼 있으면 건너뜀(`kubectl get ns argocd`)
+   ```bash
+   kubectl create namespace argocd
+   kubectl apply -n argocd --server-side --force-conflicts \
+     -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.6.1/manifests/install.yaml
+   kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
+   ```
+   - 확인: `kubectl get pods -n argocd` 7개 모두 `Running`
+   - CRD가 커서 일반 `apply`는 크기 제한에 걸리므로 `--server-side`로 적용
+2. **화면 접속 (내 PC에서)** — 켜 둔 채로 https://localhost:8080, 아이디 `admin`
+   ```powershell
+   ssh -L 8080:localhost:8080 t4-dev-cp "kubectl -n argocd port-forward svc/argocd-server 8080:443"
+   ```
+   - 처음 비밀번호: `kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d`
+   - 로그인 후 비밀번호를 바꾸고 `argocd-initial-admin-secret`을 지움
+3. **앱 처음 등록 (cp에서)** — 상위 앱이 생기기 전까지 손으로 등록
+   ```bash
+   kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/web-dev.yaml
+   ```
+   - 확인: `kubectl get applications -n argocd`에서 `Synced`, `Healthy`
+   - `user-service-dev.yaml`은 `ideaconnection-dev`에 `user-service-env` Secret과 DB를 준비한 뒤 등록
+
 ## 주의
 
-- `admin.conf`, `~/.kube/config`, join 토큰은 저장소·채팅에 올리지 않습니다
+- `admin.conf`, `~/.kube/config`, join 토큰, Argo CD 비밀번호는 저장소·채팅에 올리지 않습니다
 - `ssh t4-...`는 내 PC(PowerShell)에서 실행합니다. 노드 안에서는 다른 노드 이름을 모릅니다
