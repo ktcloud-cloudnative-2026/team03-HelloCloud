@@ -1,4 +1,3 @@
 replicaCount: 1
-
 image:
-  tag: "1615df9"
+  tag: "370f9a5"
