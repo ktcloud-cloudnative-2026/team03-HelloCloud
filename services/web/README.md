@@ -2,6 +2,14 @@
 
 이 템플릿은 Vite에서 React를 HMR(코드를 고치면 새로고침 없이 화면에 바로 반영하는 기능)과 몇 가지 ESLint 규칙으로 실행하기 위한 최소 설정을 제공합니다.
 
+## 로컬 실행
+
+`http://localhost:5173`은 `npm run dev`를 실행한 그 PC에서만 열립니다.
+
+1. `services/web`에서 `npm install` (처음 한 번)
+2. `npm run dev` → 터미널에 나온 주소로 접속 (터미널을 끄면 꺼집니다)
+3. 조직 목록·만들기까지 보려면 user-service(8081)도 켜야 합니다. 순서는 `services/user-service/README.md`
+
 현재 공식 플러그인은 두 가지가 있습니다.
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react): [Oxc](https://oxc.rs)를 사용합니다.
