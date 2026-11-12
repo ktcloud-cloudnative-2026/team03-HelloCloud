@@ -61,8 +61,9 @@ jobs:
 
           # services/user-service/src/... → user-service
           dirs=$(echo "$files" | awk -F/ '$1 == "services" && NF > 2 { print $2 }' | sort -u)
-          # 공통 라이브러리(libs)를 바꾸면 Spring 서비스(user, file)를 모두 다시 검사
-          if echo "$dirs" | grep -qx libs; then
+          # 공통 라이브러리(libs)나 Gradle 공통 설정을 바꾸면 Spring 서비스(user, file)를 모두 다시 검사.
+          # services/ 바로 아래 파일(build.gradle 등)은 위 awk에 잡히지 않아 따로 본다
+          if echo "$files" | grep -qE '^services/(libs/|gradle/|config/|build\.gradle$|settings\.gradle$|gradlew$|\.dockerignore$)'; then
             dirs=$(printf '%s\n' $dirs $SPRING_SERVICES | sort -u)
           fi
           # Dockerfile이 있는 서비스 폴더와 web만 남긴다
