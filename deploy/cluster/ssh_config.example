@@ -1,0 +1,39 @@
+# 팀 공통 SSH 설정 예시. 내 PC의 ~/.ssh/config에 붙여 넣고 <...>를 채운다.
+# bastion 주소·포트는 공개 저장소라 적지 않는다. 팀 채널에서 받는다.
+
+# 우리 팀 서버 키는 따로 보관해 예전 VM·다른 팀 기록과 섞이지 않게 한다
+Host t4-*
+  UserKnownHostsFile ~/.ssh/known_hosts_t4
+
+Host t4-bastion
+  HostName <bastion 주소>
+  Port <bastion 포트>
+  User <내 bastion 계정>
+  HostKeyAlias t4-bastion
+
+Host t4-db t4-dev-cp t4-dev-w1 t4-dev-w2 t4-prod-cp t4-prod-w1 t4-prod-w2
+  User lab
+  ProxyJump t4-bastion
+
+# HostKeyAlias: IP가 아니라 이름으로 키를 기억한다. IP를 다른 VM이 다시 써도 섞이지 않는다
+Host t4-db
+  HostName 10.10.24.10
+  HostKeyAlias t4-db
+Host t4-dev-cp
+  HostName 10.10.24.11
+  HostKeyAlias t4-dev-cp
+Host t4-dev-w1
+  HostName 10.10.24.12
+  HostKeyAlias t4-dev-w1
+Host t4-dev-w2
+  HostName 10.10.24.13
+  HostKeyAlias t4-dev-w2
+Host t4-prod-cp
+  HostName 10.10.24.21
+  HostKeyAlias t4-prod-cp
+Host t4-prod-w1
+  HostName 10.10.24.22
+  HostKeyAlias t4-prod-w1
+Host t4-prod-w2
+  HostName 10.10.24.23
+  HostKeyAlias t4-prod-w2
