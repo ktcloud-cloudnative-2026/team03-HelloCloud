@@ -65,7 +65,66 @@ Argo CD(Git 내용대로 클러스터에 배포하는 도구)는 손으로 한 �
    - 확인: `kubectl get applications -n argocd`에서 `Synced`, `Healthy`
    - `user-service-dev.yaml`은 `ideaconnection-dev`에 `user-service-env` Secret과 DB를 준비한 뒤 등록
 
+## DB VM (dev MySQL)
+
+dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-11-12 팀 회의). VM 하나를 DB에만 쓰고, prod용 DB VM은 따로 받습니다. 로컬 `services/compose.yaml`과 같은 이미지·DB 이름을 씁니다.
+
+| 항목 | dev |
+| --- | --- |
+| VM | `t4-db`, 10.10.24.10 (VM 안 hostname은 `t3-db`) |
+| MySQL | `mysql:8.4.13`, Docker 29.1 + compose 2.40 (Ubuntu 패키지) |
+| 열린 주소 | `10.10.24.10:3306`만 |
+| DB / 계정 | `user_service` / `user_service` |
+| 파일 | `/opt/mysql/compose.yaml`, `/opt/mysql/.env`(권한 600, 비밀번호) |
+
+1. **Docker 설치 (DB VM에서)** — 설치 후 다시 접속해야 docker 그룹이 적용됨
+   ```bash
+   sudo apt update && sudo apt install -y docker.io docker-compose-v2
+   sudo usermod -aG docker lab
+   ```
+2. **파일 준비** — `/opt/mysql`에 아래 두 파일
+   ```bash
+   sudo mkdir -p /opt/mysql && sudo chown lab:lab /opt/mysql && cd /opt/mysql
+   cat > compose.yaml <<'EOF'
+   name: dev-mysql
+
+   services:
+     mysql:
+       image: mysql:8.4.13
+       restart: unless-stopped
+       ports:
+         - "10.10.24.10:3306:3306"
+       env_file: .env
+       volumes:
+         - mysql-data:/var/lib/mysql
+       healthcheck:
+         test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u user_service --password=$$MYSQL_PASSWORD"]
+         interval: 10s
+         timeout: 5s
+         retries: 30
+
+   volumes:
+     mysql-data:
+   EOF
+   umask 077
+   cat > .env <<EOF
+   MYSQL_ROOT_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
+   MYSQL_DATABASE=user_service
+   MYSQL_USER=user_service
+   MYSQL_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
+   EOF
+   ```
+   - 비밀번호는 VM 안에서 만들어 `.env`에만 둡니다. 화면에 띄우거나 옮겨 적지 않습니다
+3. **실행** — `docker compose up -d`
+   - 확인: `docker compose ps`가 `(healthy)`, `ss -tln | grep 3306`이 `10.10.24.10:3306`
+4. **클러스터에서 접속 확인 (cp에서)** — `timeout 3 bash -c '</dev/tcp/10.10.24.10/3306' && echo OK`
+
+user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 씁니다. `DB_URL`은 `jdbc:mysql://10.10.24.10:3306/user_service`, `DB_USERNAME`은 `user_service`, `DB_PASSWORD`는 `.env`의 `MYSQL_PASSWORD`입니다.
+
+- Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
+- dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
+
 ## 주의
 
-- `admin.conf`, `~/.kube/config`, join 토큰, Argo CD 비밀번호는 저장소·채팅에 올리지 않습니다
+- `admin.conf`, `~/.kube/config`, join 토큰, Argo CD 비밀번호, DB VM의 `.env`는 저장소·채팅에 올리지 않습니다
 - `ssh t4-...`는 내 PC(PowerShell)에서 실행합니다. 노드 안에서는 다른 노드 이름을 모릅니다
