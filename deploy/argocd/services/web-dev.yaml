@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+    targetRevision: main
+    path: deploy/charts/web
+    helm:
+      releaseName: web
+      valueFiles:
+        - ../../values/web/values.yaml
+        - ../../values/web/values-dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ideaconnection-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

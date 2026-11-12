@@ -1,0 +1,26 @@
+containerPort: 8081
+
+image:
+  repository: ghcr.io/ktcloud-cloudnative-2026/idcn-user-service
+
+env:
+  - name: DB_URL
+    valueFrom:
+      secretKeyRef:
+        name: user-service-env
+        key: DB_URL
+  - name: DB_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: user-service-env
+        key: DB_USERNAME
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: user-service-env
+        key: DB_PASSWORD
+  - name: OIDC_ISSUER_URI
+    valueFrom:
+      secretKeyRef:
+        name: user-service-env
+        key: OIDC_ISSUER_URI

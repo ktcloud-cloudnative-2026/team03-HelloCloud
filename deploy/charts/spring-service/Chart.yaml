@@ -1,0 +1,5 @@
+apiVersion: v2
+name: spring-service
+description: Common Helm chart for ideaconnection Spring services
+type: application
+version: 0.1.0
