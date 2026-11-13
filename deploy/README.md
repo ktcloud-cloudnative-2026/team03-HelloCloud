@@ -255,8 +255,9 @@ startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니
 
 웹 Application은 main의 웹 차트와 공통·dev values를 읽습니다.
 실제 배포 전 Gateway 담당자와 웹 경로 및 `/api`의 백엔드 연결을 확인합니다.
-웹 이미지에는 DB·Keycloak Secret을 주입하지 않습니다. 정적 화면의 API·Keycloak
-주소는 프론트 담당자와 빌드 시 주입 여부를 확인해야 합니다.
+웹 이미지에는 DB·Keycloak Secret을 주입하지 않습니다. 화면은 API(`/api`)와
+Keycloak(`/realms`)을 지금 접속한 주소로 부르므로 빌드할 때 주소를 넣지 않습니다.
+기본 realm은 `hellocloud`, client는 `hellocloud-web`입니다(`services/web/src/auth/keycloak.js`).
 컨테이너 환경 변수만 추가한다고 이미 빌드된 화면의 설정이 바뀌지는 않습니다.
 웹과 Gateway의 HTTP 응답은 확인했습니다. 실제 사용자 로그인과 인증된 API 연결은 별도 검증이 필요합니다.
 
