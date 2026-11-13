@@ -1,4 +1,3 @@
 replicaCount: 1
-
 image:
-  tag: "cc41eae"
+  tag: "5e74d5a"
