@@ -1,11 +1,11 @@
 {
-  "realm": "ideaconnection",
+  "realm": "hellocloud",
   "enabled": true,
   "registrationAllowed": true,
   "sslRequired": "none",
   "clients": [
     {
-      "clientId": "web",
+      "clientId": "hellocloud-web",
       "enabled": true,
       "publicClient": true,
       "standardFlowEnabled": true,
