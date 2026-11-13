@@ -7,7 +7,7 @@
 `http://localhost:5173`은 `npm run dev`를 실행한 그 PC에서만 열립니다.
 
 1. `services/web`에서 `npm install` (처음 한 번)
-2. `cp .env.example .env.local` — 로컬 Keycloak(`services/compose.yaml`, realm `ideaconnection`)을 쓰게 합니다
+2. `cp .env.example .env.local` — 로컬 Keycloak(`services/compose.yaml`, `http://localhost:8180`)을 쓰게 합니다
 3. `npm run dev` → 터미널에 나온 주소로 접속 (터미널을 끄면 꺼집니다)
 4. 로그인·조직 목록·만들기까지 보려면 Keycloak과 user-service(8081)도 켜야 합니다. 순서는 `services/user-service/README.md`
 

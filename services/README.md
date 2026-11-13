@@ -18,6 +18,6 @@ services/
 
 | 로컬 값 | 내용 |
 |---|---|
-| Keycloak | `http://localhost:8180/auth`, realm `ideaconnection`, client `web` |
+| Keycloak | `http://localhost:8180`, realm `hellocloud`, client `hellocloud-web` (dev와 같은 이름) |
 | 포트 | user-service `8081`, web `5173` |
 | database · 계정 | `user_service`, `chat_service`, `file_service`, `calendar_service`, `notification_service`, `board_service`, `meeting_service`, `document_service` |
