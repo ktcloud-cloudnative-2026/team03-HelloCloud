@@ -1,0 +1,11 @@
+# 기존 설치의 인증서와 hook 리소스를 재생성하지 않고 컨트롤러만 이관합니다.
+certgen:
+  job:
+    annotations:
+      argocd.argoproj.io/hook: Skip
+  rbac:
+    annotations:
+      argocd.argoproj.io/hook: Skip
+topologyInjector:
+  annotations:
+    argocd.argoproj.io/hook: Skip

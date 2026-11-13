@@ -1,0 +1,9 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg-test
+  annotations:
+    # envoy-test/test-gateway도 사용하는 공용 클래스이므로 자동 삭제하지 않습니다.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller

@@ -6,12 +6,120 @@ Argo CD에 등록된 앱은 `main`의 배포 설정 변경을 감지해 배포�
 ```
 deploy/
   cluster/           손 작업 절차: kubeadm, Calico, Argo CD, DB VM(MySQL)
-  argocd/            Application (root.yaml, platform/, data/, services/)
+  argocd/            Application (platform/, services/), 상위 앱 없음
   charts/            자체 차트: spring-service(서비스 공용), web
   values/<앱>/       values.yaml, values-dev.yaml, values-prod.yaml
-  manifests/         Gateway, Certificate, MetalLB IP 풀 등
+  manifests/         gateway/dev/: GatewayClass, Gateway, HTTPRoute, ReferenceGrant
   scripts/           validate-helm.sh: 공통 Spring 차트 검증
 ```
+
+## Envoy Gateway와 HTTP 경로 (dev)
+
+2026-11-13에 `t4-dev-cp`에서 실제 YAML을 읽어 `manifests/gateway/dev/`와
+대조했습니다. 생성 시간, UID, 상태, `last-applied-configuration`은 저장하지 않습니다.
+
+- `ideaconnection-dev/hellocloud-gateway`: `eg-test` 클래스, HTTP 80,
+  같은 namespace의 Route만 허용합니다.
+- `web-route`: `/` → `web:80`.
+- `keycloak-route`: `/realms`, `/resources`, `/admin` → `keycloak/keycloak:8080`.
+  경로를 변경하지 않습니다.
+- `keycloak/allow-hellocloud-gateway`: `ideaconnection-dev`의 HTTPRoute가
+  `keycloak` Service를 참조하도록 허용합니다. Route 이름으로는 제한할 수 없습니다.
+- `10.10.24.101`은 MetalLB가 할당한 현재 주소입니다. `status`의 값을
+  `spec.addresses`에 복사하지 않으므로 재생성 시 같은 IP를 보장하지 않습니다.
+
+현재 HTTP 구성과 `/admin` 노출을 보존하며 내부 dev 접속에 사용합니다.
+HTTPS·로그인 토큰 검사·`/api` 연결은 이번 범위에 포함하지 않았습니다.
+[설계의 보안 목표](../docs/architecture.md#5-네트워크--보안)는 별도 구현이 필요합니다.
+Keycloak Deployment, Service, Secret과 Realm `hellocloud`, Client `hellocloud-web`은
+관리 범위에 넣지 않습니다. Realm은 공개 OIDC 설정으로 확인하며,
+Client는 전달받은 이름을 유지하고 관리자 API로 재확인하지 않습니다.
+
+### 관리 범위와 최초 이관
+
+`argocd/platform/gateway-dev.yaml`은 위의 리소스 5개만 관리합니다.
+`web-dev`, `user-service-dev`의 Deployment와 Service는 그대로 둡니다.
+`FailOnSharedResource=true`로 다른 앱의 관리 대상과 겹치면 동기화를 중단합니다.
+`prune: false`로 자동 삭제를 막습니다. 공용 `eg-test`는 `envoy-test/test-gateway`도
+사용하므로 별도로 `Prune=false,Delete=false`를 지정했습니다.
+GatewayClass는 클러스터 공용 리소스라 namespace가 없습니다.
+
+`argocd/platform/envoy-gateway-dev.yaml`은 공식 차트를 `v1.9.3`에 고정하고
+기존 namespace `envoy-gateway-system`과 릴리스 이름 `eg`를 유지합니다.
+실제 Helm 사용자 지정 값은 비어 있습니다. 공통 values는 이 기본값을 사용하고,
+dev values는 기존 인증서 생성 Job, 관련 권한, topology webhook의 hook 7개를
+`Skip`으로 제외합니다. 기존 인증서와 webhook을 재생성하거나 덮어쓰지 않습니다.
+컨트롤러의 일반 리소스 12개와 CRD 21개가 이관 대상입니다.
+이 설정은 **이미 설치된 dev의 이관용**입니다. 신규 클러스터의 인증서 초기 생성이나
+갱신을 자동화하지 않으며, prod 값도 확인하지 않아 prod 앱과 values는 만들지 않았습니다.
+
+컨트롤러 앱은 **수동 동기화**입니다. 큰 CRD는 서버 측 적용을 사용하고,
+클라이언트 측 적용을 거치는 중간 이관은 끕니다.
+Argo CD는 Helm을 템플릿 생성에만 사용하므로 기존 Helm 릴리스 기록은 갱신하지 않습니다.
+이관 후 동일 리소스에 `helm upgrade/uninstall`을 병행하지 않습니다.
+
+1. 아래 검증으로 spec과 소유권을 대조합니다. Deployment/Service 교체, hook 실행,
+   CRD 변경이나 삭제가 계획에 있으면 진행하지 않습니다.
+2. main 반영과 실제 환경 변경 승인을 받은 뒤 [Argo CD 최초 등록 절차](cluster/README.md#argo-cd-dev)로
+   위의 Application 2개를 등록합니다. 상위 앱은 추가하지 않습니다.
+   `gateway-dev`는 등록 직후 자동 동기화하므로 앱 등록 자체가 승인 대상입니다.
+3. 컨트롤러는 Argo CD diff에서 hook 제외와 변경 내용을 확인하고 별도 승인 후 수동 Sync합니다.
+   Force, Replace, Prune은 사용하지 않습니다. 자동 동기화 전환은 이관 확인 후 별도 PR로 결정합니다.
+
+### 검증과 운영 확인
+
+저장소 루트에서 실행합니다. kubectl은 dev 컨텍스트가 있는 cp에서 사용합니다.
+로컬 컨텍스트가 없다면 kubeconfig를 복사하지 않고 SSH로 확인합니다.
+
+```bash
+bash deploy/scripts/validate.sh
+helm template eg oci://docker.io/envoyproxy/gateway-helm \
+  --version v1.9.3 --namespace envoy-gateway-system --include-crds \
+  -f deploy/values/envoy-gateway/values.yaml \
+  -f deploy/values/envoy-gateway/values-dev.yaml > /tmp/envoy-gateway-rendered.yaml
+kubectl apply --dry-run=client -f /tmp/envoy-gateway-rendered.yaml
+kubectl apply --dry-run=client -f deploy/manifests/gateway/dev/
+kubectl apply --server-side --field-manager=envoy-gateway-gitops-check \
+  --dry-run=server -f deploy/manifests/gateway/dev/
+kubectl apply --dry-run=client -f deploy/argocd/platform/
+kubectl apply --server-side --field-manager=envoy-gateway-gitops-check \
+  --dry-run=server -f deploy/argocd/platform/
+```
+
+기존 `validate.sh`는 스키마가 없는 리소스를 건너뛰므로 Gateway API와
+Application은 위의 서버 측 dry-run으로 설치된 CRD에 맞춰 추가 검증합니다.
+컨트롤러의 서버 측 dry-run은 렌더링에서 `argocd.argoproj.io/hook: Skip`인 리소스를
+먼저 제외합니다. Helm 소유권과 API 기본값 때문에 충돌할 수 있으므로, 읽기 전용
+`--dry-run=server --force-conflicts`로 반환된 spec을 현재 spec과 비교합니다.
+실제 적용에 `--force-conflicts`를 실행하는 것은 이번 검증에 포함하지 않습니다.
+앱 등록 후에는 `argocd app diff gateway-dev`, `argocd app diff envoy-gateway-dev`도 확인합니다.
+미등록 상태에서는 해당 diff를 실행할 수 없습니다.
+
+```bash
+kubectl get applications -n argocd
+kubectl get gateway hellocloud-gateway -n ideaconnection-dev -o yaml
+kubectl get httproute web-route keycloak-route -n ideaconnection-dev -o yaml
+kubectl get referencegrant allow-hellocloud-gateway -n keycloak -o yaml
+kubectl get gatewayclass eg-test -o yaml
+kubectl rollout status deployment/envoy-gateway -n envoy-gateway-system
+curl --fail --silent --output /dev/null --write-out '%{http_code}\n' http://10.10.24.101/
+curl --fail --silent http://10.10.24.101/realms/hellocloud/.well-known/openid-configuration
+curl --silent --output /dev/null --write-out '%{http_code}\n' http://10.10.24.101/admin/
+```
+
+Gateway의 `Accepted`·`Programmed`, 두 Route의 `Accepted`·`ResolvedRefs`가
+`True`인지 확인합니다. `/`와 Realm 공개 설정은 200, `/admin/`은 로그인 화면으로의
+리다이렉트 또는 200을 기대합니다. 공개 issuer가 기존 OIDC 설정과 일치하는지도 확인합니다.
+`/resources`는 로그인 화면이 참조하는 실제 정적 파일로 확인합니다.
+최종 로그인은 기존 Client로 브라우저에서 확인하며, 비밀번호나 토큰은 기록하지 않습니다.
+
+문제가 생기면 이전 설정으로 되돌리는 `git revert`의 PR을 사용합니다.
+첫 추가를 revert해 파일만 지우면 prune이 꺼져 있어 클러스터 리소스는 삭제되지 않습니다.
+삭제나 Helm 재설치로 롤백하지 않습니다.
+
+참고: [Envoy Gateway v1.9 Helm 설치](https://gateway.envoyproxy.io/v1.9/install/install-helm/),
+[Argo CD Helm 관리와 hook](https://argo-cd.readthedocs.io/en/stable/user-guide/helm/),
+[Git values 연결](https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/)
 
 ## 공통 Spring 차트 로컬 검증
 
