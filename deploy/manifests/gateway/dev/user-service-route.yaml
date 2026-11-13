@@ -1,0 +1,25 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: user-service-route
+  namespace: ideaconnection-dev
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: hellocloud-gateway
+  rules:
+    # 다른 서비스도 /api 아래를 쓰므로 /api 전체가 아니라 user-service 경로만 연결합니다.
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/users
+        - path:
+            type: PathPrefix
+            value: /api/orgs
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: user-service
+          port: 80
+          weight: 1
