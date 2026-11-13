@@ -4,10 +4,13 @@ import OrganizationSelect from './pages/OrganizationSelect'
 import OrganizationCreate from './pages/OrganizationCreate'
 import Dashboard from './pages/Dashboard'
 import { getOrganizations, createOrganization } from './api/organizations'
+import { login, register } from './auth/keycloak'
 import './App.css'
 
-function App() {
-  const [currentPage, setCurrentPage] = useState('login')
+function App({ authenticated, authError }) {
+  const [currentPage, setCurrentPage] = useState(
+    authenticated ? 'organizations' : 'login',
+  )
   const [organizations, setOrganizations] = useState([])
   const [selectedOrganization, setSelectedOrganization] = useState(null)
   
@@ -48,13 +51,6 @@ function App() {
   }, [currentPage])
 
   
-
-  const handleLogin = (e) => {
-    e.preventDefault()
-
-    // 개발용 임시 로그인 (Keycloak 연동 예정)
-    setCurrentPage('organizations')
-  }
 
   const handleCreateOrganization = async (newOrganization) => {
     const created = await createOrganization(newOrganization.name)
@@ -115,36 +111,23 @@ function App() {
 
         <p className="subtitle">우리 팀의 협업을 하나로</p>
 
-        <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <label htmlFor="email">이메일</label>
-            <input
-              id="email"
-              type="email"
-              placeholder="example@hellocloud.com"
-              autoComplete="email"
-              required
-            />
-          </div>
+        {authError && <p role="alert">{authError}</p>}
 
-          <div className="form-group">
-            <label htmlFor="password">비밀번호</label>
-            <input
-              id="password"
-              type="password"
-              placeholder="비밀번호를 입력하세요"
-              autoComplete="current-password"
-              required
-            />
-          </div>
-
-          <button className="login-button" type="submit">
-            로그인
-          </button>
-        </form>
+        <button className="login-button" type="button" onClick={login}>
+          로그인
+        </button>
 
         <p className="signup-text">
-          아직 계정이 없으신가요? <a href="#signup">회원가입</a>
+          아직 계정이 없으신가요?{' '}
+          <a
+            href="#signup"
+            onClick={(e) => {
+              e.preventDefault()
+              register()
+            }}
+          >
+            회원가입
+          </a>
         </p>
       </div>
     </main>
