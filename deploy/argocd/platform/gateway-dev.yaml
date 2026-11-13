@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gateway-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+    targetRevision: main
+    path: deploy/manifests/gateway/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ideaconnection-dev
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - FailOnSharedResource=true
