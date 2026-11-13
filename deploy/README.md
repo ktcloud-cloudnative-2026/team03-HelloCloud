@@ -15,8 +15,11 @@ deploy/
 
 ## Envoy Gateway와 HTTP 경로 (dev)
 
-2026-11-13에 `t4-dev-cp`에서 실제 YAML을 읽어 `manifests/gateway/dev/`와
-대조했습니다. 생성 시간, UID, 상태, `last-applied-configuration`은 저장하지 않습니다.
+2026-11-13에 기존 dev 리소스를 유지한 채 두 Application의 최초 동기화를 완료했습니다.
+Gateway 리소스 5개와 컨트롤러·CRD 33개를 Argo CD가 관리하며, 두 앱은
+`Synced`, `Healthy`, 마지막 동기화 `Succeeded`를 확인했습니다.
+기존 리소스의 UID와 spec, 인증서 Secret, Webhook, Helm 릴리스와 Gateway IP는 유지했습니다.
+생성 시간, UID, 상태, `last-applied-configuration`은 매니페스트에 저장하지 않습니다.
 
 - `ideaconnection-dev/hellocloud-gateway`: `eg-test` 클래스, HTTP 80,
   같은 namespace의 Route만 허용합니다.
@@ -44,6 +47,12 @@ Client는 전달받은 이름을 유지하고 관리자 API로 재확인하지 �
 사용하므로 별도로 `Prune=false,Delete=false`를 지정했습니다.
 GatewayClass는 클러스터 공용 리소스라 namespace가 없습니다.
 
+`gateway-dev`는 자동 동기화와 selfHeal이 켜져 있습니다. 팀원은
+`deploy/manifests/gateway/dev/` 바로 아래에 HTTPRoute YAML을 추가해 PR로 main에
+반영합니다. 같은 namespace의 Route는 `ideaconnection-dev`와
+`parentRefs.name: hellocloud-gateway`를 사용합니다. 추가·수정은 Argo CD가 자동 반영하므로
+별도 `kubectl apply`가 필요 없습니다. 삭제는 prune이 꺼져 있어 자동 반영하지 않습니다.
+
 `argocd/platform/envoy-gateway-dev.yaml`은 공식 차트를 `v1.9.3`에 고정하고
 기존 namespace `envoy-gateway-system`과 릴리스 이름 `eg`를 유지합니다.
 실제 Helm 사용자 지정 값은 비어 있습니다. 공통 values는 이 기본값을 사용하고,
@@ -53,18 +62,24 @@ dev values는 기존 인증서 생성 Job, 관련 권한, topology webhook의 ho
 이 설정은 **이미 설치된 dev의 이관용**입니다. 신규 클러스터의 인증서 초기 생성이나
 갱신을 자동화하지 않으며, prod 값도 확인하지 않아 prod 앱과 values는 만들지 않았습니다.
 
-컨트롤러 앱은 **수동 동기화**입니다. 큰 CRD는 서버 측 적용을 사용하고,
-클라이언트 측 적용을 거치는 중간 이관은 끕니다.
+컨트롤러 앱은 **수동 동기화**를 유지합니다. 큰 CRD는 `ServerSideApply=true`로
+서버 측 적용을 사용하고, `ClientSideApplyMigration=false`로 클라이언트 측 적용을
+거치는 중간 이관을 끕니다. 클라이언트 측 적용은 큰 CRD에서 annotation 크기 제한으로
+실패할 수 있습니다.
 Argo CD는 Helm을 템플릿 생성에만 사용하므로 기존 Helm 릴리스 기록은 갱신하지 않습니다.
 이관 후 동일 리소스에 `helm upgrade/uninstall`을 병행하지 않습니다.
 
-1. 아래 검증으로 spec과 소유권을 대조합니다. Deployment/Service 교체, hook 실행,
-   CRD 변경이나 삭제가 계획에 있으면 진행하지 않습니다.
-2. main 반영과 실제 환경 변경 승인을 받은 뒤 [Argo CD 최초 등록 절차](cluster/README.md#argo-cd-dev)로
-   위의 Application 2개를 등록합니다. 상위 앱은 추가하지 않습니다.
-   `gateway-dev`는 등록 직후 자동 동기화하므로 앱 등록 자체가 승인 대상입니다.
-3. 컨트롤러는 Argo CD diff에서 hook 제외와 변경 내용을 확인하고 별도 승인 후 수동 Sync합니다.
-   Force, Replace, Prune은 사용하지 않습니다. 자동 동기화 전환은 이관 확인 후 별도 PR로 결정합니다.
+기존 dev에는 두 앱이 이미 등록돼 있으므로 다시 설치하거나 등록할 필요가 없습니다.
+재등록 검증이 필요하면 먼저 Gateway 앱 사본의 `automated.enabled`, `prune`, `selfHeal`을
+모두 false로 두고 승인 후 수동 상태로 등록합니다. main의 YAML은 등록 즉시 자동 동기화되므로
+그대로 검증용 등록에 사용하지 않습니다. 상위 앱은 없습니다.
+
+컨트롤러 변경은 실제 Argo CD Diff와 Helm 필드 소유권을 확인하고 승인 후 수동 Sync합니다.
+UI나 CLI의 정상 동기화 요청을 사용합니다. Application의 `operation`을 직접 생성하는 경우
+`spec.syncPolicy.syncOptions`를 `operation.sync.syncOptions`에도 반드시 전달해야 합니다.
+`Synced/Healthy`만으로 완료를 판단하지 않고 동기화 작업의 `Succeeded`와 대상 리소스의
+`argocd-controller` 필드 관리자도 확인합니다. Force, Replace, Prune은 사용하지 않습니다.
+서버 측 적용에서 사용하는 `--force-conflicts`도 실제 충돌 필드 확인과 별도 승인 없이 사용하지 않습니다.
 
 ### 검증과 운영 확인
 
@@ -91,7 +106,8 @@ Application은 위의 서버 측 dry-run으로 설치된 CRD에 맞춰 추가 �
 컨트롤러의 서버 측 dry-run은 렌더링에서 `argocd.argoproj.io/hook: Skip`인 리소스를
 먼저 제외합니다. Helm 소유권과 API 기본값 때문에 충돌할 수 있으므로, 읽기 전용
 `--dry-run=server --force-conflicts`로 반환된 spec을 현재 spec과 비교합니다.
-실제 적용에 `--force-conflicts`를 실행하는 것은 이번 검증에 포함하지 않습니다.
+dry-run은 실제 리소스를 변경하지 않습니다. 실제 Sync의 강제 충돌 처리는 확인된 필드에 대한
+승인을 먼저 받습니다.
 앱 등록 후에는 `argocd app diff gateway-dev`, `argocd app diff envoy-gateway-dev`도 확인합니다.
 미등록 상태에서는 해당 diff를 실행할 수 없습니다.
 
@@ -233,7 +249,7 @@ startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니
 웹 이미지에는 DB·Keycloak Secret을 주입하지 않습니다. 정적 화면의 API·Keycloak
 주소는 프론트 담당자와 빌드 시 주입 여부를 확인해야 합니다.
 컨테이너 환경 변수만 추가한다고 이미 빌드된 화면의 설정이 바뀌지는 않습니다.
-웹 이미지 실행과 Gateway·로그인 연결은 아직 검증하지 않았습니다.
+웹과 Gateway의 HTTP 응답은 확인했습니다. 실제 사용자 로그인과 인증된 API 연결은 별도 검증이 필요합니다.
 
 ## GitHub Actions 연결
 
@@ -263,7 +279,8 @@ Actions 워크플로와 공통 배포 검사는 [PR #71](https://github.com/ktcl
 
 ## 실제 배포 확인 순서
 
-dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 클러스터 배포는 아직 검증하지 않았습니다.
+dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 기존 web·user-service 앱의
+`Synced/Healthy`와 Gateway HTTP 응답을 확인했으며, 인증·API 전체 흐름은 아직 검증하지 않았습니다.
 다음 준비를 마친 뒤 실제 환경 변경 승인을 받고 진행합니다.
 
 1. 백엔드 담당자와 배포할 이미지 SHA를 확인하고 dev values에 반영합니다.

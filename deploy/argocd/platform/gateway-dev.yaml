@@ -14,6 +14,7 @@ spec:
     namespace: ideaconnection-dev
   syncPolicy:
     automated:
+      enabled: true
       prune: false
       selfHeal: true
     syncOptions:
