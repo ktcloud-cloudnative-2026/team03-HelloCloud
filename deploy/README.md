@@ -26,13 +26,15 @@ Gateway 리소스 5개와 컨트롤러·CRD 33개를 Argo CD가 관리하며, �
 - `web-route`: `/` → `web:80`.
 - `keycloak-route`: `/realms`, `/resources`, `/admin` → `keycloak/keycloak:8080`.
   경로를 변경하지 않습니다.
+- `user-service-route`: `/api/users`, `/api/orgs` → `user-service:80`. 경로 앞부분을
+  자르지 않고 그대로 전달합니다. 다른 서비스도 `/api` 아래를 쓰므로 서비스별 경로만 연결합니다.
 - `keycloak/allow-hellocloud-gateway`: `ideaconnection-dev`의 HTTPRoute가
   `keycloak` Service를 참조하도록 허용합니다. Route 이름으로는 제한할 수 없습니다.
 - `10.10.24.101`은 MetalLB가 할당한 현재 주소입니다. `status`의 값을
   `spec.addresses`에 복사하지 않으므로 재생성 시 같은 IP를 보장하지 않습니다.
 
 현재 HTTP 구성과 `/admin` 노출을 보존하며 내부 dev 접속에 사용합니다.
-HTTPS·로그인 토큰 검사·`/api` 연결은 이번 범위에 포함하지 않았습니다.
+HTTPS와 Gateway의 로그인 토큰 검사는 아직 없습니다. 토큰은 각 서비스가 검사합니다.
 [설계의 보안 목표](../docs/architecture.md#5-네트워크--보안)는 별도 구현이 필요합니다.
 Keycloak Deployment, Service, Secret과 Realm `hellocloud`, Client `hellocloud-web`은
 관리 범위에 넣지 않습니다. Realm은 공개 OIDC 설정으로 확인하며,
@@ -40,7 +42,7 @@ Client는 전달받은 이름을 유지하고 관리자 API로 재확인하지 �
 
 ### 관리 범위와 최초 이관
 
-`argocd/platform/gateway-dev.yaml`은 위의 리소스 5개만 관리합니다.
+`argocd/platform/gateway-dev.yaml`은 위의 리소스 6개만 관리합니다.
 `web-dev`, `user-service-dev`의 Deployment와 Service는 그대로 둡니다.
 `FailOnSharedResource=true`로 다른 앱의 관리 대상과 겹치면 동기화를 중단합니다.
 `prune: false`로 자동 삭제를 막습니다. 공용 `eg-test`는 `envoy-test/test-gateway`도
@@ -114,7 +116,7 @@ dry-run은 실제 리소스를 변경하지 않습니다. 실제 Sync의 강제 
 ```bash
 kubectl get applications -n argocd
 kubectl get gateway hellocloud-gateway -n ideaconnection-dev -o yaml
-kubectl get httproute web-route keycloak-route -n ideaconnection-dev -o yaml
+kubectl get httproute web-route keycloak-route user-service-route -n ideaconnection-dev -o yaml
 kubectl get referencegrant allow-hellocloud-gateway -n keycloak -o yaml
 kubectl get gatewayclass eg-test -o yaml
 kubectl rollout status deployment/envoy-gateway -n envoy-gateway-system
@@ -123,7 +125,7 @@ curl --fail --silent http://10.10.24.101/realms/hellocloud/.well-known/openid-co
 curl --silent --output /dev/null --write-out '%{http_code}\n' http://10.10.24.101/admin/
 ```
 
-Gateway의 `Accepted`·`Programmed`, 두 Route의 `Accepted`·`ResolvedRefs`가
+Gateway의 `Accepted`·`Programmed`, 세 Route의 `Accepted`·`ResolvedRefs`가
 `True`인지 확인합니다. `/`와 Realm 공개 설정은 200, `/admin/`은 로그인 화면으로의
 리다이렉트 또는 200을 기대합니다. 공개 issuer가 기존 OIDC 설정과 일치하는지도 확인합니다.
 `/resources`는 로그인 화면이 참조하는 실제 정적 파일로 확인합니다.
@@ -198,6 +200,13 @@ dev values를 순서대로 읽어 `ideaconnection-dev` namespace에 배포합니
   공개라서 이미지 다운로드용 Secret은 필요 없습니다.
 - 대상 namespace에 `user-service-env` Secret을 준비합니다. 필요한 키는
   `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `OIDC_ISSUER_URI`입니다.
+- dev의 `OIDC_ISSUER_URI`는 `http://10.10.24.101/realms/hellocloud`입니다.
+  user-service는 토큰의 발급자(`iss`)가 이 값과 정확히 같아야 받아들입니다. 브라우저가
+  받은 토큰에는 외부 주소가 들어가므로, 클러스터 내부 주소(`*.svc.cluster.local`)를
+  넣으면 모든 요청이 401이 됩니다. 파드에서도 이 외부 주소로 Keycloak에 접근할 수 있습니다.
+- Keycloak에는 `KC_HOSTNAME=http://10.10.24.101`을 설정합니다. 없으면 Keycloak이
+  요청이 들어온 주소로 발급자를 만들어서, `localhost` 터널로 로그인한 토큰도 401이 됩니다.
+  Keycloak 배포는 이 저장소 밖에서 관리합니다.
 - 최신 main의 서비스 설정은 8081 포트와 `/health/liveness`, `/health/readiness`로
   차트와 일치합니다. 실제 이미지에서도 해당 주소가 응답하는지 확인합니다.
 - 저장소가 공개라서 Argo CD는 따로 등록하지 않아도 읽을 수 있습니다. Application을
