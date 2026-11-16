@@ -12,6 +12,7 @@
 | 구분 | 문서 | 내용 |
 |---|---|---|
 | 기획 | [기획서](docs/plan.md) | 목표 · 범위 · 성공 기준 · 일정 |
+| | [심화 프로젝트 기획서](docs/advanced/plan.md) | 처음 세운 전체 범위 (심화 프로젝트용 보관본) |
 | | [요구사항](docs/requirements.md) | 기능(US-01 형식 ID) · 비기능 |
 | 설계 | [아키텍처](docs/architecture.md) | 컨텍스트 · 서비스 구성 · 핵심 시퀀스 · 배포 구성 |
 | | [기술 스택](docs/tech-stack.md) | 무엇을 왜 어디에 |
