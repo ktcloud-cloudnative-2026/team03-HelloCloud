@@ -126,14 +126,14 @@ user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 
 
 ## DB VM (dev MongoDB · Redis)
 
-chat이 쓰는 MongoDB(메시지 저장)와 Redis(서버끼리 실시간 전달, 작업 대기열)도 MySQL과 같은 DB VM에서 Docker로 띄웁니다(2026-11-16 팀 회의). Docker 설치는 위 MySQL 절차 1번과 같습니다.
+chat이 쓰는 MongoDB(메시지 저장)와 Redis(서버끼리 실시간 전달)도 MySQL과 같은 DB VM에서 Docker로 띄웁니다(2026-11-16 팀 회의). Docker 설치는 위 MySQL 절차 1번과 같습니다.
 
 | 항목 | MongoDB | Redis |
 | --- | --- | --- |
 | 이미지 | `mongo:8.0.34` | `redis:8.10.0` |
 | 열린 주소 | `10.10.24.10:27017`만 | `10.10.24.10:6379`만 |
 | 계정 | `chat_service` (`chat_service` DB만 읽기·쓰기) | 비밀번호 하나 |
-| 메모리 | 캐시 0.5GB, 컨테이너 1GB | 데이터 256MB, 컨테이너 512MB |
+| 메모리 | 캐시 0.5GB, 컨테이너 1GB | 데이터 256MB, 컨테이너 384MB |
 | 파일 | `/opt/mongodb/compose.yaml`, `mongo-init.js`, `.env`(권한 600) | `/opt/redis/compose.yaml`, `.env`(권한 600) |
 
 DB VM은 메모리가 3.8GB이고 swap이 없습니다. 세 DB가 메모리를 나눠 쓰므로, 하나가 메모리를 다 써서 MySQL까지 멈추지 않도록 상한을 둡니다.
@@ -196,28 +196,24 @@ DB VM은 메모리가 3.8GB이고 swap이 없습니다. 세 DB가 메모리를 �
        command:
          - sh
          - -c
-         - exec redis-server --requirepass "$$REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy noeviction --appendonly yes --save ""
-       mem_limit: 512m
+         - exec redis-server --requirepass "$$REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy noeviction --appendonly no --save ""
+       mem_limit: 384m
        ports:
          - "10.10.24.10:6379:6379"
        env_file: .env
-       volumes:
-         - redis-data:/data
        healthcheck:
          test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
          interval: 10s
          timeout: 5s
          retries: 30
-
-   volumes:
-     redis-data:
    EOF
    umask 077
    cat > .env <<EOF
    REDIS_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
    EOF
    ```
-   - 디스크 저장(`--appendonly yes`)을 켜고, 꽉 차도 지우지 않습니다(`noeviction`). calendar와 meeting의 작업 대기열(Redis Streams)이 재시작이나 메모리 부족으로 사라지면 안 되기 때문입니다([meeting](../../docs/api/meeting.md#4-음성-변환-순서)). **포기하는 점:** 256MB가 차면 새로 쓰기가 에러로 실패합니다
+   - Redis는 메시지를 저장하지 않고 받는 서버에 바로 전달만 하므로 디스크 저장을 끕니다(`--appendonly no --save ""`). 재시작하면 Redis 안의 내용은 비지만, 채팅 메시지는 MongoDB에 남습니다
+   - 메모리가 차도 지우지 않습니다(`noeviction`). 누가 Redis에 데이터를 쌓아 꽉 차면 몰래 지우는 대신 에러가 나서 바로 알 수 있습니다. **포기하는 점:** 나중에 Redis에 데이터를 저장하게 되면 디스크 저장을 다시 켜야 합니다
 3. **실행** — 각 폴더에서 `docker compose up -d`
    - 확인: `docker compose ps`가 `(healthy)`, `ss -tln`에 `10.10.24.10:27017`, `10.10.24.10:6379`
    - MongoDB 계정 확인: `docker compose exec mongodb sh -c 'mongosh --quiet -u "$CHAT_USER" -p "$CHAT_PASSWORD" --authenticationDatabase "$CHAT_DB" "$CHAT_DB" --eval "db.runCommand({ping:1}).ok"'`가 `1`
@@ -235,7 +231,7 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 | `REDIS_PASSWORD` | `/opt/redis/.env`의 `REDIS_PASSWORD` |
 
 - Redis를 쓰는 다른 서비스(user 등)는 자기 Secret에 `REDIS_URL`, `REDIS_PASSWORD`를 넣습니다
-- Redis 로그의 `Memory overcommit must be enabled` 경고는 VM 커널 설정(`vm.overcommit_memory`) 이야기입니다. 디스크 저장을 정리할 때 메모리가 모자라면 실패할 수 있다는 뜻이며, VM 설정이라 팀에서 정한 뒤 바꿉니다
+- Redis 로그의 `Memory overcommit must be enabled` 경고는 디스크 저장 중 메모리가 모자랄 때의 이야기라, 저장을 끈 지금은 영향이 없습니다
 
 ## SSH 접속
 
