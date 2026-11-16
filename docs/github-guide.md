@@ -44,7 +44,7 @@ git switch -c feat/12-room-list
 
 ```bash
 git add .
-git commit -m "feat: 회의실 조회 API 추가"
+git commit -m "feat: 초대 링크 생성 API 추가"
 ```
 
 4. 브랜치를 올립니다.
