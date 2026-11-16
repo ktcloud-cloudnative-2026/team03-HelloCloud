@@ -26,14 +26,19 @@ flowchart LR
     cs[chat]
     fs[file]
   end
+  subgraph dbvm[DB 전용 VM · 클러스터 밖]
+    my[(데이터: MySQL)]
+    mg[(데이터: MongoDB)]
+    rd[(실시간 전달: Redis)]
+  end
   user([브라우저]) --> gw[입구: Envoy Gateway]
   gw --> web[웹 화면]
   gw --> kc[로그인: Keycloak]
   gw --> apps
   gw --> sw[(파일: SeaweedFS)]
-  us & fs --> my[(데이터: MySQL)]
-  cs --> mg[(데이터: MongoDB)]
-  us & cs --> rd[(실시간 전달: Redis)]
+  us & fs --> my
+  cs --> mg
+  us & cs --> rd
   fs --> sw
 ```
 
@@ -42,6 +47,8 @@ flowchart LR
 | user | 프로필, 조직, 초대, 멤버 권한 | US-01 ~ US-05 |
 | chat | 채널, 실시간 대화, 결정 기록, 확인 요청 | US-06 ~ US-10 |
 | file | 파일 업로드, 다운로드, 미리보기, 삭제 | US-08, US-11 |
+
+MySQL, MongoDB, Redis는 클러스터 밖 DB 전용 VM에 Docker로 둡니다. 클러스터를 다시 만들어도 데이터가 남고, 세 DB를 같은 방법으로 관리할 수 있습니다. **포기하는 점:** VM이 하나라서 그 VM이 멈추면 모든 서비스가 데이터를 쓰지 못하고, 자동으로 복구되지 않습니다.
 
 서비스 사이의 약속입니다.
 
@@ -83,8 +90,8 @@ sequenceDiagram
 ```mermaid
 flowchart LR
   dev([개발자]) -->|PR, 머지| gh[GitHub]
-  gh --> jk[GitHub Actions]
-  jk -->|이미지 저장| reg[(GHCR)]
+  gh --> ga[GitHub Actions]
+  ga -->|이미지 저장| reg[(GHCR)]
   gh --> adev[dev의 Argo CD]
   gh --> aprod[prod의 Argo CD]
   adev --> cdev[dev 클러스터]

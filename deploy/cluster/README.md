@@ -124,6 +124,115 @@ user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 
 - Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
 - dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
 
+## DB VM (dev MongoDB · Redis)
+
+chat이 쓰는 MongoDB(메시지 저장)와 Redis(서버끼리 실시간 전달)도 MySQL과 같은 DB VM에서 Docker로 띄웁니다(2026-11-16 팀 회의). Docker 설치는 위 MySQL 절차 1번과 같습니다.
+
+| 항목 | MongoDB | Redis |
+| --- | --- | --- |
+| 이미지 | `mongo:8.0.34` | `redis:8.10.0` |
+| 열린 주소 | `10.10.24.10:27017`만 | `10.10.24.10:6379`만 |
+| 계정 | `chat_service` (`chat_service` DB만 읽기·쓰기) | 비밀번호 하나 |
+| 메모리 | 캐시 0.5GB, 컨테이너 1GB | 데이터 256MB, 컨테이너 384MB |
+| 파일 | `/opt/mongodb/compose.yaml`, `mongo-init.js`, `.env`(권한 600) | `/opt/redis/compose.yaml`, `.env`(권한 600) |
+
+DB VM은 메모리가 3.8GB이고 swap이 없습니다. 세 DB가 메모리를 나눠 쓰므로, 하나가 메모리를 다 써서 MySQL까지 멈추지 않도록 상한을 둡니다.
+
+1. **MongoDB 파일 준비** — `/opt/mongodb`에 아래 세 파일
+   ```bash
+   sudo mkdir -p /opt/mongodb && sudo chown lab:lab /opt/mongodb && cd /opt/mongodb
+   cat > compose.yaml <<'EOF'
+   name: dev-mongodb
+
+   services:
+     mongodb:
+       image: mongo:8.0.34
+       restart: unless-stopped
+       command: ["--wiredTigerCacheSizeGB", "0.5"]
+       mem_limit: 1g
+       ports:
+         - "10.10.24.10:27017:27017"
+       env_file: .env
+       volumes:
+         - mongodb-data:/data/db
+         - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+       healthcheck:
+         test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+         interval: 10s
+         timeout: 5s
+         retries: 30
+
+   volumes:
+     mongodb-data:
+   EOF
+   cat > mongo-init.js <<'EOF'
+   db = db.getSiblingDB(process.env.CHAT_DB);
+   db.createUser({
+     user: process.env.CHAT_USER,
+     pwd: process.env.CHAT_PASSWORD,
+     roles: [{ role: "readWrite", db: process.env.CHAT_DB }]
+   });
+   EOF
+   umask 077
+   cat > .env <<EOF
+   MONGO_INITDB_ROOT_USERNAME=root
+   MONGO_INITDB_ROOT_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
+   CHAT_DB=chat_service
+   CHAT_USER=chat_service
+   CHAT_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
+   EOF
+   ```
+   - `mongo-init.js`는 데이터 볼륨이 비어 있을 때 처음 한 번만 실행됩니다. 나중에 계정을 바꾸려면 이 파일이 아니라 `mongosh`로 바꿉니다
+2. **Redis 파일 준비** — `/opt/redis`에 아래 두 파일
+   ```bash
+   sudo mkdir -p /opt/redis && sudo chown lab:lab /opt/redis && cd /opt/redis
+   cat > compose.yaml <<'EOF'
+   name: dev-redis
+
+   services:
+     redis:
+       image: redis:8.10.0
+       restart: unless-stopped
+       command:
+         - sh
+         - -c
+         - exec redis-server --requirepass "$$REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy noeviction --appendonly no --save ""
+       mem_limit: 384m
+       ports:
+         - "10.10.24.10:6379:6379"
+       env_file: .env
+       healthcheck:
+         test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
+         interval: 10s
+         timeout: 5s
+         retries: 30
+   EOF
+   umask 077
+   cat > .env <<EOF
+   REDIS_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
+   EOF
+   ```
+   - Redis는 메시지를 저장하지 않고 받는 서버에 바로 전달만 하므로 디스크 저장을 끕니다(`--appendonly no --save ""`). 재시작하면 Redis 안의 내용은 비지만, 채팅 메시지는 MongoDB에 남습니다
+   - 메모리가 차도 지우지 않습니다(`noeviction`). 누가 Redis에 데이터를 쌓아 꽉 차면 몰래 지우는 대신 에러가 나서 바로 알 수 있습니다. **포기하는 점:** 나중에 Redis에 데이터를 저장하게 되면 디스크 저장을 다시 켜야 합니다
+3. **실행** — 각 폴더에서 `docker compose up -d`
+   - 확인: `docker compose ps`가 `(healthy)`, `ss -tln`에 `10.10.24.10:27017`, `10.10.24.10:6379`
+   - MongoDB 계정 확인: `docker compose exec mongodb sh -c 'mongosh --quiet -u "$CHAT_USER" -p "$CHAT_PASSWORD" --authenticationDatabase "$CHAT_DB" "$CHAT_DB" --eval "db.runCommand({ping:1}).ok"'`가 `1`
+   - Redis 비밀번호 확인: `docker compose exec redis redis-cli ping`이 `NOAUTH`, `docker compose exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping'`이 `PONG`
+4. **클러스터에서 접속 확인 (cp에서)** — `timeout 3 bash -c '</dev/tcp/10.10.24.10/27017' && echo OK`, 포트를 `6379`로 바꿔 한 번 더
+
+chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁니다. 이름은 [공통 규칙](../../docs/conventions.md#3-설정과-비밀값)을 따릅니다.
+
+| 키 | 값 |
+| --- | --- |
+| `DB_URL` | `mongodb://10.10.24.10:27017/chat_service?authSource=chat_service` |
+| `DB_USERNAME` | `chat_service` |
+| `DB_PASSWORD` | `/opt/mongodb/.env`의 `CHAT_PASSWORD` |
+| `REDIS_URL` | `redis://10.10.24.10:6379` |
+| `REDIS_PASSWORD` | `/opt/redis/.env`의 `REDIS_PASSWORD` |
+
+- Redis를 쓰는 다른 서비스(user 등)는 자기 Secret에 `REDIS_URL`, `REDIS_PASSWORD`를 넣습니다
+- Redis 로그의 `Memory overcommit must be enabled` 경고는 디스크 저장 중 메모리가 모자랄 때의 이야기라, 저장을 끈 지금은 영향이 없습니다
+
 ## SSH 접속
 
 내 PC에서 bastion을 거쳐 각 VM에 접속합니다. 설정은 [ssh_config.example](ssh_config.example)을 `~/.ssh/config`에 붙여 넣고 `<...>`를 채웁니다. bastion 주소·포트는 팀 채널에서 받습니다.
