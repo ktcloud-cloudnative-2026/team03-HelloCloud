@@ -653,8 +653,31 @@
   cursor: pointer;
 }
 
-.dashboard-placeholder button:hover {
+.file-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dashboard-placeholder button.file-selection-cancel {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.dashboard-placeholder button:enabled:hover {
   background: #1d4ed8;
+}
+
+.dashboard-placeholder button:disabled {
+  background: #e2e8f0;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.dashboard-placeholder #file-size-error {
+  color: #b91c1c;
 }
 
 .dashboard-layout button:focus-visible {
