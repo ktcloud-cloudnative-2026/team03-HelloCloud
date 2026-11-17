@@ -74,8 +74,8 @@ dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-
 | VM | `t4-db`, 10.10.24.10 (VM 안 hostname은 `t3-db`) |
 | MySQL | `mysql:8.4.13`, Docker 29.1 + compose 2.40 (Ubuntu 패키지) |
 | 열린 주소 | `10.10.24.10:3306`만 |
-| DB / 계정 | `user_service` / `user_service` |
-| 파일 | `/opt/mysql/compose.yaml`, `/opt/mysql/.env`(권한 600, 비밀번호) |
+| DB / 계정 | `user_service` / `user_service`, 파일 서비스 테스트용 `seaweedtest` / `seaweedtest` |
+| 파일 | `/opt/mysql/compose.yaml`, `/opt/mysql/.env`(권한 600, 비밀번호), `/opt/mysql/seaweedtest.env`(권한 600, `seaweedtest` 비밀번호) |
 
 1. **Docker 설치 (DB VM에서)** — 설치 후 다시 접속해야 docker 그룹이 적용됨
    ```bash
@@ -120,6 +120,16 @@ dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-
 4. **클러스터에서 접속 확인 (cp에서)** — `timeout 3 bash -c '</dev/tcp/10.10.24.10/3306' && echo OK`
 
 user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 씁니다. `DB_URL`은 `jdbc:mysql://10.10.24.10:3306/user_service`, `DB_USERNAME`은 `user_service`, `DB_PASSWORD`는 `.env`의 `MYSQL_PASSWORD`입니다. 초대 링크 앞부분인 `INVITE_BASE_URL`은 웹 주소 `http://10.10.24.101`입니다.
+
+파일 서비스 테스트용 `seaweedtest` DB와 계정은 실행 중인 MySQL에 따로 만들었습니다(2026-11-17). 계정은 `seaweedtest` DB 안에서만 모든 권한을 가집니다. `/opt/mysql`에서 한 줄씩 실행합니다. 여러 줄 입력(heredoc)은 붙여 넣다 끊기기 쉽습니다.
+
+```bash
+umask 077; printf 'SEAWEEDTEST_PASSWORD=%s\n' "$(openssl rand -base64 24 | tr -d '/+=')" > seaweedtest.env
+P=$(cut -d= -f2- seaweedtest.env); printf "CREATE DATABASE seaweedtest CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;\nCREATE USER 'seaweedtest'@'%%' IDENTIFIED BY '%s';\nGRANT ALL PRIVILEGES ON seaweedtest.* TO 'seaweedtest'@'%%';\n" "$P" | docker compose exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot'; unset P
+```
+
+- 확인: `docker compose exec -T -e MYSQL_PWD="$(cut -d= -f2- seaweedtest.env)" mysql mysql -useaweedtest -h127.0.0.1 seaweedtest -e "SELECT CURRENT_USER();"`가 `seaweedtest@%`
+- 접속 주소는 `jdbc:mysql://10.10.24.10:3306/seaweedtest`입니다
 
 - Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
 - dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
