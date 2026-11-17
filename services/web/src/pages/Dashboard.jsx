@@ -2,10 +2,12 @@
 import { useState } from 'react'
 import { logout } from '../auth/keycloak'
 import InviteDialog from '../components/InviteDialog'
+import MemberList from '../components/MemberList'
 import './Dashboard.css'
 
 const menuItems = [
   { id: 'dashboard', icon: '▦', label: '대시보드' },
+  { id: 'members', icon: '♙', label: '멤버' },
   { id: 'chat', icon: '▤', label: '채팅' },
   { id: 'files', icon: '▣', label: '파일 관리' },
   { id: 'tasks', icon: '☑', label: '업무 관리', preview: true },
@@ -56,7 +58,7 @@ const quickLinks = [
   { id: 'calendar', icon: '▦', label: '일정', description: '팀 일정 확인하기' },
 ]
 
-function Dashboard({ organization, onBack }) {
+function Dashboard({ organization, onBack, onLeave }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -289,6 +291,8 @@ function Dashboard({ organization, onBack }) {
                 </section>
               </div>
             </>
+          ) : activeMenu === 'members' ? (
+            <MemberList organization={organization} onLeave={onLeave} />
           ) : (
             <section className="dashboard-placeholder">
               <span className="dashboard-placeholder-icon">☁</span>
