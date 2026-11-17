@@ -119,7 +119,7 @@ dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-
    - 확인: `docker compose ps`가 `(healthy)`, `ss -tln | grep 3306`이 `10.10.24.10:3306`
 4. **클러스터에서 접속 확인 (cp에서)** — `timeout 3 bash -c '</dev/tcp/10.10.24.10/3306' && echo OK`
 
-user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 씁니다. `DB_URL`은 `jdbc:mysql://10.10.24.10:3306/user_service`, `DB_USERNAME`은 `user_service`, `DB_PASSWORD`는 `.env`의 `MYSQL_PASSWORD`입니다.
+user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 씁니다. `DB_URL`은 `jdbc:mysql://10.10.24.10:3306/user_service`, `DB_USERNAME`은 `user_service`, `DB_PASSWORD`는 `.env`의 `MYSQL_PASSWORD`입니다. 초대 링크 앞부분인 `INVITE_BASE_URL`은 웹 주소 `http://10.10.24.101`입니다.
 
 - Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
 - dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
