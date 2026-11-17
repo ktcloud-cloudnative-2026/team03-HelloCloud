@@ -56,6 +56,7 @@ const quickLinks = [
 
 function Dashboard({ organization, onBack }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
+  const [selectedFile, setSelectedFile] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const organizationName = organization?.name || 'HelloCloud 개발팀'
@@ -274,6 +275,17 @@ function Dashboard({ organization, onBack }) {
                 </section>
               </div>
             </>
+          ) : activeMenu === 'files' ? (
+            <section className="dashboard-placeholder">
+              <h1>파일</h1>
+              <p>아직 업로드된 파일이 없어요.</p>
+              <input
+                type="file"
+                aria-label="파일 선택"
+                onChange={(event) => setSelectedFile(event.target.files[0] ?? null)}
+              />
+              {selectedFile && <p>선택한 파일: {selectedFile.name}</p>}
+            </section>
           ) : (
             <section className="dashboard-placeholder">
               <span className="dashboard-placeholder-icon">☁</span>
