@@ -1,0 +1,104 @@
+.invite-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-5) var(--space-4);
+  background:
+    radial-gradient(circle at 20% 20%, var(--color-primary-soft), transparent 35%),
+    var(--color-background);
+  color: var(--color-text);
+}
+
+.invite-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 460px;
+  padding: 48px 36px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.invite-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+  color: var(--color-primary);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.invite-step {
+  margin-bottom: 14px;
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.invite-card h1 {
+  margin: 0 0 12px;
+  font-size: clamp(24px, 4vw, 30px);
+  letter-spacing: -1px;
+}
+
+.invite-description {
+  margin: 0 0 28px;
+  color: var(--color-text-muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.invite-error {
+  width: 100%;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: #fef2f2;
+  color: var(--color-error);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.invite-accept {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.invite-accept:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.invite-later {
+  margin-top: 14px;
+  padding: 6px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.invite-later:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.invite-accept:disabled,
+.invite-later:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
