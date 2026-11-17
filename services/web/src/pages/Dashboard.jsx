@@ -1,5 +1,5 @@
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import FileList from './FileList'
 import './Dashboard.css'
 
@@ -58,6 +58,7 @@ const quickLinks = [
 function Dashboard({ organization, onBack }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
   const [selectedFile, setSelectedFile] = useState(null)
+  const fileInputRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const organizationName = organization?.name || 'HelloCloud 개발팀'
@@ -280,12 +281,20 @@ function Dashboard({ organization, onBack }) {
             <section className="dashboard-placeholder">
               <h1>파일</h1>
               <FileList key={organization.id} orgId={organization.id} />
+              <button type="button" onClick={() => fileInputRef.current?.click()}>
+                파일 선택
+              </button>
               <input
+                ref={fileInputRef}
                 type="file"
-                aria-label="파일 선택"
+                hidden
                 onChange={(event) => setSelectedFile(event.target.files[0] ?? null)}
               />
               {selectedFile && <p>선택한 파일: {selectedFile.name}</p>}
+              <button type="button" disabled={!selectedFile} aria-describedby="upload-help">
+                업로드
+              </button>
+              <p id="upload-help">파일 전송은 API 연결 후 사용할 수 있어요.</p>
             </section>
           ) : (
             <section className="dashboard-placeholder">
