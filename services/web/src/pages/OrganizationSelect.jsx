@@ -1,4 +1,5 @@
 
+import { logout } from '../auth/keycloak'
 import './OrganizationSelect.css'
 
 const ROLE_LABELS = { OWNER: '소유자', MEMBER: '멤버' }
@@ -14,6 +15,12 @@ function OrganizationSelect({
   return (
     <main className="org-page">
       <div className="org-container">
+        <div className="org-toolbar">
+          <button type="button" className="org-logout" onClick={logout}>
+            로그아웃
+          </button>
+        </div>
+
         <header className="org-header">
           <div className="org-brand">
             <span className="org-brand-icon" aria-hidden="true">☁</span>

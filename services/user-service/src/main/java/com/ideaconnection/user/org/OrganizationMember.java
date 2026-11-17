@@ -51,6 +51,10 @@ public class OrganizationMember {
     return organization;
   }
 
+  public UserProfile getUser() {
+    return user;
+  }
+
   public OrganizationRole getRole() {
     return role;
   }

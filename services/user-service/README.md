@@ -25,6 +25,7 @@
 | `DB_USERNAME` | `user_service` |
 | `DB_PASSWORD` | `.env`에 정한 값 |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/realms/hellocloud` |
+| `INVITE_BASE_URL` | 초대 링크 앞부분. 없으면 `http://localhost:5173` |
 
 테스트 계정은 `http://localhost:8180/realms/hellocloud/account`의 회원가입 화면에서 만듭니다.
 

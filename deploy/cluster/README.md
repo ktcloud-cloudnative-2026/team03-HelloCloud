@@ -119,7 +119,7 @@ dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-
    - 확인: `docker compose ps`가 `(healthy)`, `ss -tln | grep 3306`이 `10.10.24.10:3306`
 4. **클러스터에서 접속 확인 (cp에서)** — `timeout 3 bash -c '</dev/tcp/10.10.24.10/3306' && echo OK`
 
-user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 씁니다. `DB_URL`은 `jdbc:mysql://10.10.24.10:3306/user_service`, `DB_USERNAME`은 `user_service`, `DB_PASSWORD`는 `.env`의 `MYSQL_PASSWORD`입니다.
+user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 씁니다. `DB_URL`은 `jdbc:mysql://10.10.24.10:3306/user_service`, `DB_USERNAME`은 `user_service`, `DB_PASSWORD`는 `.env`의 `MYSQL_PASSWORD`입니다. 초대 링크 앞부분인 `INVITE_BASE_URL`은 웹 주소 `http://10.10.24.101`입니다.
 
 - Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
 - dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
@@ -232,6 +232,17 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 
 - Redis를 쓰는 다른 서비스(user 등)는 자기 Secret에 `REDIS_URL`, `REDIS_PASSWORD`를 넣습니다
 - Redis 로그의 `Memory overcommit must be enabled` 경고는 디스크 저장 중 메모리가 모자랄 때의 이야기라, 저장을 끈 지금은 영향이 없습니다
+
+**chat Secret 만들기** — chat을 dev에 처음 배포하기 전에 한 번 합니다. 내 PC(WSL)에서 실행합니다. 비밀번호는 DB VM의 `.env`에서 cp의 `kubectl`로 바로 넘어가므로 화면 · 파일 · 명령 기록에 남지 않습니다.
+
+1. **확인 (클러스터를 바꾸지 않음)** — 키 이름 5개만 나오면 정상
+   ```bash
+   ssh t4-db 'M=$(grep "^CHAT_PASSWORD=" /opt/mongodb/.env | cut -d= -f2-); R=$(grep "^REDIS_PASSWORD=" /opt/redis/.env | cut -d= -f2-); printf "%s\n" "DB_URL=mongodb://10.10.24.10:27017/chat_service?authSource=chat_service" "DB_USERNAME=chat_service" "DB_PASSWORD=$M" "REDIS_URL=redis://10.10.24.10:6379" "REDIS_PASSWORD=$R"' | ssh t4-dev-cp 'kubectl create secret generic chat-service-env -n ideaconnection-dev --from-env-file=/dev/stdin --dry-run=client -o yaml | grep -oE "^  [A-Z_]+:"'
+   ```
+   - 값이 비어 있지 않은지는 위 명령의 `| ssh t4-dev-cp '…'` 부분을 `| awk -F= '{print $1, length($0)-length($1)-1}'`로 바꿔 글자 수로 확인합니다. 0이 있으면 `.env`의 이름이 다른 것입니다
+2. **만들기** — 1번 명령의 마지막 `| grep -oE "^  [A-Z_]+:"`를 `| kubectl apply -f -`로 바꿔 실행합니다. 비밀번호를 바꾼 뒤 다시 실행하면 덮어씁니다
+3. **확인 (cp에서)** — `kubectl get secret chat-service-env -n ideaconnection-dev -o yaml | grep -oE "^  [A-Z_]+:"`
+   - `-o yaml`은 `grep` 없이 출력하지 않습니다. 값이 base64로 보이는데, base64는 암호가 아니라 누구나 되돌릴 수 있습니다
 
 ## SSH 접속
 

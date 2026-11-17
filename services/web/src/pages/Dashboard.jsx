@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import { logout } from '../auth/keycloak'
 import './Dashboard.css'
 
 const menuItems = [
@@ -165,6 +166,9 @@ function Dashboard({ organization, onBack }) {
           <div className="dashboard-topbar-right">
             <span className="dashboard-demo-badge">DEMO</span>
             <span className="dashboard-header-avatar">U</span>
+            <button type="button" className="dashboard-logout" onClick={logout}>
+              로그아웃
+            </button>
           </div>
         </header>
 

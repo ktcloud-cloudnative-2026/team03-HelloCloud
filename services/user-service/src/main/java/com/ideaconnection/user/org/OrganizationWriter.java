@@ -27,4 +27,9 @@ class OrganizationWriter {
     Organization organization = organizations.save(new Organization(name, owner));
     return members.save(new OrganizationMember(organization, owner, OrganizationRole.OWNER));
   }
+
+  @Transactional
+  void removeMember(OrganizationMember member) {
+    members.delete(member);
+  }
 }
