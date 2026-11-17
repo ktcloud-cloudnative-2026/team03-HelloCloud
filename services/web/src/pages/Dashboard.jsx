@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import FileList from './FileList'
 import './Dashboard.css'
 
 const menuItems = [
@@ -278,7 +279,7 @@ function Dashboard({ organization, onBack }) {
           ) : activeMenu === 'files' ? (
             <section className="dashboard-placeholder">
               <h1>파일</h1>
-              <p>아직 업로드된 파일이 없어요.</p>
+              <FileList key={organization.id} orgId={organization.id} />
               <input
                 type="file"
                 aria-label="파일 선택"
