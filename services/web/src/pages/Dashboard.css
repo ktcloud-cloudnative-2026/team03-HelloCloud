@@ -251,6 +251,22 @@
   cursor: pointer;
 }
 
+.dashboard-invite {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.dashboard-invite:hover {
+  background: var(--color-primary-hover);
+}
+
 .dashboard-logout:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);

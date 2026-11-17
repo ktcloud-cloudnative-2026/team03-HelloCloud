@@ -30,7 +30,11 @@ export async function apiRequest(path, options = {}) {
       data?.message ||
       `API 요청 실패 (${response.status})`
 
-    throw new Error(message)
+    // 화면이 상황별로 다른 안내를 하려면 서버가 준 code가 필요하다.
+    const error = new Error(message)
+    error.status = response.status
+    error.code = data?.code
+    throw error
   }
 
   return data

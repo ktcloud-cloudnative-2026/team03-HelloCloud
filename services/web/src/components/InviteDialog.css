@@ -1,0 +1,124 @@
+.invite-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgb(15 23 42 / 45%);
+}
+
+.invite-dialog {
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+}
+
+.invite-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.invite-dialog-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.invite-dialog-close {
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.invite-dialog-description,
+.invite-dialog-expiry,
+.invite-dialog-hint {
+  margin: 0 0 16px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.invite-dialog-hint {
+  margin-top: -8px;
+  color: var(--color-warning);
+}
+
+.invite-dialog-error {
+  margin: 0 0 16px;
+  color: var(--color-error);
+  font-size: 14px;
+}
+
+.invite-dialog-link {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.invite-dialog-link input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.invite-dialog-link button,
+.invite-dialog-primary,
+.invite-dialog-secondary {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.invite-dialog-link button,
+.invite-dialog-primary {
+  border: none;
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.invite-dialog-link button:hover,
+.invite-dialog-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.invite-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.invite-dialog-secondary {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.invite-dialog-secondary:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.invite-dialog-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -1,6 +1,7 @@
 
 import { useState } from 'react'
 import { logout } from '../auth/keycloak'
+import InviteDialog from '../components/InviteDialog'
 import './Dashboard.css'
 
 const menuItems = [
@@ -58,6 +59,7 @@ const quickLinks = [
 function Dashboard({ organization, onBack }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
 
   const organizationName = organization?.name || 'HelloCloud 개발팀'
   const organizationInitials =
@@ -165,6 +167,15 @@ function Dashboard({ organization, onBack }) {
 
           <div className="dashboard-topbar-right">
             <span className="dashboard-demo-badge">DEMO</span>
+            {organization?.role === 'OWNER' && (
+              <button
+                type="button"
+                className="dashboard-invite"
+                onClick={() => setInviteOpen(true)}
+              >
+                팀원 초대
+              </button>
+            )}
             <span className="dashboard-header-avatar">U</span>
             <button type="button" className="dashboard-logout" onClick={logout}>
               로그아웃
@@ -299,6 +310,13 @@ function Dashboard({ organization, onBack }) {
           )}
         </main>
       </div>
+
+      {inviteOpen && (
+        <InviteDialog
+          orgId={organization.id}
+          onClose={() => setInviteOpen(false)}
+        />
+      )}
     </div>
   )
 }
