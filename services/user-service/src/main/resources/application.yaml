@@ -20,6 +20,9 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: ${OIDC_ISSUER_URI}
+invite:
+  # 초대 링크 앞부분. 웹 화면 주소를 넣는다.
+  base-url: ${INVITE_BASE_URL:http://localhost:5173}
 logging:
   structured:
     format:

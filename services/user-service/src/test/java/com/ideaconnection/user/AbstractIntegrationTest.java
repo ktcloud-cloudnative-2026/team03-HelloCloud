@@ -29,6 +29,7 @@ public abstract class AbstractIntegrationTest {
 
   @BeforeEach
   void cleanDatabase() {
+    jdbc.update("delete from invitations");
     jdbc.update("delete from organization_members");
     jdbc.update("delete from organizations");
     jdbc.update("delete from users");
@@ -41,6 +42,7 @@ public abstract class AbstractIntegrationTest {
     registry.add("spring.datasource.password", MYSQL::getPassword);
     registry.add(
         "spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> "http://issuer.invalid");
+    registry.add("invite.base-url", () -> "https://hc.test/");
   }
 
   @TestConfiguration
