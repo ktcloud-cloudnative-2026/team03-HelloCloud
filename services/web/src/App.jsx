@@ -106,6 +106,7 @@ function App({ authenticated, authError }) {
       <Dashboard
         organization={selectedOrganization}
         onBack={handleBackToOrganizations}
+        onLeave={handleBackToOrganizations}
       />
     )
   }
