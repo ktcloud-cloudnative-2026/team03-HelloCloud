@@ -1,0 +1,101 @@
+
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import { createClient, RedisClientType } from 'redis';
+
+@Injectable()
+export class RedisService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
+
+  private publisher: RedisClientType | null = null;
+  private subscriber: RedisClientType | null = null;
+  async onModuleInit(): Promise<void> {
+  await this.connect();
+  }
+
+  async connect(): Promise<void> {
+    if (this.publisher?.isOpen && this.subscriber?.isOpen) {
+      return;
+    }
+
+    const redisUrl = process.env.REDIS_URL;
+    const redisPassword = process.env.REDIS_PASSWORD;
+
+    if (!redisUrl) {
+      throw new Error('REDIS_URL 환경변수가 설정되지 않았습니다.');
+    }
+
+    const options = {
+      url: redisUrl,
+      ...(redisPassword ? { password: redisPassword } : {}),
+      socket: {
+        reconnectStrategy: (retries: number) =>
+          Math.min(retries * 100, 3000),
+      },
+    };
+
+    const publisher = createClient(options);
+    const subscriber = publisher.duplicate();
+
+    publisher.on('error', (error: Error) => {
+      this.logger.error(`Redis Publisher 오류: ${error.message}`);
+    });
+
+    subscriber.on('error', (error: Error) => {
+      this.logger.error(`Redis Subscriber 오류: ${error.message}`);
+    });
+
+    try {
+      await Promise.all([
+        publisher.connect(),
+        subscriber.connect(),
+      ]);
+
+      this.publisher = publisher;
+      this.subscriber = subscriber;
+
+      this.logger.log('Redis Pub/Sub 연결 성공');
+    } catch (error) {
+      await Promise.allSettled([
+        publisher.destroy(),
+        subscriber.destroy(),
+      ]);
+
+      throw error;
+    }
+  }
+
+  async publish(channel: string, message: unknown): Promise<number> {
+    if (!this.publisher?.isReady) {
+      throw new Error('Redis Publisher가 연결되지 않았습니다.');
+    }
+
+    return this.publisher.publish(channel, JSON.stringify(message));
+  }
+
+  async subscribe(
+    channel: string,
+    callback: (message: string) => void,
+  ): Promise<void> {
+    if (!this.subscriber?.isReady) {
+      throw new Error('Redis Subscriber가 연결되지 않았습니다.');
+    }
+
+    await this.subscriber.subscribe(channel, callback);
+    this.logger.log(`Redis 채널 구독 완료: ${channel}`);
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await Promise.allSettled([
+      this.publisher?.destroy(),
+      this.subscriber?.destroy(),
+    ]);
+
+    this.publisher = null;
+    this.subscriber = null;
+  }
+}
