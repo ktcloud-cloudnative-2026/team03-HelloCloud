@@ -28,6 +28,12 @@ dev(`http://10.10.24.101`)는 아직 HTTPS가 없어서, 접속용 크롬을 띄
 
 dev에 HTTPS를 붙이면 이 옵션은 필요 없습니다.
 
+## 팀원 초대
+
+조직 OWNER는 대시보드의 "팀원 초대" 버튼으로 초대 링크(`/invite/<토큰>`)를 만들어 복사합니다.
+링크를 연 사람은 로그인한 뒤 "초대 수락하기"를 눌러 MEMBER로 가입합니다. 링크는 한 번만 쓸 수 있습니다.
+이 주소를 웹이 받으려고 `nginx.conf`는 파일이 없는 주소에 `index.html`을 돌려줍니다.
+
 현재 공식 플러그인은 두 가지가 있습니다.
 
 - [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react): [Oxc](https://oxc.rs)를 사용합니다.
