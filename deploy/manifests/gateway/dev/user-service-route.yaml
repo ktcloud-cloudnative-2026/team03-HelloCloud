@@ -17,6 +17,9 @@ spec:
         - path:
             type: PathPrefix
             value: /api/orgs
+        - path:
+            type: PathPrefix
+            value: /api/invitations
       backendRefs:
         - group: ""
           kind: Service

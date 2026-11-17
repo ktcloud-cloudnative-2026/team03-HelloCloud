@@ -24,6 +24,16 @@ export function register() {
   return keycloak.register()
 }
 
+// Keycloak 세션까지 끝내야 다음 로그인 때 다른 계정을 고를 수 있다.
+export function logout() {
+  return keycloak.logout({ redirectUri: window.location.origin })
+}
+
+// 서버의 userId는 로그인 토큰의 sub와 같아서 멤버 목록에서 "나"를 찾을 때 쓴다.
+export function getCurrentUserId() {
+  return keycloak.tokenParsed?.sub ?? null
+}
+
 // 만료 30초 전이면 갱신한다. 갱신이 실패하면 세션이 끝난 것이라 다시 로그인시킨다.
 export async function getAccessToken() {
   if (!keycloak.authenticated) return null

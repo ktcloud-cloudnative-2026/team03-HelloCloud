@@ -3,14 +3,23 @@ import { useEffect, useState } from 'react'
 import OrganizationSelect from './pages/OrganizationSelect'
 import OrganizationCreate from './pages/OrganizationCreate'
 import Dashboard from './pages/Dashboard'
+import InviteAccept from './pages/InviteAccept'
 import { getOrganizations, createOrganization } from './api/organizations'
 import { login, register } from './auth/keycloak'
 import './App.css'
 
+// 초대 링크(/invite/<토큰>)만 주소로 화면을 고른다. 나머지 화면은 상태로 바꾼다.
+function readInviteToken() {
+  const match = window.location.pathname.match(/^\/invite\/([A-Za-z0-9_-]+)\/?$/)
+  return match ? match[1] : null
+}
+
 function App({ authenticated, authError }) {
-  const [currentPage, setCurrentPage] = useState(
-    authenticated ? 'organizations' : 'login',
-  )
+  const [inviteToken] = useState(readInviteToken)
+  const [currentPage, setCurrentPage] = useState(() => {
+    if (!authenticated) return 'login'
+    return inviteToken ? 'invite' : 'organizations'
+  })
   const [organizations, setOrganizations] = useState([])
   const [selectedOrganization, setSelectedOrganization] = useState(null)
   
@@ -52,6 +61,17 @@ function App({ authenticated, authError }) {
 
   
 
+  // 초대 링크로 들어왔는데 로그인 전이면 바로 로그인시킨다. 로그인하면 같은 주소로 돌아온다.
+  const loginForInvite = inviteToken && !authenticated && !authError
+  useEffect(() => {
+    if (loginForInvite) login()
+  }, [loginForInvite])
+
+  const handleInviteDone = () => {
+    window.history.replaceState(null, '', '/')
+    setCurrentPage('organizations')
+  }
+
   const handleCreateOrganization = async (newOrganization) => {
     const created = await createOrganization(newOrganization.name)
 
@@ -69,11 +89,24 @@ function App({ authenticated, authError }) {
     setCurrentPage('organizations')
   }
 
+  if (currentPage === 'invite') {
+    return <InviteAccept token={inviteToken} onDone={handleInviteDone} />
+  }
+
+  if (loginForInvite) {
+    return (
+      <main className="login-container">
+        <p role="status">초대를 수락하려면 로그인이 필요해요. 로그인 화면으로 이동하는 중...</p>
+      </main>
+    )
+  }
+
   if (currentPage === 'dashboard' && selectedOrganization) {
     return (
       <Dashboard
         organization={selectedOrganization}
         onBack={handleBackToOrganizations}
+        onLeave={handleBackToOrganizations}
       />
     )
   }

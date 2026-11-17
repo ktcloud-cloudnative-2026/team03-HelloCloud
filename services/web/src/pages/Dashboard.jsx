@@ -1,12 +1,16 @@
 
 import { useRef, useState } from 'react'
 import FileList from './FileList'
+import { logout } from '../auth/keycloak'
+import InviteDialog from '../components/InviteDialog'
+import MemberList from '../components/MemberList'
 import './Dashboard.css'
 
 const maxUploadBytes = 100 * 1024 * 1024
 
 const menuItems = [
   { id: 'dashboard', icon: '▦', label: '대시보드' },
+  { id: 'members', icon: '♙', label: '멤버' },
   { id: 'chat', icon: '▤', label: '채팅' },
   { id: 'files', icon: '▣', label: '파일 관리' },
   { id: 'tasks', icon: '☑', label: '업무 관리', preview: true },
@@ -57,12 +61,13 @@ const quickLinks = [
   { id: 'calendar', icon: '▦', label: '일정', description: '팀 일정 확인하기' },
 ]
 
-function Dashboard({ organization, onBack }) {
+function Dashboard({ organization, onBack, onLeave }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
   const [selectedFile, setSelectedFile] = useState(null)
   const fileInputRef = useRef(null)
   const fileTooLarge = selectedFile?.size > maxUploadBytes
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
 
   const organizationName = organization?.name || 'HelloCloud 개발팀'
   const organizationInitials =
@@ -175,7 +180,19 @@ function Dashboard({ organization, onBack }) {
 
           <div className="dashboard-topbar-right">
             <span className="dashboard-demo-badge">DEMO</span>
+            {organization?.role === 'OWNER' && (
+              <button
+                type="button"
+                className="dashboard-invite"
+                onClick={() => setInviteOpen(true)}
+              >
+                팀원 초대
+              </button>
+            )}
             <span className="dashboard-header-avatar">U</span>
+            <button type="button" className="dashboard-logout" onClick={logout}>
+              로그아웃
+            </button>
           </div>
         </header>
 
@@ -318,6 +335,8 @@ function Dashboard({ organization, onBack }) {
               </button>
               <p id="upload-help">파일 전송은 API 연결 후 사용할 수 있어요.</p>
             </section>
+          ) : activeMenu === 'members' ? (
+            <MemberList organization={organization} onLeave={onLeave} />
           ) : (
             <section className="dashboard-placeholder">
               <span className="dashboard-placeholder-icon">☁</span>
@@ -339,6 +358,13 @@ function Dashboard({ organization, onBack }) {
           )}
         </main>
       </div>
+
+      {inviteOpen && (
+        <InviteDialog
+          orgId={organization.id}
+          onClose={() => setInviteOpen(false)}
+        />
+      )}
     </div>
   )
 }

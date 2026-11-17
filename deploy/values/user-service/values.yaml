@@ -24,3 +24,10 @@ env:
       secretKeyRef:
         name: user-service-env
         key: OIDC_ISSUER_URI
+  # 키가 없어도 파드는 뜨고, 초대 링크가 http://localhost:5173로 만들어집니다.
+  - name: INVITE_BASE_URL
+    valueFrom:
+      secretKeyRef:
+        name: user-service-env
+        key: INVITE_BASE_URL
+        optional: true
