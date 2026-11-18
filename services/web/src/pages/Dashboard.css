@@ -925,3 +925,6 @@
   .file-list .file-list-row { align-items:flex-start; }
   .file-list-actions { margin-left:auto; }
 }
+
+.file-button-danger { background: #fff; border-color: #f0dcdd; color: #b95760; }
+.file-button-danger:hover { background: #fff1f2; border-color: #eabec3; }

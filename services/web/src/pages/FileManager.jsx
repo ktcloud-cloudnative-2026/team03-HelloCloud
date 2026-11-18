@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
+import { getCurrentUserId } from '../auth/keycloak'
 import { uploadFile } from '../api/files'
 import FileList from './FileList'
 
 const maxUploadBytes = 100_000_000
 
-export default function FileManager({ orgId }) {
+export default function FileManager({ orgId, organizationRole }) {
   const [selectedFile, setSelectedFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [notice, setNotice] = useState(null)
@@ -55,7 +56,7 @@ export default function FileManager({ orgId }) {
         {fileTooLarge && <p role="alert" id="file-size-error">100MB 이하의 파일만 올릴 수 있어요.</p>}
         {notice && <p role={notice.error ? 'alert' : 'status'}>{notice.message}</p>}
       </div>
-      <FileList key={refreshKey} orgId={orgId} />
+      <FileList key={refreshKey} orgId={orgId} organizationRole={organizationRole} currentUserId={getCurrentUserId()} />
     </section>
   )
 }

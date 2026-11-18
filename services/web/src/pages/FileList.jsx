@@ -1,16 +1,21 @@
-import { useEffect, useState } from 'react'
-import { listFiles, getDownloadUrl, getPreviewUrl } from '../api/files'
+import { useEffect, useRef, useState } from 'react'
+import { listFiles, getDownloadUrl, getPreviewUrl, deleteFile } from '../api/files'
 import { supportsPreview, openFilePreview } from './filePreview.js'
+
+import { canDeleteFile, requestFileDeletion } from './fileDeletion.js'
 
 const pageSize = 20
 
-export default function FileList({ orgId, refreshKey = 0 }) {
+export default function FileList({ orgId, refreshKey = 0, organizationRole, currentUserId }) {
   const [page, setPage] = useState(0)
   const [result, setResult] = useState(null)
   const [downloadError, setDownloadError] = useState(null)
   const [downloading, setDownloading] = useState(null)
   const [previewing, setPreviewing] = useState(null)
   const [previewError, setPreviewError] = useState(null)
+  const [deleting, setDeleting] = useState(null)
+  const [deleteNotice, setDeleteNotice] = useState(null)
+  const deletionLock = useRef(false)
   const [retry, setRetry] = useState(0)
 
   useEffect(() => {
@@ -76,6 +81,33 @@ export default function FileList({ orgId, refreshKey = 0 }) {
     }
   }
 
+  async function remove(file) {
+    if (deletionLock.current) return
+    deletionLock.current = true
+    setDeleteNotice(null)
+    setDeleting(file.id)
+    try {
+      const removed = await requestFileDeletion(file, {
+        organizationRole, currentUserId,
+        confirmDelete: (message) => window.confirm(message),
+        deleteFile,
+      })
+      if (!removed) return
+      setDeleteNotice({ message: '파일을 삭제했어요.' })
+      setResult(null)
+      if (page > 0 && result?.data.items.length === 1) setPage(page - 1)
+      else setRetry((value) => value + 1)
+    } catch (error) {
+      const message = error.status === 403 ? '삭제 권한이 없거나 조직 접근 권한이 변경됐어요.'
+        : error.status === 404 ? '이미 삭제되었거나 찾을 수 없는 파일이에요. 목록을 다시 불러와 주세요.'
+          : '파일을 삭제하지 못했어요. ' + error.message
+      setDeleteNotice({ error: true, message })
+    } finally {
+      deletionLock.current = false
+      setDeleting(null)
+    }
+  }
+
   const data = result?.data
 
   return (
@@ -90,6 +122,9 @@ export default function FileList({ orgId, refreshKey = 0 }) {
       )}
       {downloadError && <p role="alert">다운로드하지 못했어요. {downloadError}</p>}
       {previewError && <p role="alert">미리보기를 열지 못했어요. {previewError}</p>}
+      {deleteNotice && <p role={deleteNotice.error ? 'alert' : 'status'}>{deleteNotice.message}</p>}
+      {deleteNotice?.error && <button type="button" className="file-button file-button-outline" disabled={deleting !== null}
+        onClick={() => { setResult(null); setRetry((value) => value + 1) }}>목록 새로고침</button>}
       {data && (
         <>
           {data.items.length === 0 ? (
@@ -109,14 +144,20 @@ export default function FileList({ orgId, refreshKey = 0 }) {
                   </div>
                   <div className="file-list-actions">
                     {supportsPreview(file.contentType) ? (
-                      <button className="file-button file-button-outline" type="button" disabled={previewing !== null} onClick={() => preview(file)}
+                      <button className="file-button file-button-outline" type="button" disabled={previewing !== null || deleting !== null} onClick={() => preview(file)}
                         aria-label={file.name + ' 미리보기 (새 탭)'}>
                         {previewing === file.id ? '여는 중…' : '미리보기'}
                       </button>
                     ) : <small className="file-preview-hint">다운로드로 확인</small>}
-                    <button className="file-button file-button-soft" type="button" disabled={downloading !== null} onClick={() => download(file)}>
+                    <button className="file-button file-button-soft" type="button" disabled={downloading !== null || deleting !== null} onClick={() => download(file)}>
                       {downloading === file.id ? '준비 중…' : '다운로드'}
                     </button>
+                    {canDeleteFile(file, organizationRole, currentUserId) && (
+                      <button type="button" className="file-button file-button-danger" disabled={deleting !== null}
+                        aria-label={file.name + ' 삭제'} onClick={() => remove(file)}>
+                        {deleting === file.id ? '삭제 중…' : '삭제'}
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -124,12 +165,12 @@ export default function FileList({ orgId, refreshKey = 0 }) {
           )}
           {(page > 0 || (page + 1) * pageSize < data.total) && (
             <div>
-              <button type="button" disabled={page === 0} onClick={() => goToPage(page - 1)}>
+              <button type="button" disabled={page === 0 || deleting !== null} onClick={() => goToPage(page - 1)}>
                 이전
               </button>
               <button
                 type="button"
-                disabled={(page + 1) * pageSize >= data.total}
+                disabled={(page + 1) * pageSize >= data.total || deleting !== null}
                 onClick={() => goToPage(page + 1)}
               >
                 다음
