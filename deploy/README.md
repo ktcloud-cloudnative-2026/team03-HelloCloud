@@ -263,8 +263,8 @@ node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)�
 - Prometheus 저장소(PVC) 5Gi Bound
 - 수집 대상 모두 up: apiserver, coredns, kubelet, kube-state-metrics, node-exporter,
   Prometheus · Alertmanager · Grafana · operator 자신, user-service, file-service
-- Grafana에서 user, file의 요청 수 · 에러율(5xx 0건) · 평균 응답 시간 확인. p95는
-  [관측 설계](../docs/observability.md) 참고
+- Grafana에서 user, file의 요청 수 · 에러율(5xx 0건) · 응답 시간 p95 확인(p95는 #124 배포 후).
+  식은 [관측 설계](../docs/observability.md) 참고
 
 ### Grafana 보기
 
