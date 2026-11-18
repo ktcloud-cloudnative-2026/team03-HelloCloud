@@ -1,0 +1,77 @@
+# kubeadm 클러스터는 아래 네 구성 요소가 지표를 127.0.0.1에만 열어서
+# 수집이 항상 실패하고 경보만 울린다. 노드 · 파드 · 서비스 지표로 충분해서 끈다
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi
+  # spring-service 차트로 배포한 서비스(user, file)의 /metrics를 모두 수집한다.
+  # 공용 차트를 고치지 않고 이름표로 찾는다
+  additionalServiceMonitors:
+    - name: spring-services
+      namespaceSelector:
+        any: true
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: spring-service
+      endpoints:
+        - port: http
+          path: /metrics
+          interval: 30s
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+grafana:
+  # 관리자 비밀번호는 Git에 두지 않고 손으로 만든 Secret에서 읽는다
+  admin:
+    existingSecret: grafana-admin
+  defaultDashboardsTimezone: browser
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
