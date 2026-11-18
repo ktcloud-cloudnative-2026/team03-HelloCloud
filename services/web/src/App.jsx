@@ -139,7 +139,7 @@ function App({ authenticated, authError }) {
           <span className="brand-icon" aria-hidden="true">
             ☁
           </span>
-          <h1>HelloCloud</h1>
+          <h1>IdeaConnection</h1>
         </div>
 
         <p className="subtitle">우리 팀의 협업을 하나로</p>
