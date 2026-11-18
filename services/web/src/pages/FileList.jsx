@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { listFiles, getDownloadUrl } from '../api/files'
+import { listFiles, getDownloadUrl, getPreviewUrl } from '../api/files'
+import { supportsPreview, openFilePreview } from './filePreview.js'
 
 const pageSize = 20
 
@@ -8,11 +9,12 @@ export default function FileList({ orgId, refreshKey = 0 }) {
   const [result, setResult] = useState(null)
   const [downloadError, setDownloadError] = useState(null)
   const [downloading, setDownloading] = useState(null)
+  const [previewing, setPreviewing] = useState(null)
+  const [previewError, setPreviewError] = useState(null)
   const [retry, setRetry] = useState(0)
 
   useEffect(() => {
     const controller = new AbortController()
-
 
     async function loadFiles() {
       try {
@@ -59,11 +61,26 @@ export default function FileList({ orgId, refreshKey = 0 }) {
     }
   }
 
+  async function preview(file) {
+    setPreviewError(null)
+    setPreviewing(file.id)
+    try {
+      await openFilePreview(file, {
+        getPreviewUrl,
+        openWindow: () => window.open('about:blank', '_blank'),
+      })
+    } catch (error) {
+      setPreviewError(error.message)
+    } finally {
+      setPreviewing(null)
+    }
+  }
+
   const data = result?.data
 
   return (
-    <section aria-labelledby="file-list-heading">
-      <h2 id="file-list-heading">파일 목록</h2>
+    <section className="file-list-section" aria-labelledby="file-list-heading">
+      <div className="file-list-heading"><h2 id="file-list-heading">공유 파일</h2>{data && <span>{data.total}개</span>}</div>
       {!result && <p role="status">파일 목록을 불러오는 중이에요.</p>}
       {result?.error && (
         <div>
@@ -72,18 +89,35 @@ export default function FileList({ orgId, refreshKey = 0 }) {
         </div>
       )}
       {downloadError && <p role="alert">다운로드하지 못했어요. {downloadError}</p>}
+      {previewError && <p role="alert">미리보기를 열지 못했어요. {previewError}</p>}
       {data && (
         <>
           {data.items.length === 0 ? (
             <p>표시할 파일이 없어요.</p>
           ) : (
-            <ul>
+            <ul className="file-list">
               {data.items.map((file) => (
                 <li key={file.id} className="file-list-row">
-                  <span>{file.name}</span>
-                  <button type="button" disabled={downloading !== null} onClick={() => download(file)}>
-                    {downloading === file.id ? '준비 중…' : '다운로드'}
-                  </button>
+                  <div className="file-row-info">
+                    <span className={'file-type-icon ' + (file.contentType === 'application/pdf' ? 'is-pdf' : supportsPreview(file.contentType) ? 'is-image' : '')} aria-hidden="true">
+                      {file.contentType === 'application/pdf' ? 'PDF' : supportsPreview(file.contentType) ? 'IMG' : 'FILE'}
+                    </span>
+                    <div className="file-row-name"><strong>{file.name}</strong><small>
+                      {file.contentType === 'application/pdf' ? 'PDF 문서' : supportsPreview(file.contentType) ? '이미지' : '일반 파일'}
+                      {Number.isFinite(file.sizeBytes) ? ' · ' + (file.sizeBytes / 1_000_000).toFixed(2) + ' MB' : ''}
+                    </small></div>
+                  </div>
+                  <div className="file-list-actions">
+                    {supportsPreview(file.contentType) ? (
+                      <button className="file-button file-button-outline" type="button" disabled={previewing !== null} onClick={() => preview(file)}
+                        aria-label={file.name + ' 미리보기 (새 탭)'}>
+                        {previewing === file.id ? '여는 중…' : '미리보기'}
+                      </button>
+                    ) : <small className="file-preview-hint">다운로드로 확인</small>}
+                    <button className="file-button file-button-soft" type="button" disabled={downloading !== null} onClick={() => download(file)}>
+                      {downloading === file.id ? '준비 중…' : '다운로드'}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
