@@ -1,3 +1,3 @@
 replicaCount: 1
 image:
-  tag: "80ee004"
+  tag: "75583e7"
