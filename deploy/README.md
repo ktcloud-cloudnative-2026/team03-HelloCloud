@@ -278,7 +278,8 @@ node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)�
 
 ### Grafana 보기
 
-아직 대문 경로는 없습니다. cp에서 port-forward를 열고 내 PC에서 SSH로 잇습니다.
+대문 경로는 열지 않습니다. 대문도 내부망이라 어차피 터널을 거쳐야 해서, 관리 화면을 하나 더 여는 부담에 비해
+얻는 게 적습니다(팀 결정 2026-11-18). cp에서 port-forward를 열고 내 PC에서 SSH로 잇습니다.
 
 ```powershell
 wsl ssh -L 3000:localhost:3000 t4-dev-cp "kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80"
@@ -296,9 +297,15 @@ HPA(요청이 몰리면 파드를 자동으로 늘리기)와 `kubectl top`은 Pr
 - `--kubelet-insecure-tls`: kubeadm의 kubelet은 스스로 만든 인증서를 써서 검사하면 연결이 실패합니다.
   kubelet 인증서를 정식 발급으로 바꾸려면 노드마다 설정을 손으로 바꿔야 해서, 클러스터 안 통신만
   검사를 건너뜁니다
-- 메모리 상한 128Mi, 워커에 1개
+- 메모리 상한 128Mi. 파드 1개가 워커에 뜹니다. values가 아니라 cp의 기본 `NoSchedule` taint 덕분이라, taint를 풀면 cp로 갈 수 있습니다
 
-설치: `kubectl apply -f deploy/argocd/platform/metrics-server-dev.yaml` → diff 확인 → 동기화 (모두 확인받고).
+설치: cp에서 아래로 앱을 등록 → diff 확인 → 동기화 (모두 확인받고). cp의 공용 저장소 폴더는 건드리지 않고
+main에 머지된 파일을 바로 씁니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/metrics-server-dev.yaml
+```
+
 확인: `kubectl top nodes`, `kubectl top pods -n ideaconnection-dev`
 
 ## 담당자 간 연결 정보
