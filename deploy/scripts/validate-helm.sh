@@ -4,8 +4,8 @@ set -euo pipefail
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # 실제 이미지 없이도 CI 종류에 관계없이 배포 설정을 검사합니다.
-for app in user-service web; do
-  if [[ "$app" == user-service ]]; then
+for app in user-service file-service web; do
+  if [[ "$app" == *-service ]]; then
     CHART="$DEPLOY_DIR/charts/spring-service"
   else
     CHART="$DEPLOY_DIR/charts/web"

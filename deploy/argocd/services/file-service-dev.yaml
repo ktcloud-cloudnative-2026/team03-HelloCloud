@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: file-service-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+    targetRevision: main
+    path: deploy/charts/spring-service
+    helm:
+      releaseName: file-service
+      valueFiles:
+        - ../../values/file-service/values.yaml
+        - ../../values/file-service/values-dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ideaconnection-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
