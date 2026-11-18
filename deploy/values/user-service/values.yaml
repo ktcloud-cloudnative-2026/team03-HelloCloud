@@ -6,7 +6,7 @@ image:
 env:
   # 메모리 상한이 있으면 Java는 기본으로 상한의 1/4만 heap으로 써서 금방 메모리가 모자란다
   - name: JAVA_TOOL_OPTIONS
-    value: -XX:MaxRAMPercentage=70
+    value: -XX:MaxRAMPercentage=65
   - name: DB_URL
     valueFrom:
       secretKeyRef:

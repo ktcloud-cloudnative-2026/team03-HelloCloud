@@ -191,8 +191,9 @@ bash deploy/scripts/validate-helm.sh
 - requests(미리 맡아 두는 양): CPU 100m, 메모리 512Mi. HPA는 이 CPU 값 대비 몇 %를 쓰는지로 파드 수를 정합니다
 - limits(상한): 메모리 1Gi. 넘으면 파드가 재시작됩니다. CPU 상한은 두지 않습니다. Java는 시작할 때 CPU를 많이 써서
   상한이 있으면 기동이 느려집니다
-- `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70`: Java는 메모리 상한이 있으면 기본으로 그 1/4만 heap(작업 공간)으로
-  써서 금방 모자랍니다. 상한의 70%까지 쓰게 합니다
+- `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=65`: Java는 메모리 상한이 있으면 기본으로 그 1/4만 heap(작업 공간)으로
+  써서 금방 모자랍니다. 상한의 65%(약 665Mi)까지 쓰게 합니다. 나머지는 heap 밖에서 쓰는 메모리(클래스 정보,
+  스레드 등) 몫입니다. 너무 높이면 합계가 상한을 넘어 쿠버네티스가 파드를 강제 종료(OOMKilled)합니다
 
 ## dev 자동 배포
 
