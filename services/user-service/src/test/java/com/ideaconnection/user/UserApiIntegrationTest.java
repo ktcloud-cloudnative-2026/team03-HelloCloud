@@ -75,6 +75,14 @@ class UserApiIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void requestTimesAreCountedInBuckets() throws Exception {
+    mvc.perform(get(ME).header(HttpHeaders.AUTHORIZATION, bearer)).andExpect(status().isOk());
+
+    mvc.perform(get("/metrics"))
+        .andExpect(content().string(containsString("http_server_requests_seconds_bucket")));
+  }
+
+  @Test
   void otherActuatorEndpointsAreClosed() throws Exception {
     mvc.perform(get("/env")).andExpect(status().isUnauthorized());
   }
