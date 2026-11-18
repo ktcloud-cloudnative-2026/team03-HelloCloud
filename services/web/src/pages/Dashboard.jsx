@@ -1,12 +1,10 @@
 
-import { useRef, useState } from 'react'
-import FileList from './FileList'
+import { useState } from 'react'
+import FileManager from './FileManager'
 import { logout } from '../auth/keycloak'
 import InviteDialog from '../components/InviteDialog'
 import MemberList from '../components/MemberList'
 import './Dashboard.css'
-
-const maxUploadBytes = 100 * 1024 * 1024
 
 const menuItems = [
   { id: 'dashboard', icon: '▦', label: '대시보드' },
@@ -63,20 +61,12 @@ const quickLinks = [
 
 function Dashboard({ organization, onBack, onLeave }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
-  const [selectedFile, setSelectedFile] = useState(null)
-  const fileInputRef = useRef(null)
-  const fileTooLarge = selectedFile?.size > maxUploadBytes
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
 
   const organizationName = organization?.name || 'HelloCloud 개발팀'
   const organizationInitials =
     organization?.initials || organizationName.slice(0, 2).toUpperCase()
-
-  function clearSelectedFile() {
-    if (fileInputRef.current) fileInputRef.current.value = ''
-    setSelectedFile(null)
-  }
 
   const handleMenuClick = (id) => {
     setActiveMenu(id)
@@ -101,7 +91,7 @@ function Dashboard({ organization, onBack, onLeave }) {
           <span className="dashboard-brand-symbol" aria-hidden="true">
             ☁
           </span>
-          <span>HelloCloud</span>
+          <span>IdeaConnection</span>
         </div>
 
         <div className="dashboard-workspace">
@@ -303,38 +293,7 @@ function Dashboard({ organization, onBack, onLeave }) {
               </div>
             </>
           ) : activeMenu === 'files' ? (
-            <section className="dashboard-placeholder">
-              <h1>파일</h1>
-              <FileList key={organization.id} orgId={organization.id} />
-              <div className="file-selection-actions">
-                <button type="button" onClick={() => fileInputRef.current?.click()}>
-                  파일 선택
-                </button>
-                {selectedFile && (
-                  <button type="button" className="file-selection-cancel" onClick={clearSelectedFile}>
-                    선택 취소
-                  </button>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                hidden
-                onChange={(event) => setSelectedFile(event.target.files[0] ?? null)}
-              />
-              {selectedFile && <p>선택한 파일: {selectedFile.name}</p>}
-              {fileTooLarge && (
-                <p role="alert" id="file-size-error">100MB 이하의 파일만 올릴 수 있어요.</p>
-              )}
-              <button
-                type="button"
-                disabled={!selectedFile || fileTooLarge}
-                aria-describedby={fileTooLarge ? 'file-size-error upload-help' : 'upload-help'}
-              >
-                업로드
-              </button>
-              <p id="upload-help">파일 전송은 API 연결 후 사용할 수 있어요.</p>
-            </section>
+            <FileManager key={organization.id} orgId={organization.id} />
           ) : activeMenu === 'members' ? (
             <MemberList organization={organization} onLeave={onLeave} />
           ) : (

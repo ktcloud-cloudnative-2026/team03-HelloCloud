@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seaweedfs-dev
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://seaweedfs.github.io/seaweedfs/helm
+      chart: seaweedfs
+      targetRevision: 4.53.0
+      helm:
+        releaseName: seaweedfs
+        valueFiles:
+          - $values/deploy/values/seaweedfs/values.yaml
+          - $values/deploy/values/seaweedfs/values-dev.yaml
+    - repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+      targetRevision: main
+      path: deploy/manifests/seaweedfs/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: seaweedfs
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

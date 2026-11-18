@@ -134,6 +134,35 @@ P=$(cut -d= -f2- seaweedtest.env); printf "CREATE DATABASE seaweedtest CHARACTER
 - Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
 - dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
 
+## 파일 테스트 DB 연결 (`seaweedtest`)
+
+PR #114에서 `seaweedtest` DB·전용 계정 생성과 로그인을 검증했습니다.
+접속 주소는 `jdbc:mysql://10.10.24.10:3306/seaweedtest`이며 비밀번호는 DB VM의
+`/opt/mysql/seaweedtest.env`에 있습니다. 기존 DB를 다시 만들거나 비밀번호를 변경하지 않습니다.
+
+cp → DB VM SSH 인증이 없는 경우, DB VM 터미널에서 아래 한 줄을 실행하면 기존 비밀번호가
+SSH로 cp의 메모리로만 전달됩니다. cp의 도구가 실제 DB 로그인을 확인하고 `file-service-env`를 생성합니다.
+DB VM → cp SSH 인증이 필요합니다. 지문은 아래 표와 대조하고 호스트 키 검사를 끄지 않습니다.
+
+```bash
+cut -d= -f2- /opt/mysql/seaweedtest.env | ssh lab@10.10.24.11 '/tmp/file-validation-venv/bin/python /home/lab/team03-HelloCloud/deploy/cluster/scripts/register-file-test-secret.py'
+```
+
+- cp 도구는 PyMySQL 1.1.2와 MySQL 인증용 cryptography를 사용합니다.
+- 비밀번호를 화면·파일·Git에 복사하지 않습니다. SSH 입력은 단일 비밀번호 줄입니다.
+- Secret은 `ideaconnection-dev/file-service-env`이며 기존 User issuer와 SeaweedFS 인증 정보를 안전하게 조합합니다.
+- 동일한 DB 비밀번호의 Secret이 이미 있으면 유지하고, 다른 설정이면 덮어쓰지 않고 중단합니다.
+- 현재 테스트 S3 인증은 기존 관리자 인증을 재사용합니다. 운영 전에는 파일 서비스용 권한으로 분리합니다.
+- DB VM → cp 인증이 없으면 두 서버에 접속 가능한 로컬 PowerShell에서 기존 SSH 별칭으로 중계합니다.
+
+  ```powershell
+  ssh t4-db "cut -d= -f2- /opt/mysql/seaweedtest.env" | ssh t4-dev-cp "/tmp/file-validation-venv/bin/python /home/lab/team03-HelloCloud/deploy/cluster/scripts/register-file-test-secret.py"
+  ```
+
+- 2026-11-18 위 PC 중계로 Secret 등록 성공. `seaweedtest` 로그인과 Flyway V1,
+  실제 MySQL·SeaweedFS 업로드부터 삭제까지 통합 테스트를 확인했습니다.
+- 파일 서비스 Kubernetes 배포와 실제 Keycloak 사용자/브라우저 연결은 남아 있습니다.
+
 ## DB VM (dev MongoDB · Redis)
 
 chat이 쓰는 MongoDB(메시지 저장)와 Redis(서버끼리 실시간 전달)도 MySQL과 같은 DB VM에서 Docker로 띄웁니다(2026-11-16 팀 회의). Docker 설치는 위 MySQL 절차 1번과 같습니다.

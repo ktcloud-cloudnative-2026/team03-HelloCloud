@@ -1,0 +1,3 @@
+replicaCount: 1
+image:
+  tag: "36e0c39"

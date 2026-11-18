@@ -24,7 +24,7 @@ function OrganizationSelect({
         <header className="org-header">
           <div className="org-brand">
             <span className="org-brand-icon" aria-hidden="true">☁</span>
-            <span>HelloCloud</span>
+            <span>IdeaConnection</span>
           </div>
 
           <span className="org-step">WORKSPACE</span>
@@ -98,7 +98,7 @@ function OrganizationSelect({
         </button>
 
         <footer className="org-footer">
-          © 2026 HelloCloud · 함께 만드는 더 나은 협업
+          © 2026 IdeaConnection · 함께 만드는 더 나은 협업
         </footer>
       </div>
     </main>
