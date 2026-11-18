@@ -925,3 +925,27 @@
   .file-list .file-list-row { align-items:flex-start; }
   .file-list-actions { margin-left:auto; }
 }
+
+.file-button-danger { background: #fff; border-color: #f0dcdd; color: #b95760; }
+.file-button-danger:hover { background: #fff1f2; border-color: #eabec3; }
+
+.file-row-info { flex: 1 1 180px; }
+.file-list-actions { flex: 0 1 auto; }
+.file-list-refresh { margin-left: auto; padding: 7px 11px; font-size: 11px; }
+.file-pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin-top: 24px; }
+.file-pagination > span { color: #718099; font-size: 12px; }
+.file-empty { border: 1px dashed #dce4ef; border-radius: 12px; padding: 32px 16px; color: #718099; text-align: center; font-size: 13px; }
+@media (max-width: 600px) {
+  .file-row-info { flex-basis: 100%; }
+  .file-list-actions { justify-content: flex-start; margin-left: 55px; }
+  .file-preview-hint { text-align: left; }
+}
+
+.file-delete-dialog { width: min(420px, calc(100vw - 40px)); padding: 28px; box-sizing: border-box; border: 1px solid #e5ebf4; border-radius: 18px; color: #17243c; box-shadow: 0 24px 70px #17243c30; }
+.file-delete-dialog::backdrop { background: #17243c66; }
+.file-delete-dialog h2 { font-size: 20px; margin: 0 0 18px; }
+.file-delete-dialog p { font-size: 13px; color: #718099; line-height: 1.6; }
+.file-delete-dialog p.file-delete-name { font-weight: 650; color: #17243c; overflow-wrap: anywhere; }
+.file-delete-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.file-button-danger-solid { color: #fff; background: #c84b5a; }
+.file-button-danger-solid:hover { background: #aa3443; }

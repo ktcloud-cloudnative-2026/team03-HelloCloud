@@ -74,3 +74,12 @@ test('미리보기 주소 요청은 파일 ID를 인코딩하고 권한 오류�
   })
   await assert.rejects(api.getPreviewUrl('a/b'), (error) => error === denied)
 })
+
+test('삭제 요청은 DELETE와 인코딩된 ID를 사용하고 204 빈 응답을 허용한다', async () => {
+  const api = await loadApi(async (path, options) => {
+    assert.equal(path, '/api/files/a%2Fb')
+    assert.equal(options.method, 'DELETE')
+    return null
+  })
+  assert.equal(await api.deleteFile('a/b'), null)
+})
