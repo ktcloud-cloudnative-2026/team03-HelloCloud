@@ -185,6 +185,15 @@ bash deploy/scripts/validate-helm.sh
 5초 간격으로 최대 60회 확인한 뒤에도 기동하지 못하면 재시작합니다.
 기동 확인 뒤에 liveness와 readiness 검사를 시작합니다.
 
+자원은 서비스마다 `values/<서비스>/values.yaml`의 `resources`에 둡니다. 2026-11-18 `kubectl top`으로 잰
+평소 사용량(user 462Mi, file 385Mi)을 보고 정했습니다.
+
+- requests(미리 맡아 두는 양): CPU 100m, 메모리 512Mi. HPA는 이 CPU 값 대비 몇 %를 쓰는지로 파드 수를 정합니다
+- limits(상한): 메모리 1Gi. 넘으면 파드가 재시작됩니다. CPU 상한은 두지 않습니다. Java는 시작할 때 CPU를 많이 써서
+  상한이 있으면 기동이 느려집니다
+- `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70`: Java는 메모리 상한이 있으면 기본으로 그 1/4만 heap(작업 공간)으로
+  써서 금방 모자랍니다. 상한의 70%까지 쓰게 합니다
+
 ## dev 자동 배포
 
 `argocd/services/user-service-dev.yaml`은 dev 클러스터에 설치된 Argo CD의
