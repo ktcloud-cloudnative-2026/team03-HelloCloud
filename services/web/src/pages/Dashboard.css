@@ -686,8 +686,31 @@
   cursor: pointer;
 }
 
-.dashboard-placeholder button:hover {
+.file-selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dashboard-placeholder button.file-selection-cancel {
+  padding: 7px 12px;
+  font-size: 12px;
+}
+
+.dashboard-placeholder button:enabled:hover {
   background: #1d4ed8;
+}
+
+.dashboard-placeholder button:disabled {
+  background: #e2e8f0;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.dashboard-placeholder #file-size-error {
+  color: #b91c1c;
 }
 
 .dashboard-layout button:focus-visible {
@@ -830,4 +853,18 @@
   .dashboard-activity time {
     margin-left: 51px;
   }
+}
+
+.file-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 12px 0;
+}
+.file-list-row span { overflow-wrap: anywhere; }
+.dashboard-placeholder .file-list-row button {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 13px;
 }

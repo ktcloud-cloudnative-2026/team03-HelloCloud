@@ -48,3 +48,11 @@ React Compiler는 개발과 빌드 성능에 영향을 주기 때문에 이 템�
 ## ESLint 설정 확장
 
 실제 서비스용 애플리케이션을 개발한다면 TypeScript를 쓰고, 타입 정보를 활용하는 린트 규칙을 켜는 것을 권장합니다. 프로젝트에 TypeScript와 [`typescript-eslint`](https://typescript-eslint.io)를 적용하는 방법은 [TS 템플릿](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts)을 참고하세요.
+
+## 파일 API 연동
+
+파일 화면은 로그인 토큰과 선택한 조직 ID로 목록을 요청합니다. 업로드 시작 API → 서명 URL로 PUT → 완료 API 순서로 처리하며, 완료 후 첫 페이지를 다시 불러옵니다. 파일 상한은 백엔드와 같은 100,000,000바이트입니다. 다운로드는 API가 발급한 임시 URL을 사용하며 저장소에는 로그인 토큰을 보내지 않습니다.
+
+팀 dev에서 확인할 순서: 로그인 → 조직 선택 → 파일 관리 → 빈 목록 또는 파일명 확인 → 작은 파일 업로드 → 목록에 표시 → 다운로드한 원본 내용 비교. 목록 요청 실패 시 재시도 버튼과 파일 선택을 확인합니다. 실패한 업로드의 임시 데이터 자동 정리는 백엔드 후속 범위입니다.
+
+로컬 웹의 기본 API 프록시는 user-service(8081)입니다. 팀 dev의 파일 API를 시험할 때는 dev 웹과 dev 로그인 계정을 사용합니다. 로컬 Keycloak 토큰을 dev API에 보내지 않습니다.

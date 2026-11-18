@@ -1,5 +1,6 @@
 
 import { useState } from 'react'
+import FileManager from './FileManager'
 import { logout } from '../auth/keycloak'
 import InviteDialog from '../components/InviteDialog'
 import MemberList from '../components/MemberList'
@@ -291,6 +292,8 @@ function Dashboard({ organization, onBack, onLeave }) {
                 </section>
               </div>
             </>
+          ) : activeMenu === 'files' ? (
+            <FileManager key={organization.id} orgId={organization.id} />
           ) : activeMenu === 'members' ? (
             <MemberList organization={organization} onLeave={onLeave} />
           ) : (

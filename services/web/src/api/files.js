@@ -1,8 +1,8 @@
 import { apiRequest } from './client'
 
-export function listFiles(orgId, page = 0, size = 20) {
+export function listFiles(orgId, page = 0, size = 20, options = {}) {
   const query = new URLSearchParams({ orgId, page, size })
-  return apiRequest(`/api/files?${query}`)
+  return apiRequest(`/api/files?${query}`, options)
 }
 
 export async function uploadFile(orgId, file) {
