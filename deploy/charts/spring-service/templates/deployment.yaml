@@ -7,7 +7,10 @@ metadata:
     app.kubernetes.io/name: {{ .Chart.Name }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
+  {{- /* HPA를 켜면 파드 수는 HPA가 정한다. 여기 적으면 Argo CD가 매번 원래 수로 되돌린다 */}}
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ .Chart.Name }}

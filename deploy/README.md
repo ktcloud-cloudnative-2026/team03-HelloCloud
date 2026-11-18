@@ -195,6 +195,11 @@ bash deploy/scripts/validate-helm.sh
   써서 금방 모자랍니다. 상한의 65%(약 665Mi)까지 쓰게 합니다. 나머지는 heap 밖에서 쓰는 메모리(클래스 정보,
   스레드 등) 몫입니다. 너무 높이면 합계가 상한을 넘어 쿠버네티스가 파드를 강제 종료(OOMKilled)합니다
 
+HPA(요청이 몰리면 파드를 자동으로 늘리기)는 공통 차트에 있고 기본은 꺼져 있습니다. 지금은 dev user-service만
+`values-dev.yaml`에서 켭니다(파드 1~3개, CPU가 requests 100m의 70%를 넘으면 늘림). 최대 3개는 워커 메모리 여유
+(requests 합 2Gi, w1 여유 약 5Gi)를 보고 정했습니다. 켜면 Deployment의 `replicas`는 쓰지 않습니다. 파드 수는
+HPA가 정하고, 적어 두면 Argo CD가 매번 원래 수로 되돌리기 때문입니다. 확인: `kubectl get hpa -n ideaconnection-dev`
+
 ## dev 자동 배포
 
 `argocd/services/user-service-dev.yaml`은 dev 클러스터에 설치된 Argo CD의
