@@ -90,7 +90,7 @@ function Dashboard({ organization, onBack, onLeave }) {
           <span className="dashboard-brand-symbol" aria-hidden="true">
             ☁
           </span>
-          <span>HelloCloud</span>
+          <span>IdeaConnection</span>
         </div>
 
         <div className="dashboard-workspace">

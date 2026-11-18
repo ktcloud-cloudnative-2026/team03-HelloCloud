@@ -38,7 +38,7 @@ function InviteAccept({ token, onDone }) {
       <section className="invite-card">
         <div className="invite-brand">
           <span aria-hidden="true">☁</span>
-          <span>HelloCloud</span>
+          <span>IdeaConnection</span>
         </div>
 
         <span className="invite-step">INVITATION</span>
