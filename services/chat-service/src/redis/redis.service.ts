@@ -1,4 +1,3 @@
-
 import {
   Injectable,
   Logger,
@@ -13,8 +12,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   private publisher: RedisClientType | null = null;
   private subscriber: RedisClientType | null = null;
+  private publisherErrorLogged = false;
+  private subscriberErrorLogged = false;
   async onModuleInit(): Promise<void> {
-  await this.connect();
+    await this.connect();
   }
 
   async connect(): Promise<void> {
@@ -33,8 +34,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       url: redisUrl,
       ...(redisPassword ? { password: redisPassword } : {}),
       socket: {
-        reconnectStrategy: (retries: number) =>
-          Math.min(retries * 100, 3000),
+        reconnectStrategy: (retries: number) => Math.min(retries * 100, 3000),
       },
     };
 
@@ -42,28 +42,42 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     const subscriber = publisher.duplicate();
 
     publisher.on('error', (error: Error) => {
-      this.logger.error(`Redis Publisher 오류: ${error.message}`);
+      if (!this.publisherErrorLogged) {
+        this.logger.error(`Redis Publisher 오류: ${error.message}`);
+        this.publisherErrorLogged = true;
+      }
+    });
+
+    publisher.on('ready', () => {
+      if (this.publisherErrorLogged) {
+        this.logger.log('Redis Publisher 연결 복구 성공');
+        this.publisherErrorLogged = false;
+      }
     });
 
     subscriber.on('error', (error: Error) => {
-      this.logger.error(`Redis Subscriber 오류: ${error.message}`);
+      if (!this.subscriberErrorLogged) {
+        this.logger.error(`Redis Subscriber 오류: ${error.message}`);
+        this.subscriberErrorLogged = true;
+      }
+    });
+
+    subscriber.on('ready', () => {
+      if (this.subscriberErrorLogged) {
+        this.logger.log('Redis Subscriber 연결 복구 성공');
+        this.subscriberErrorLogged = false;
+      }
     });
 
     try {
-      await Promise.all([
-        publisher.connect(),
-        subscriber.connect(),
-      ]);
+      await Promise.all([publisher.connect(), subscriber.connect()]);
 
       this.publisher = publisher;
       this.subscriber = subscriber;
 
       this.logger.log('Redis Pub/Sub 연결 성공');
     } catch (error) {
-      await Promise.allSettled([
-        publisher.destroy(),
-        subscriber.destroy(),
-      ]);
+      await Promise.allSettled([publisher.destroy(), subscriber.destroy()]);
 
       throw error;
     }
