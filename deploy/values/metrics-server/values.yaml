@@ -1,0 +1,9 @@
+args:
+  # kubeadm의 kubelet은 스스로 만든 인증서를 써서, 인증서를 검사하면 연결이 실패한다
+  - --kubelet-insecure-tls
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 128Mi

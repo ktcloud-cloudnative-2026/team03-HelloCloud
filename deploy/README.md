@@ -278,6 +278,19 @@ wsl ssh -L 3000:localhost:3000 t4-dev-cp "kubectl -n monitoring port-forward svc
 `kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d; echo`로
 본인만 확인합니다(화면 공유 중에는 실행하지 않습니다).
 
+### metrics-server (dev)
+
+HPA(요청이 몰리면 파드를 자동으로 늘리기)와 `kubectl top`은 Prometheus가 아니라 metrics-server의
+"지금 사용량"을 씁니다. 그래서 공개 차트 metrics-server(3.14.0)를 `kube-system`에 따로 설치합니다.
+
+- `--kubelet-insecure-tls`: kubeadm의 kubelet은 스스로 만든 인증서를 써서 검사하면 연결이 실패합니다.
+  kubelet 인증서를 정식 발급으로 바꾸려면 노드마다 설정을 손으로 바꿔야 해서, 클러스터 안 통신만
+  검사를 건너뜁니다
+- 메모리 상한 128Mi, 워커에 1개
+
+설치: `kubectl apply -f deploy/argocd/platform/metrics-server-dev.yaml` → diff 확인 → 동기화 (모두 확인받고).
+확인: `kubectl top nodes`, `kubectl top pods -n ideaconnection-dev`
+
 ## 담당자 간 연결 정보
 
 현재 차트가 제공하는 user-service 연결 정보입니다. Gateway 담당자와 경로를
