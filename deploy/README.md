@@ -246,8 +246,25 @@ node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)�
    ```
 
 2. 앱 등록 (cp, 확인받고): `kubectl apply -f deploy/argocd/platform/monitoring-dev.yaml`
-3. Argo CD 화면에서 diff를 보고 동기화 (확인받고)
+3. Argo CD 화면에서 diff를 보고 동기화 (확인받고). 화면에 들어갈 수 없으면 cp에서 같은 동기화를 요청합니다.
+
+   ```bash
+   kubectl -n argocd patch application monitoring-dev --type merge \
+     -p '{"operation":{"initiatedBy":{"username":"<본인 GitHub 아이디>"},"sync":{"syncOptions":["CreateNamespace=true","ServerSideApply=true"]}}}'
+   ```
+
+   처음 동기화는 몇 분 걸립니다. 준비 작업(Job)과 CRD(새 리소스 종류 정의)가 끝날 때까지
+   `waiting for completion of hook`이 보이는 것은 정상입니다.
 4. 확인: `kubectl get pods -n monitoring -o wide` (모두 Running, node-exporter 말고는 워커에만)
+
+### 설치 결과 (2026-11-18)
+
+- `monitoring-dev` Synced · Healthy, 파드 8개 Running (node-exporter 3개는 노드마다, 나머지는 워커)
+- Prometheus 저장소(PVC) 5Gi Bound
+- 수집 대상 모두 up: apiserver, coredns, kubelet, kube-state-metrics, node-exporter,
+  Prometheus · Alertmanager · Grafana · operator 자신, user-service, file-service
+- Grafana에서 user, file의 요청 수 · 에러율(5xx 0건) · 응답 시간 p95 확인(p95는 #124 배포 후).
+  식은 [관측 설계](../docs/observability.md) 참고
 
 ### Grafana 보기
 
