@@ -65,3 +65,12 @@ test('다운로드 주소를 요청할 때 파일 ID를 인코딩한다', async 
   })
   assert.equal((await api.getDownloadUrl('a/b')).url, 'https://storage.example/download')
 })
+
+test('미리보기 주소 요청은 파일 ID를 인코딩하고 권한 오류를 전달한다', async () => {
+  const denied = new Error('권한이 없습니다')
+  const api = await loadApi(async (path) => {
+    assert.equal(path, '/api/files/a%2Fb/preview-url')
+    throw denied
+  })
+  await assert.rejects(api.getPreviewUrl('a/b'), (error) => error === denied)
+})
