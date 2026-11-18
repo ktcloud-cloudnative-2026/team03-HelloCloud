@@ -1,0 +1,15 @@
+# local-path는 크기를 나중에 못 늘린다. 데모 · 측정에는 며칠치면 충분해서
+# 보관 기간과 용량을 함께 묶어 디스크가 꽉 차지 않게 한다
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    retentionSize: 4GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi

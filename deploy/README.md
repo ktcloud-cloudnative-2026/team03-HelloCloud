@@ -217,6 +217,50 @@ dev values를 순서대로 읽어 `ideaconnection-dev` namespace에 배포합니
 Deployment의 준비된 파드 1개, 파드 이벤트와 로그의 DB·로그인 서버 연결 상태를
 확인합니다.
 
+## 모니터링 (dev)
+
+`argocd/platform/monitoring-dev.yaml`이 공개 차트 kube-prometheus-stack(92.17.1)을
+`monitoring` namespace에 설치합니다. Prometheus(지표 수집), Grafana(화면), Alertmanager(경보),
+node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)가 들어 있습니다.
+다른 플랫폼 앱처럼 자동 동기화는 켜지 않았습니다. 동기화는 확인받고 실행합니다.
+
+- 배치: 컨트롤 플레인 노드에 `NoSchedule` taint가 있어 본체는 워커에만 뜹니다.
+  node-exporter만 노드마다 하나씩 뜹니다. 2026-11-18 cp는 실제 사용 3.0/3.8Gi라 여유가 없습니다
+- 메모리: 구성 요소마다 상한을 둡니다(`values/monitoring/values.yaml`). 합계 상한 약 2.6Gi
+- 저장: Prometheus만 `local-path` 5Gi, 보관 3일 · 4GB. 크기를 나중에 못 늘려서 보관 기간과 용량을 함께 묶습니다
+- 수집: `app.kubernetes.io/name: spring-service` 이름표가 붙은 Service의 `http` 포트 `/metrics`를 모읍니다(user, file).
+  공용 차트는 고치지 않습니다
+- 끈 것: kubeadm은 controller-manager · scheduler · etcd · kube-proxy 지표를 127.0.0.1에만 열어서
+  수집이 항상 실패하므로 끕니다
+- Alertmanager: 켜 두지만 받는 곳(Discord)은 아직 없습니다
+
+### 처음 설치 순서
+
+1. Grafana 관리자 Secret 만들기 (cp, 확인받고). 비밀번호는 cp 안에서 무작위로 만들어 화면에 띄우지 않습니다.
+
+   ```bash
+   kubectl create namespace monitoring
+   kubectl create secret generic grafana-admin -n monitoring \
+     --from-literal=admin-user=admin \
+     --from-literal=admin-password="$(openssl rand -base64 18)"
+   ```
+
+2. 앱 등록 (cp, 확인받고): `kubectl apply -f deploy/argocd/platform/monitoring-dev.yaml`
+3. Argo CD 화면에서 diff를 보고 동기화 (확인받고)
+4. 확인: `kubectl get pods -n monitoring -o wide` (모두 Running, node-exporter 말고는 워커에만)
+
+### Grafana 보기
+
+아직 대문 경로는 없습니다. cp에서 port-forward를 열고 내 PC에서 SSH로 잇습니다.
+
+```powershell
+wsl ssh -L 3000:localhost:3000 t4-dev-cp "kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80"
+```
+
+브라우저에서 `http://127.0.0.1:3000`, 아이디 `admin`. 비밀번호는 cp에서
+`kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d; echo`로
+본인만 확인합니다(화면 공유 중에는 실행하지 않습니다).
+
 ## 담당자 간 연결 정보
 
 현재 차트가 제공하는 user-service 연결 정보입니다. Gateway 담당자와 경로를
