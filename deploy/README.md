@@ -245,6 +245,8 @@ node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)�
 - 저장: Prometheus만 `local-path` 5Gi, 보관 3일 · 4GB. 크기를 나중에 못 늘려서 보관 기간과 용량을 함께 묶습니다
 - 수집: `app.kubernetes.io/name: spring-service` 이름표가 붙은 Service의 `http` 포트 `/metrics`를 모읍니다(user, file).
   공용 차트는 고치지 않습니다
+- DB VM: 클러스터 밖이라 `values/monitoring/values-dev.yaml`에 exporter 주소 4개를 직접 적습니다(`db-vm-node`, `db-vm-mysql`,
+  `db-vm-mongodb`, `db-vm-redis`, 꼬리표 `vm=t4-db`). exporter 설치는 `cluster/README.md`의 "DB VM (dev exporter)"
 - 끈 것: kubeadm은 controller-manager · scheduler · etcd · kube-proxy 지표를 127.0.0.1에만 열어서
   수집이 항상 실패하므로 끕니다
 - Alertmanager: 켜 두지만 받는 곳(Discord)은 아직 없습니다
