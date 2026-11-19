@@ -345,6 +345,7 @@ startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니
 - 이미지: `ghcr.io/ktcloud-cloudnative-2026/idcn-web`
 - dev Application: `deploy/argocd/services/web-dev.yaml`
 - Gateway 연결 대상: `ideaconnection-dev` namespace의 `web:80`
+- 자원: requests CPU 10m · 메모리 32Mi, 메모리 상한 64Mi(`values/web/values.yaml`). nginx가 정적 파일만 내줘서 2026-11-19 실사용이 1m · 5Mi입니다
 - dev는 파드 1개, prod는 2개로 설정합니다. prod Application은 아직 작성하지 않았습니다.
 
 `bash deploy/scripts/validate-helm.sh`는 user-service와 웹의 dev·prod 설정을
