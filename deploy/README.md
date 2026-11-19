@@ -185,6 +185,21 @@ bash deploy/scripts/validate-helm.sh
 5초 간격으로 최대 60회 확인한 뒤에도 기동하지 못하면 재시작합니다.
 기동 확인 뒤에 liveness와 readiness 검사를 시작합니다.
 
+자원은 서비스마다 `values/<서비스>/values.yaml`의 `resources`에 둡니다. 2026-11-18 `kubectl top`으로 잰
+평소 사용량(user 462Mi, file 385Mi)을 보고 정했습니다.
+
+- requests(미리 맡아 두는 양): CPU 100m, 메모리 512Mi. HPA는 이 CPU 값 대비 몇 %를 쓰는지로 파드 수를 정합니다
+- limits(상한): 메모리 1Gi. 넘으면 파드가 재시작됩니다. CPU 상한은 두지 않습니다. Java는 시작할 때 CPU를 많이 써서
+  상한이 있으면 기동이 느려집니다
+- `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=65`: Java는 메모리 상한이 있으면 기본으로 그 1/4만 heap(작업 공간)으로
+  써서 금방 모자랍니다. 상한의 65%(약 665Mi)까지 쓰게 합니다. 나머지는 heap 밖에서 쓰는 메모리(클래스 정보,
+  스레드 등) 몫입니다. 너무 높이면 합계가 상한을 넘어 쿠버네티스가 파드를 강제 종료(OOMKilled)합니다
+
+HPA(요청이 몰리면 파드를 자동으로 늘리기)는 공통 차트에 있고 기본은 꺼져 있습니다. 지금은 dev user-service만
+`values-dev.yaml`에서 켭니다(파드 1~3개, CPU가 requests 100m의 70%를 넘으면 늘림). 최대 3개는 워커 메모리 여유
+(requests 합 2Gi, w1 여유 약 5Gi)를 보고 정했습니다. 켜면 Deployment의 `replicas`는 쓰지 않습니다. 파드 수는
+HPA가 정하고, 적어 두면 Argo CD가 매번 원래 수로 되돌리기 때문입니다. 확인: `kubectl get hpa -n ideaconnection-dev`
+
 ## dev 자동 배포
 
 `argocd/services/user-service-dev.yaml`은 dev 클러스터에 설치된 Argo CD의
@@ -246,12 +261,30 @@ node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)�
    ```
 
 2. 앱 등록 (cp, 확인받고): `kubectl apply -f deploy/argocd/platform/monitoring-dev.yaml`
-3. Argo CD 화면에서 diff를 보고 동기화 (확인받고)
+3. Argo CD 화면에서 diff를 보고 동기화 (확인받고). 화면에 들어갈 수 없으면 cp에서 같은 동기화를 요청합니다.
+
+   ```bash
+   kubectl -n argocd patch application monitoring-dev --type merge \
+     -p '{"operation":{"initiatedBy":{"username":"<본인 GitHub 아이디>"},"sync":{"syncOptions":["CreateNamespace=true","ServerSideApply=true"]}}}'
+   ```
+
+   처음 동기화는 몇 분 걸립니다. 준비 작업(Job)과 CRD(새 리소스 종류 정의)가 끝날 때까지
+   `waiting for completion of hook`이 보이는 것은 정상입니다.
 4. 확인: `kubectl get pods -n monitoring -o wide` (모두 Running, node-exporter 말고는 워커에만)
+
+### 설치 결과 (2026-11-18)
+
+- `monitoring-dev` Synced · Healthy, 파드 8개 Running (node-exporter 3개는 노드마다, 나머지는 워커)
+- Prometheus 저장소(PVC) 5Gi Bound
+- 수집 대상 모두 up: apiserver, coredns, kubelet, kube-state-metrics, node-exporter,
+  Prometheus · Alertmanager · Grafana · operator 자신, user-service, file-service
+- Grafana에서 user, file의 요청 수 · 에러율(5xx 0건) · 응답 시간 p95 확인(p95는 #124 배포 후).
+  식은 [관측 설계](../docs/observability.md) 참고
 
 ### Grafana 보기
 
-아직 대문 경로는 없습니다. cp에서 port-forward를 열고 내 PC에서 SSH로 잇습니다.
+대문 경로는 열지 않습니다. 대문도 내부망이라 어차피 터널을 거쳐야 해서, 관리 화면을 하나 더 여는 부담에 비해
+얻는 게 적습니다(팀 결정 2026-11-18). cp에서 port-forward를 열고 내 PC에서 SSH로 잇습니다.
 
 ```powershell
 wsl ssh -L 3000:localhost:3000 t4-dev-cp "kubectl -n monitoring port-forward svc/monitoring-grafana 3000:80"
@@ -260,6 +293,25 @@ wsl ssh -L 3000:localhost:3000 t4-dev-cp "kubectl -n monitoring port-forward svc
 브라우저에서 `http://127.0.0.1:3000`, 아이디 `admin`. 비밀번호는 cp에서
 `kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.admin-password}' | base64 -d; echo`로
 본인만 확인합니다(화면 공유 중에는 실행하지 않습니다).
+
+### metrics-server (dev)
+
+HPA(요청이 몰리면 파드를 자동으로 늘리기)와 `kubectl top`은 Prometheus가 아니라 metrics-server의
+"지금 사용량"을 씁니다. 그래서 공개 차트 metrics-server(3.14.0)를 `kube-system`에 따로 설치합니다.
+
+- `--kubelet-insecure-tls`: kubeadm의 kubelet은 스스로 만든 인증서를 써서 검사하면 연결이 실패합니다.
+  kubelet 인증서를 정식 발급으로 바꾸려면 노드마다 설정을 손으로 바꿔야 해서, 클러스터 안 통신만
+  검사를 건너뜁니다
+- 메모리 상한 128Mi. 파드 1개가 워커에 뜹니다. values가 아니라 cp의 기본 `NoSchedule` taint 덕분이라, taint를 풀면 cp로 갈 수 있습니다
+
+설치: cp에서 아래로 앱을 등록 → diff 확인 → 동기화 (모두 확인받고). cp의 공용 저장소 폴더는 건드리지 않고
+main에 머지된 파일을 바로 씁니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/metrics-server-dev.yaml
+```
+
+확인: `kubectl top nodes`, `kubectl top pods -n ideaconnection-dev`
 
 ## 담당자 간 연결 정보
 

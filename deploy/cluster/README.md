@@ -74,6 +74,7 @@ dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-
 | VM | `t4-db`, 10.10.24.10 (VM 안 hostname은 `t3-db`) |
 | MySQL | `mysql:8.4.13`, Docker 29.1 + compose 2.40 (Ubuntu 패키지) |
 | 열린 주소 | `10.10.24.10:3306`만 |
+| 메모리 | buffer pool 256MB, 컨테이너 1GB (2026-11-19부터) |
 | DB / 계정 | `user_service` / `user_service`, 파일 서비스 테스트용 `seaweedtest` / `seaweedtest` |
 | 파일 | `/opt/mysql/compose.yaml`, `/opt/mysql/.env`(권한 600, 비밀번호), `/opt/mysql/seaweedtest.env`(권한 600, `seaweedtest` 비밀번호) |
 
@@ -92,6 +93,8 @@ dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-
      mysql:
        image: mysql:8.4.13
        restart: unless-stopped
+       command: ["--innodb-buffer-pool-size=256M"]
+       mem_limit: 1g
        ports:
          - "10.10.24.10:3306:3306"
        env_file: .env
@@ -117,6 +120,13 @@ dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-
    - 비밀번호는 VM 안에서 만들어 `.env`에만 둡니다. 화면에 띄우거나 옮겨 적지 않습니다
 3. **실행** — `docker compose up -d`
    - 확인: `docker compose ps`가 `(healthy)`, `ss -tln | grep 3306`이 `10.10.24.10:3306`
+   - 메모리: 상한은 2026-11-19 실사용량(489Mi: buffer pool 128MB 기본값 + 그 밖 약 360Mi, 최대 연결 31)을 보고 정했습니다. buffer pool은 256MB로 적어 두어 상한까지 약 1/3 여유를 둡니다. buffer pool을 상한 가까이 키우면 연결 · 내부 기록에 쓸 몫이 모자라 컨테이너가 강제 종료됩니다
+   - 이미 떠 있는 MySQL에 적용할 때는 `compose.yaml`을 고친 뒤 `docker compose up -d`로 다시 만듭니다. 데이터는 볼륨에 남고, 수십 초 동안 user · file이 DB에 못 붙으니 팀 채널에 먼저 알립니다
+   - 메모리 확인: `docker stats --no-stream dev-mysql-mysql-1`의 LIMIT가 `1GiB`, 아래 명령이 `256`
+
+     ```bash
+     docker compose exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "SELECT @@innodb_buffer_pool_size/1024/1024"'
+     ```
 4. **클러스터에서 접속 확인 (cp에서)** — `timeout 3 bash -c '</dev/tcp/10.10.24.10/3306' && echo OK`
 
 user-service의 `user-service-env` Secret(`ideaconnection-dev`)에는 이 DB를 씁니다. `DB_URL`은 `jdbc:mysql://10.10.24.10:3306/user_service`, `DB_USERNAME`은 `user_service`, `DB_PASSWORD`는 `.env`의 `MYSQL_PASSWORD`입니다. 초대 링크 앞부분인 `INVITE_BASE_URL`은 웹 주소 `http://10.10.24.101`입니다.
@@ -175,7 +185,9 @@ chat이 쓰는 MongoDB(메시지 저장)와 Redis(서버끼리 실시간 전달)
 | 메모리 | 캐시 0.5GB, 컨테이너 1GB | 데이터 256MB, 컨테이너 384MB |
 | 파일 | `/opt/mongodb/compose.yaml`, `mongo-init.js`, `.env`(권한 600) | `/opt/redis/compose.yaml`, `.env`(권한 600) |
 
-DB VM은 메모리가 3.8GB이고 swap이 없습니다. 세 DB가 메모리를 나눠 쓰므로, 하나가 메모리를 다 써서 MySQL까지 멈추지 않도록 상한을 둡니다.
+DB VM은 메모리가 3.8GB이고 swap이 없습니다. 세 DB가 메모리를 나눠 쓰므로, 하나가 메모리를 다 써서 나머지까지 멈추지 않도록 MySQL을 포함한 셋 모두 상한을 둡니다(MySQL 1GB + MongoDB 1GB + Redis 384MB, 앞으로 붙일 exporter까지 합쳐 약 2.6GB).
+
+- Redis는 데이터 상한(`maxmemory` 256MB)이 컨테이너 상한(384MB)보다 작습니다. 그래서 꽉 차면 컨테이너가 강제 종료되기 전에 Redis가 먼저 에러를 냅니다
 
 1. **MongoDB 파일 준비** — `/opt/mongodb`에 아래 세 파일
    ```bash

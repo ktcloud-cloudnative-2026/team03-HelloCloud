@@ -293,7 +293,7 @@ function Dashboard({ organization, onBack, onLeave }) {
               </div>
             </>
           ) : activeMenu === 'files' ? (
-            <FileManager key={organization.id} orgId={organization.id} />
+            <FileManager key={organization.id} orgId={organization.id} organizationRole={organization.role} />
           ) : activeMenu === 'members' ? (
             <MemberList organization={organization} onLeave={onLeave} />
           ) : (

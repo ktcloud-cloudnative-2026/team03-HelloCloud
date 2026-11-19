@@ -41,3 +41,8 @@ management:
     health:
       probes:
         enabled: true
+  metrics:
+    distribution:
+      # p95 응답 시간을 계산하려면 응답 시간을 구간별로 세어 둬야 한다
+      percentiles-histogram:
+        "[http.server.requests]": true

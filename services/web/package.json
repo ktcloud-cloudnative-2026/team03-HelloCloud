@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test": "npm run lint && npm run test:api && npm run build",
     "preview": "vite preview",
-    "test:api": "node --experimental-vm-modules --test tests/files.test.mjs"
+    "test:api": "node --experimental-vm-modules --test tests/*.test.mjs"
   },
   "dependencies": {
     "keycloak-js": "26.2.5",
