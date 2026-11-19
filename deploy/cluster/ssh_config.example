@@ -11,7 +11,7 @@ Host t4-bastion
   User <내 bastion 계정>
   HostKeyAlias t4-bastion
 
-Host t4-db t4-dev-cp t4-dev-w1 t4-dev-w2 t4-prod-cp t4-prod-w1 t4-prod-w2
+Host t4-db t4-prod-db t4-dev-cp t4-dev-w1 t4-dev-w2 t4-prod-cp t4-prod-w1 t4-prod-w2
   User lab
   ProxyJump t4-bastion
 
@@ -28,6 +28,9 @@ Host t4-dev-w1
 Host t4-dev-w2
   HostName 10.10.24.13
   HostKeyAlias t4-dev-w2
+Host t4-prod-db
+  HostName 10.10.24.20
+  HostKeyAlias t4-prod-db
 Host t4-prod-cp
   HostName 10.10.24.21
   HostKeyAlias t4-prod-cp

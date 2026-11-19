@@ -67,7 +67,7 @@ Argo CD(Git 내용대로 클러스터에 배포하는 도구)는 손으로 한 �
 
 ## DB VM (dev MySQL)
 
-dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-11-12 팀 회의). VM 하나를 DB에만 쓰고, prod용 DB VM은 따로 받습니다. 로컬 `services/compose.yaml`과 같은 이미지·DB 이름을 씁니다.
+dev의 MySQL은 클러스터 밖 DB 전용 VM에서 Docker로 띄웁니다(2026-11-12 팀 회의). dev와 prod는 DB VM을 분리합니다. prod DB VM은 2026-11-19에 추가됐으며 아래 운영 MySQL 절에 기록합니다. 로컬 `services/compose.yaml`과 같은 이미지·DB 이름을 씁니다.
 
 | 항목 | dev |
 | --- | --- |
@@ -143,6 +143,93 @@ P=$(cut -d= -f2- seaweedtest.env); printf "CREATE DATABASE seaweedtest CHARACTER
 
 - Docker가 연 포트에는 `ufw` 규칙이 적용되지 않으므로 내부 주소에만 엽니다
 - dev라서 계정의 접속 IP는 제한하지 않았습니다. prod DB VM에서는 함께 정합니다
+
+## DB VM (prod MySQL)
+
+2026-11-19 추가된 운영 DB VM에 MySQL을 설치했습니다. dev와 데이터·계정·볼륨을 공유하지 않습니다.
+이 절은 설치 기록이며, 실제 서비스 배포 완료를 뜻하지 않습니다.
+
+| 항목 | prod |
+| --- | --- |
+| VM | `t4-prod-db`, 10.10.24.20 (실제 hostname은 `t3-prod-db`) |
+| 사양 | Ubuntu 24.04, 2코어 / 4GB / 40GB |
+| 설치 확인 버전 | Docker 29.1.3, Compose 2.40.3, `mysql:8.4.13` |
+| 열린 주소 | `10.10.24.20:3306` |
+| 메모리 | buffer pool 256MB, 컨테이너 상한 1GiB (dev 설정을 기준으로 시작) |
+| DB / 서비스 계정 | `user_service` / `user_service` |
+| 파일 / 데이터 | `/opt/mysql/compose.yaml`, `/opt/mysql/.env`(권한 600), 볼륨 `prod-mysql_mysql-data` |
+
+### 설치 방법 (운영 DB VM에서, 최초 한 번)
+
+실제 변경은 팀 확인 후 진행합니다. 이미 설치된 서버에서는 아래 초기화 절차를 반복하지 않습니다.
+
+1. 위 dev MySQL 절의 Docker 설치 명령을 실행하고 재접속합니다.
+   `docker --version`, `docker compose version`, `docker ps`로 확인합니다.
+2. `docker pull mysql:8.4.13`으로 이미지를 받습니다.
+   위 dev MySQL의 `compose.yaml`과 같은 구성을 사용하되,
+   `name: prod-mysql`, 포트 `"10.10.24.20:3306:3306"`으로 바꿉니다.
+   위치는 `/opt/mysql`이며 buffer pool 256M, `mem_limit: 1g`,
+   데이터 볼륨과 healthcheck는 유지합니다.
+3. `.env`는 운영 VM 안에서만 생성합니다. 관리자와 서비스 계정은 서로 다른
+   무작위 비밀번호를 사용합니다. 아래 예시는 값을 출력하지 않고,
+   기존 파일이 있으면 덮어쓰지 않고 실패합니다.
+
+   ```bash
+   cd /opt/mysql
+   (
+     umask 077
+     set -o noclobber
+     cat > .env <<EOF
+   MYSQL_ROOT_PASSWORD=$(openssl rand -hex 24)
+   MYSQL_DATABASE=user_service
+   MYSQL_USER=user_service
+   MYSQL_PASSWORD=$(openssl rand -hex 24)
+   EOF
+   )
+   stat -c '%a %U %n' .env
+   cut -d= -f1 .env
+   docker compose config --quiet
+   ```
+
+   `600 lab .env`와 키 이름 4개를 확인합니다.
+   `.env`를 출력·복사·커밋하지 않습니다. `docker compose config`는
+   `--quiet`를 빼면 비밀번호가 출력될 수 있습니다.
+4. `docker compose up -d`로 최초 실행 후 아래로 확인합니다.
+   출력에는 비밀번호 대신 계정·DB 이름과 설정 숫자만 나옵니다.
+
+   ```bash
+   docker compose ps
+   docker compose exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_PASSWORD" mysql -h127.0.0.1 -u"$MYSQL_USER" "$MYSQL_DATABASE" -e "SELECT CURRENT_USER(), DATABASE(), @@innodb_buffer_pool_size/1024/1024 AS buffer_pool_mb;"'
+   docker stats --no-stream prod-mysql-mysql-1
+   ss -ltn 'sport = :3306'
+   ```
+
+   초기 DB·계정 환경 변수는 빈 데이터 볼륨의 첫 실행에 적용됩니다.
+   이후 `.env` 수정만으로 기존 DB 비밀번호가 바뀌지는 않습니다.
+   볼륨을 삭제하거나 비밀번호 파일을 재생성해 초기화하지 않습니다.
+5. prod cp에서 포트 도달 여부를 확인합니다.
+
+   ```bash
+   timeout 3 bash -c '</dev/tcp/10.10.24.20/3306' && echo OK
+   ```
+
+### 확인 결과와 남은 범위 (2026-11-19)
+
+- 컨테이너 `healthy`, VM 안에서 서비스 계정으로 `user_service` DB 로그인 성공
+- buffer pool 256MB, 컨테이너 메모리 상한 1GiB, `10.10.24.20:3306` 수신 확인
+- prod cp에서 3306 TCP 연결 성공. 파드에서의 DB 인증과 서비스 동작을 확인한 것은 아닙니다
+- user 운영 연결 주소는 `jdbc:mysql://10.10.24.20:3306/user_service`입니다.
+  운영 Secret 등록·서비스 최초 기동(Flyway 포함)은 아직 진행하지 않았습니다
+- 파일 서비스 전용 DB·계정, MongoDB·Redis는 이번 설치 범위에 포함하지 않았습니다
+- MySQL 이미지가 만든 서비스 계정은 현재 `user_service@%`입니다.
+  접속 원본 제한은 운영 파드의 실제 원본 주소를 확인한 뒤 팀과 정해야 합니다.
+  내부 IP에 바인딩한 것만으로 계정의 접속 원본 제한까지 완료한 것은 아닙니다
+- 운영 외부/내부 접속 방식, HTTPS, Keycloak·SeaweedFS 구성과 실제 서비스 연결 검증은 별도 작업입니다
+
+공개 SSH 예시는 `t4-prod-db`를 사용합니다. 강사 안내 및 기존 PC의 `t3-prod-db`도
+같은 주소를 가리키며, bastion 별칭은 본인 설정에 맞춥니다.
+아래 prod DB 지문은 최초 접속 화면과 기존 prod cp에서 조회한 값이 일치한 결과입니다.
+강사가 별도로 제공한 지문과 대조한 것은 아닙니다.
 
 ## 파일 테스트 DB 연결 (`seaweedtest`)
 
@@ -401,7 +488,7 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 
 내 PC에서 bastion을 거쳐 각 VM에 접속합니다. 설정은 [ssh_config.example](ssh_config.example)을 `~/.ssh/config`에 붙여 넣고 `<...>`를 채웁니다. bastion 주소·포트는 팀 채널에서 받습니다.
 
-처음 접속하거나 `REMOTE HOST IDENTIFICATION HAS CHANGED` 경고가 나오면 화면의 지문을 아래 표와 비교합니다. 지문은 비밀값이 아닙니다.
+처음 접속하거나 `REMOTE HOST IDENTIFICATION HAS CHANGED` 경고가 나오면 화면의 지문을 아래 표와 비교합니다. 지문은 비밀값이 아닙니다. prod DB 지문은 2026-11-19에 추가 확인했습니다.
 
 | 이름 | IP | ED25519 지문 (2026-11-12 확인) |
 | --- | --- | --- |
@@ -410,6 +497,7 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 | `t4-dev-cp` | 10.10.24.11 | `SHA256:O0I5yeIiTYBBwdhM6bCvuS9Kqx0t1mA+7zsyqvxdZt8` |
 | `t4-dev-w1` | 10.10.24.12 | `SHA256:u/t9EDyEN6eWcdmdoh6lQ/NMpk8YqirW+Z0HfoeoAR0` |
 | `t4-dev-w2` | 10.10.24.13 | `SHA256:iJ9pvTjQeDldYKkzTs7NE+FfIkbaLFwylM3R0/vEWM4` |
+| `t4-prod-db` | 10.10.24.20 | `SHA256:X4Z+XlGEqpx6/d/50UwkjcDCqhrIMRtS5llxnlLGYqM` |
 | `t4-prod-cp` | 10.10.24.21 | `SHA256:KrVEQlRsBfIKUBrUzq1BpERf4lp2cDDTc4EB/JkEOFc` |
 | `t4-prod-w1` | 10.10.24.22 | `SHA256:JgYpn7p58RWgSnNjwgQBVOHoTlJyAozXIC7Q9iVMMrU` |
 | `t4-prod-w2` | 10.10.24.23 | `SHA256:HpLY5G985iDlCBjTZcYBdlcVmv3NIK5FKoPgbeElVt0` |
