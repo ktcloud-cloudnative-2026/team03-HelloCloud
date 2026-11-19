@@ -56,19 +56,47 @@
 
 ### WebSocket
 
-연결 후 인증 메시지로 로그인 토큰을 보내고, 볼 채널을 구독합니다.
+연결 후 인증 메시지로 로그인 토큰을 보내고, `AUTH_OK`를 받은 뒤 볼 채널을 구독합니다. 인증 전에 다른 메시지를 보내면 서버가 연결을 끊습니다.
+
+| 방향 | `type` | 모양 | 언제 |
+|---|---|---|---|
+| 화면 → 서버 | `AUTH` | `{ type, token }` | 연결 직후. 10초 안에 보내지 않으면 끊깁니다 |
+| 화면 → 서버 | `SUBSCRIBE`, `UNSUBSCRIBE` | `{ type, channelId }` | 채널을 열고 닫을 때 |
+| 서버 → 화면 | `AUTH_REQUIRED` | `{ type, message }` | 연결 직후 |
+| 서버 → 화면 | `AUTH_OK` | `{ type }` | 토큰 확인 성공 |
+| 서버 → 화면 | `SUBSCRIBED`, `UNSUBSCRIBED` | `{ type, channelId }` | 구독 처리 완료 |
+| 서버 → 화면 | `ERROR` | `{ type, code, message }` | 잘못된 요청, 권한 없음(`CHANNEL_ACCESS_DENIED`) |
+| 서버 → 화면 | `MESSAGE_CREATED`, `MESSAGE_UPDATED` | `{ type, orgId, channelId, data, sentAt }` | 새 메시지, 이모지 · 확인 변경 |
+| 서버 → 화면 | `MEMBER_REMOVED` | `{ type, orgId, userId }` | 멤버 제거. 그 사용자의 연결을 끊습니다 |
 
 ```json
-{ "type": "SUBSCRIBE", "channelId": "10" }
+{ "type": "SUBSCRIBE", "channelId": "6721e9b0" }
 ```
 
 서버가 보내는 메시지
 
 ```json
-{ "type": "MESSAGE_CREATED", "orgId": "1", "channelId": "10", "data": { "id": "6721f0a3", "seq": 121, "text": "내용" }, "sentAt": "2026-11-06T09:00:00+09:00" }
+{
+  "type": "MESSAGE_CREATED",
+  "orgId": "1",
+  "channelId": "6721e9b0",
+  "data": {
+    "id": "6721f0a3",
+    "seq": 121,
+    "clientMessageId": "브라우저가 만든 값",
+    "senderId": "user-uuid",
+    "text": "내용",
+    "attachments": [],
+    "createdAt": "2026-11-19T09:00:00Z"
+  },
+  "sentAt": "2026-11-19T09:00:00Z"
+}
 ```
 
-이모지와 확인 변경은 `MESSAGE_UPDATED`로 보냅니다. 멤버 제거를 알리는 `MEMBER_REMOVED`를 받으면 그 사용자의 연결을 끊습니다.
+- `data`는 HTTP의 메시지 응답(`POST`, `GET .../messages`)과 같은 모양입니다. 화면은 메시지를 그리는 코드를 하나만 씁니다. 아이디는 MongoDB의 `_id`가 아니라 `id`(문자열)로 보냅니다
+- 내가 보낸 메시지는 HTTP 응답과 WebSocket으로 두 번 옵니다. 화면은 `clientMessageId`로 같은 메시지를 알아보고 하나만 보여 줍니다
+- `seq`는 순서를 위한 값이고 빈 번호가 생길 수 있습니다(저장 실패, 동시 재전송). 화면은 번호가 연속이라고 가정하지 않습니다. 다시 연결하면 마지막으로 받은 `seq`를 `after`로 넘겨 놓친 메시지를 받습니다
+- `sentAt`은 서버가 보낸 시각입니다. 전달 시간 측정(US-06)에 씁니다
 
 ## 3. 내부 API
 
