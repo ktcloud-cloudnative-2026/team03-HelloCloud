@@ -295,6 +295,108 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 3. **확인 (cp에서)** — `kubectl get secret chat-service-env -n ideaconnection-dev -o yaml | grep -oE "^  [A-Z_]+:"`
    - `-o yaml`은 `grep` 없이 출력하지 않습니다. 값이 base64로 보이는데, base64는 암호가 아니라 누구나 되돌릴 수 있습니다
 
+## DB VM (dev exporter)
+
+부하 테스트에서 느려진 원인이 서비스인지 DB인지 보려고, DB VM에 exporter(상태를 Prometheus가 읽는 숫자로 바꿔 주는 작은 프로그램)를 띄웁니다(2026-11-19, #133). Prometheus는 클러스터 밖 주소를 이름표로 못 찾아서 `deploy/values/monitoring/values-dev.yaml`에 주소를 직접 적습니다.
+
+| exporter | 이미지 | 주소 | 읽는 것 |
+| --- | --- | --- | --- |
+| node | `prom/node-exporter:v1.12.1` | `10.10.24.10:9100` | VM의 CPU · 메모리 · 디스크 |
+| MySQL | `prom/mysqld-exporter:v0.21.0` | `10.10.24.10:9104` | 연결 수, 쿼리 수 |
+| MongoDB | `percona/mongodb_exporter:0.54.0` | `10.10.24.10:9216` | 연결 수, 처리량 |
+| Redis | `oliver006/redis_exporter:v1.97.0` | `10.10.24.10:9121` | 메모리, 명령 수 |
+
+- 파일: `/opt/exporters/compose.yaml`, `/opt/exporters/.env`(권한 600, 비밀번호 3개)
+- 메모리: 각각 상한 64MB. 2026-11-19 실사용 3~21MiB
+- node-exporter v1.13.0은 2026-11-18에 막 나와서 부하 테스트 전까지 v1.12.1을 씁니다
+- node-exporter는 컨테이너가 아니라 VM을 보게 `network_mode: host`, `pid: host`, VM 전체를 읽기 전용으로 붙입니다. host 모드는 포트 연결을 못 써서 프로그램이 `10.10.24.10:9100`에만 엽니다
+- 계정은 상태를 읽는 권한만 줍니다. MySQL은 `'exporter'@'172.%'`(exporter 컨테이너는 MySQL에 Docker 게이트웨이 주소 `172.18.0.1`로 보임), 동시 연결 3개, `PROCESS, REPLICATION CLIENT, SELECT`. MongoDB는 `clusterMonitor`
+- Redis는 새 계정 없이 기존 비밀번호를 씁니다. 전용 계정을 만들려면 Redis 설정(ACL)을 바꿔야 해서입니다. **포기하는 점:** exporter가 Redis 전체 권한 비밀번호를 압니다. prod에서는 전용 계정을 만듭니다
+- MongoDB는 `--compatible-mode`만으로는 연결 수가 안 나와서 `--collector.diagnosticdata`를 켭니다. 그래서 응답이 약 1만 줄로 큽니다. 모든 정보(`--collect-all`)는 dev에는 과해서 켜지 않습니다
+
+1. **비밀번호 파일 (DB VM에서)** — 비밀번호는 VM 안에서 만들고 화면에 띄우지 않습니다
+   ```bash
+   sudo mkdir -p /opt/exporters && sudo chown lab:lab /opt/exporters && cd /opt/exporters
+   umask 077
+   printf 'MYSQLD_EXPORTER_PASSWORD=%s\nMONGO_EXPORTER_PASSWORD=%s\n' "$(openssl rand -base64 24 | tr -d '/+=')" "$(openssl rand -base64 24 | tr -d '/+=')" > .env
+   grep '^REDIS_PASSWORD=' /opt/redis/.env >> .env
+   ```
+   - 확인: `ls -l .env`가 `-rw-------`, `cut -d= -f1 .env`가 이름 3개
+2. **DB 계정** — 한 줄씩 실행합니다
+   ```bash
+   cd /opt/mysql
+   P=$(grep '^MYSQLD_EXPORTER_PASSWORD=' /opt/exporters/.env | cut -d= -f2-); printf "CREATE USER 'exporter'@'172.%%' IDENTIFIED BY '%s' WITH MAX_USER_CONNECTIONS 3;\nGRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'172.%%';\n" "$P" | docker compose exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot'; unset P
+   cd /opt/mongodb
+   P=$(grep '^MONGO_EXPORTER_PASSWORD=' /opt/exporters/.env | cut -d= -f2-); docker compose exec -T -e P="$P" mongodb sh -c 'mongosh --quiet -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin admin --eval "db.createUser({user: \"exporter\", pwd: process.env.P, roles: [{role: \"clusterMonitor\", db: \"admin\"}]}).ok"'; unset P
+   ```
+   - MySQL 확인(exporter와 같은 조건): `docker run --rm --env-file /opt/exporters/.env mysql:8.4.13 sh -c 'MYSQL_PWD="$MYSQLD_EXPORTER_PASSWORD" mysql -h 10.10.24.10 -uexporter -e "SELECT CURRENT_USER();"'`가 `exporter@172.%`
+   - MongoDB 확인: `docker run --rm --env-file /opt/exporters/.env mongo:8.0.34 sh -c 'mongosh --quiet "mongodb://10.10.24.10:27017/admin" -u exporter -p "$MONGO_EXPORTER_PASSWORD" --authenticationDatabase admin --eval "db.runCommand({serverStatus: 1}).ok"'`가 `1`
+3. **compose.yaml** — 비밀번호는 `${}`로 `.env`에서 읽고, 컨테이너마다 자기 비밀번호만 받습니다
+   ```bash
+   cd /opt/exporters
+   cat > compose.yaml <<'EOF'
+   name: dev-exporters
+
+   services:
+     node-exporter:
+       image: prom/node-exporter:v1.12.1
+       restart: unless-stopped
+       network_mode: host
+       pid: host
+       mem_limit: 64m
+       volumes:
+         - /:/host:ro,rslave
+       command:
+         - --path.rootfs=/host
+         - --web.listen-address=10.10.24.10:9100
+
+     mysqld-exporter:
+       image: prom/mysqld-exporter:v0.21.0
+       restart: unless-stopped
+       mem_limit: 64m
+       ports:
+         - "10.10.24.10:9104:9104"
+       environment:
+         MYSQLD_EXPORTER_PASSWORD: ${MYSQLD_EXPORTER_PASSWORD}
+       command:
+         - --mysqld.address=10.10.24.10:3306
+         - --mysqld.username=exporter
+
+     mongodb-exporter:
+       image: percona/mongodb_exporter:0.54.0
+       restart: unless-stopped
+       mem_limit: 64m
+       ports:
+         - "10.10.24.10:9216:9216"
+       environment:
+         MONGODB_URI: mongodb://exporter:${MONGO_EXPORTER_PASSWORD}@10.10.24.10:27017/admin
+       command:
+         - --compatible-mode
+         - --collector.diagnosticdata
+
+     redis-exporter:
+       image: oliver006/redis_exporter:v1.97.0
+       restart: unless-stopped
+       mem_limit: 64m
+       ports:
+         - "10.10.24.10:9121:9121"
+       environment:
+         REDIS_ADDR: redis://10.10.24.10:6379
+         REDIS_PASSWORD: ${REDIS_PASSWORD}
+   EOF
+   ```
+   - 확인: `grep -c PASSWORD compose.yaml`이 `3`(값은 없음), `docker compose config --quiet`. `--quiet` 없이 치면 비밀번호가 화면에 나옵니다
+4. **실행** — `docker compose up -d`. 기존 DB 컨테이너는 다른 묶음이라 건드리지 않습니다
+   - 확인: `docker compose ps` 4개 Up, `docker stats --no-stream $(docker compose ps -q)`가 64MiB 안쪽
+5. **클러스터에서 확인 (cp에서)** — 아래가 `mysql_up 1`, `mongodb_up{...} 1`, `redis_up 1`, 숫자 하나
+   ```bash
+   curl -s http://10.10.24.10:9104/metrics | grep '^mysql_up'
+   curl -s http://10.10.24.10:9216/metrics | grep '^mongodb_up'
+   curl -s http://10.10.24.10:9121/metrics | grep '^redis_up'
+   curl -s http://10.10.24.10:9100/metrics | grep '^node_memory_MemAvailable_bytes'
+   ```
+6. **Prometheus 연결** — `deploy/values/monitoring/values-dev.yaml`의 `additionalScrapeConfigs` PR을 머지하고 monitoring-dev를 동기화합니다(확인받고). Prometheus 화면 Status → Targets에서 `db-vm-*` 4개가 UP
+
 ## SSH 접속
 
 내 PC에서 bastion을 거쳐 각 VM에 접속합니다. 설정은 [ssh_config.example](ssh_config.example)을 `~/.ssh/config`에 붙여 넣고 `<...>`를 채웁니다. bastion 주소·포트는 팀 채널에서 받습니다.
