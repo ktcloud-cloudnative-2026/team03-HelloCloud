@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import InviteAccept from './pages/InviteAccept'
 import { getOrganizations, createOrganization } from './api/organizations'
 import { login, register } from './auth/keycloak'
+import BrandIcon from './brand/BrandIcon'
 import './App.css'
 
 // 초대 링크(/invite/<토큰>)만 주소로 화면을 고른다. 나머지 화면은 상태로 바꾼다.
@@ -136,9 +137,7 @@ function App({ authenticated, authError }) {
     <main className="login-container">
       <div className="login-card">
         <div className="brand">
-          <span className="brand-icon" aria-hidden="true">
-            ☁
-          </span>
+          <BrandIcon className="brand-icon" size={34} />
           <h1>IdeaConnection</h1>
         </div>
 

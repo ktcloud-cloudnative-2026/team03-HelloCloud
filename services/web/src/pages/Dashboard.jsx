@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import FileManager from './FileManager'
 import { logout } from '../auth/keycloak'
+import BrandIcon from '../brand/BrandIcon'
 import InviteDialog from '../components/InviteDialog'
 import MemberList from '../components/MemberList'
 import './Dashboard.css'
@@ -89,7 +90,7 @@ function Dashboard({ organization, onBack, onLeave }) {
       >
         <div className="dashboard-sidebar-brand">
           <span className="dashboard-brand-symbol" aria-hidden="true">
-            ☁
+            <BrandIcon size={26} color="#ffffff" innerColor="#2563eb" />
           </span>
           <span>IdeaConnection</span>
         </div>
@@ -198,9 +199,12 @@ function Dashboard({ organization, onBack, onLeave }) {
                   </p>
                 </div>
 
-                <span className="dashboard-welcome-decoration" aria-hidden="true">
-                  ☁
-                </span>
+                <BrandIcon
+                  className="dashboard-welcome-decoration"
+                  size={145}
+                  color="currentColor"
+                  innerColor="transparent"
+                />
               </section>
 
               <section className="dashboard-section">
@@ -298,7 +302,9 @@ function Dashboard({ organization, onBack, onLeave }) {
             <MemberList organization={organization} onLeave={onLeave} />
           ) : (
             <section className="dashboard-placeholder">
-              <span className="dashboard-placeholder-icon">☁</span>
+              <span className="dashboard-placeholder-icon" aria-hidden="true">
+                <BrandIcon size={44} />
+              </span>
               <h1>
                 {menuItems.find((item) => item.id === activeMenu)?.label}
               </h1>

@@ -1,5 +1,10 @@
 {
   "realm": "hellocloud",
+  "displayName": "IdeaConnection",
+  "loginTheme": "ideaconnection",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ko", "en"],
+  "defaultLocale": "ko",
   "enabled": true,
   "registrationAllowed": true,
   "sslRequired": "none",

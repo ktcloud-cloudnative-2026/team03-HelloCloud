@@ -41,14 +41,8 @@
   width: 100%;
 }
 
-/* 구름 아이콘 */
 .brand-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-primary);
-  font-size: 31px;
-  line-height: 1;
+  flex: none;
 }
 
 /* HelloCloud 글씨 */
