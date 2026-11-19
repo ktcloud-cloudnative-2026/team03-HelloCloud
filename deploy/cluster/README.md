@@ -165,11 +165,38 @@ P=$(cut -d= -f2- seaweedtest.env); printf "CREATE DATABASE seaweedtest CHARACTER
 
 1. 위 dev MySQL 절의 Docker 설치 명령을 실행하고 재접속합니다.
    `docker --version`, `docker compose version`, `docker ps`로 확인합니다.
-2. `docker pull mysql:8.4.13`으로 이미지를 받습니다.
-   위 dev MySQL의 `compose.yaml`과 같은 구성을 사용하되,
-   `name: prod-mysql`, 포트 `"10.10.24.20:3306:3306"`으로 바꿉니다.
-   위치는 `/opt/mysql`이며 buffer pool 256M, `mem_limit: 1g`,
-   데이터 볼륨과 healthcheck는 유지합니다.
+2. 이미지를 받고 `/opt/mysql/compose.yaml`을 준비합니다.
+   아래는 실제 운영 서버에 사용한 전체 설정입니다.
+
+   ```bash
+   docker pull mysql:8.4.13
+   sudo mkdir -p /opt/mysql
+   sudo chown lab:lab /opt/mysql
+   cd /opt/mysql
+   cat > compose.yaml <<'EOF'
+   name: prod-mysql
+
+   services:
+     mysql:
+       image: mysql:8.4.13
+       restart: unless-stopped
+       command: ["--innodb-buffer-pool-size=256M"]
+       mem_limit: 1g
+       ports:
+         - "10.10.24.20:3306:3306"
+       env_file: .env
+       volumes:
+         - mysql-data:/var/lib/mysql
+       healthcheck:
+         test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u user_service --password=$$MYSQL_PASSWORD"]
+         interval: 10s
+         timeout: 5s
+         retries: 30
+
+   volumes:
+     mysql-data:
+   EOF
+   ```
 3. `.env`는 운영 VM 안에서만 생성합니다. 관리자와 서비스 계정은 서로 다른
    무작위 비밀번호를 사용합니다. 아래 예시는 값을 출력하지 않고,
    기존 파일이 있으면 덮어쓰지 않고 실패합니다.
@@ -221,6 +248,10 @@ P=$(cut -d= -f2- seaweedtest.env); printf "CREATE DATABASE seaweedtest CHARACTER
 - user 운영 연결 주소는 `jdbc:mysql://10.10.24.20:3306/user_service`입니다.
   운영 Secret 등록·서비스 최초 기동(Flyway 포함)은 아직 진행하지 않았습니다
 - 파일 서비스 전용 DB·계정, MongoDB·Redis는 이번 설치 범위에 포함하지 않았습니다
+- 같은 VM에 MongoDB·Redis도 올린다면 dev 기준 MySQL 1GiB + MongoDB 1GiB + Redis 384MiB,
+  exporter 4개 × 64MiB까지 포함해 상한 합계 약 2.6GiB입니다. prod 도입 범위·배분은 미확정이며,
+  4GB VM의 OS 메모리 여유와 실제 사용량을 확인한 뒤 정합니다
+- 운영 DB 백업 위치·주기·보관 기간과 복구 확인 절차는 아직 준비하지 않았습니다. 실제 데이터 운영 전에 팀에서 정합니다
 - MySQL 이미지가 만든 서비스 계정은 현재 `user_service@%`입니다.
   접속 원본 제한은 운영 파드의 실제 원본 주소를 확인한 뒤 팀과 정해야 합니다.
   내부 IP에 바인딩한 것만으로 계정의 접속 원본 제한까지 완료한 것은 아닙니다
