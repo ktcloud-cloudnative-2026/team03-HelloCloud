@@ -13,6 +13,17 @@ import { RedisService } from '../redis/redis.service';
 import { Channel, ChannelType } from './schemas/channel.schema';
 import { Message } from './schemas/message.schema';
 
+function toMessageResponse<T extends { _id: unknown }>(
+  message: T,
+): Omit<T, '_id'> & { id: string } {
+  const { _id, ...data } = message;
+
+  return {
+    ...data,
+    id: String(_id),
+  };
+}
+
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
@@ -76,6 +87,12 @@ export class ChatService {
       );
     }
 
+    if (channelName.length > 50) {
+      throw new BadRequestException(
+        '채널 이름은 최대 50자까지 입력할 수 있습니다.',
+      );
+    }
+
     const channel = await this.channelModel.create({
       orgId,
       name: channelName,
@@ -100,6 +117,13 @@ export class ChatService {
       );
     }
 
+    // 메시지 최대 길이 제한 (4000자)
+    if (text.trim().length > 4000) {
+      throw new BadRequestException(
+        '메시지는 최대 4000자까지 입력할 수 있습니다.',
+      );
+    }
+
     const channel = await this.getChannel(channelId);
 
     // 동일한 요청이 이미 저장되었다면 기존 메시지 반환
@@ -115,7 +139,7 @@ export class ChatService {
         );
       }
 
-      return existingMessage;
+      return toMessageResponse(existingMessage);
     }
 
     // 채널별 메시지 번호를 원자적으로 증가
@@ -148,7 +172,7 @@ export class ChatService {
         },
       });
 
-      const savedMessage = message.toObject();
+      const savedMessage = toMessageResponse(message.toObject());
 
       // MongoDB 저장 성공 후 Redis 이벤트 발행
       try {
@@ -185,7 +209,7 @@ export class ChatService {
             );
           }
 
-          return savedMessage;
+          return toMessageResponse(savedMessage);
         }
 
         throw new ConflictException(
@@ -217,7 +241,7 @@ export class ChatService {
       );
     }
 
-    return this.messageModel
+    const messages = await this.messageModel
       .find({
         channelId,
         seq: { $gt: after },
@@ -226,5 +250,7 @@ export class ChatService {
       .limit(limit)
       .lean()
       .exec();
+
+    return messages.map(toMessageResponse);
   }
 }

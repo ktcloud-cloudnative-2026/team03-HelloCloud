@@ -9,15 +9,17 @@ import { AuthModule } from './auth/auth.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChatModule } from './chat/chat.module';
 
-const mongoUri = process.env.MONGODB_URI;
+const dbUrl = process.env.DB_URL;
 
-if (!mongoUri) {
-  throw new Error('MONGODB_URI 환경변수가 필요합니다.');
+if (!dbUrl) {
+  throw new Error('DB_URL 환경변수가 필요합니다.');
 }
 
 @Module({
   imports: [
-    MongooseModule.forRoot(mongoUri, {
+    MongooseModule.forRoot(dbUrl, {
+      user: process.env.DB_USERNAME,
+      pass: process.env.DB_PASSWORD,
       serverSelectionTimeoutMS: 5000,
     }),
     RedisModule,

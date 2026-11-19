@@ -27,7 +27,11 @@ type ClientMessage = {
 type ChatEvent = {
   type: string;
   channelId: string;
-  message: unknown;
+  message: {
+    orgId: string;
+    createdAt: string;
+    [key: string]: unknown;
+  };
 };
 
 @WebSocketGateway({
@@ -66,7 +70,13 @@ export class ChatGateway
           return;
         }
 
-        const payload = JSON.stringify(event);
+        const payload = JSON.stringify({
+          type: event.type,
+          orgId: event.message.orgId,
+          channelId: event.channelId,
+          data: event.message,
+          sentAt: event.message.createdAt,
+        });
 
         for (const client of this.clients) {
           if (
