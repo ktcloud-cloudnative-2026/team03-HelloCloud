@@ -1,0 +1,47 @@
+# chat은 Node(NestJS)지만 상태 확인 주소와 포트 규칙이 같아 공통 차트를 쓴다
+containerPort: 3000
+
+image:
+  repository: ghcr.io/ktcloud-cloudnative-2026/idcn-chat-service
+
+env:
+  # 같은 namespace의 user-service에 소속 확인을 묻는다
+  - name: USER_SERVICE_URL
+    value: http://user-service
+  - name: DB_URL
+    valueFrom:
+      secretKeyRef:
+        name: chat-service-env
+        key: DB_URL
+  - name: DB_USERNAME
+    valueFrom:
+      secretKeyRef:
+        name: chat-service-env
+        key: DB_USERNAME
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: chat-service-env
+        key: DB_PASSWORD
+  - name: REDIS_URL
+    valueFrom:
+      secretKeyRef:
+        name: chat-service-env
+        key: REDIS_URL
+  - name: REDIS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: chat-service-env
+        key: REDIS_PASSWORD
+  - name: OIDC_ISSUER_URI
+    valueFrom:
+      secretKeyRef:
+        name: chat-service-env
+        key: OIDC_ISSUER_URI
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 256Mi

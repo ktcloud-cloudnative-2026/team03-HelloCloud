@@ -17,6 +17,9 @@ spec:
     - repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
       targetRevision: main
       ref: values
+    - repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+      targetRevision: main
+      path: deploy/manifests/monitoring/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring

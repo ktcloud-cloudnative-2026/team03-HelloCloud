@@ -1,0 +1,14 @@
+# Grafana에 미리 등록할 대시보드. Grafana는 저장 공간이 없어 화면에서 만든 대시보드는 재시작하면 사라진다.
+# 차트의 사이드카가 grafana_dashboard: "1" 이름표가 붙은 ConfigMap을 찾아 자동으로 등록한다
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+configMapGenerator:
+  - name: grafana-dashboard-hellocloud-loadtest
+    files:
+      - hellocloud-loadtest.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+generatorOptions:
+  disableNameSuffixHash: true

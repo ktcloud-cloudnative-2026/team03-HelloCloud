@@ -20,16 +20,19 @@ public class OrganizationService {
   private final OrganizationWriter writer;
   private final OrganizationMemberRepository members;
   private final OrganizationRepository organizations;
+  private final MemberEventPublisher events;
 
   OrganizationService(
       UserProfileService profiles,
       OrganizationWriter writer,
       OrganizationMemberRepository members,
-      OrganizationRepository organizations) {
+      OrganizationRepository organizations,
+      MemberEventPublisher events) {
     this.profiles = profiles;
     this.writer = writer;
     this.members = members;
     this.organizations = organizations;
+    this.events = events;
   }
 
   // 프로필 생성이 조직 트랜잭션에 묶이지 않도록 여기에는 트랜잭션을 걸지 않는다.
@@ -84,7 +87,9 @@ public class OrganizationService {
     if (!requesterId.equals(targetUserId) && requester.getRole() != OrganizationRole.OWNER) {
       throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "조직 소유자만 멤버를 제거할 수 있습니다.");
     }
+    // 커밋이 끝난 뒤에 알린다. 먼저 알리면 chat이 끊은 사용자가 다시 붙을 때 아직 멤버로 보인다.
     writer.removeMember(target);
+    events.memberRemoved(orgId, targetUserId);
   }
 
   /** 다른 서비스용 소속 확인. 없는 조직도 멤버가 아닌 것으로 본다. */

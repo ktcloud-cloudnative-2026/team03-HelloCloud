@@ -6,7 +6,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="${1:-$(dirname "$SCRIPT_DIR")}"
 YAMLLINT_CONFIG="$(dirname "$SCRIPT_DIR")/.yamllint.yaml"
-KUBECONFORM=(kubeconform -strict -ignore-missing-schemas -summary)
+# manifests/의 .json은 kustomize가 ConfigMap으로 묶는 데이터(예: Grafana 대시보드)라 리소스로 검사하지 않는다
+KUBECONFORM=(kubeconform -strict -ignore-missing-schemas -ignore-filename-pattern '\.json$' -summary)
 
 echo "== 검사 대상: $DEPLOY_DIR"
 

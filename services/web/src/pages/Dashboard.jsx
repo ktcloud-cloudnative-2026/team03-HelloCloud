@@ -1,9 +1,12 @@
 
 import { useState } from 'react'
 import FileManager from './FileManager'
+import ChatPage from './ChatPage'
 import { logout } from '../auth/keycloak'
 import InviteDialog from '../components/InviteDialog'
 import MemberList from '../components/MemberList'
+import { relativeTime } from './dashboard/activity'
+import { useDashboardData } from './dashboard/useDashboardData'
 import './Dashboard.css'
 
 const menuItems = [
@@ -16,41 +19,13 @@ const menuItems = [
 ]
 
 const summaryItems = [
-  { id: 'tasks', label: '진행 중인 업무', value: '8', icon: '☑', tone: 'blue' },
-  { id: 'messages', label: '새 메시지', value: '12', icon: '✉', tone: 'purple' },
-  { id: 'events', label: '예정된 일정', value: '3', icon: '▦', tone: 'orange' },
-  { id: 'members', label: '조직 멤버', value: '6', icon: '♙', tone: 'green' },
+  { id: 'members', label: '조직 멤버', icon: '♙', tone: 'green' },
+  { id: 'unread', label: '새 메시지', icon: '✉', tone: 'purple' },
+  { id: 'files', label: '공유 파일', icon: '▣', tone: 'blue' },
+  { id: 'decisions', label: '고정 메시지', icon: '📌', tone: 'orange' },
 ]
 
-const activities = [
-  {
-    id: 1,
-    initials: '김',
-    name: '김민수',
-    action: '새로운 업무를 등록했습니다.',
-    detail: '대시보드 UI 디자인 검토',
-    time: '10분 전',
-    tone: 'blue',
-  },
-  {
-    id: 2,
-    initials: '이',
-    name: '이지은',
-    action: '채팅 채널에 메시지를 남겼습니다.',
-    detail: '# 프론트엔드',
-    time: '35분 전',
-    tone: 'purple',
-  },
-  {
-    id: 3,
-    initials: '박',
-    name: '박준호',
-    action: '새로운 파일을 공유했습니다.',
-    detail: '프로젝트_기획서.pdf',
-    time: '1시간 전',
-    tone: 'green',
-  },
-]
+const activityTones = { message: 'purple', file: 'green', decision: 'blue' }
 
 const quickLinks = [
   { id: 'chat', icon: '✉', label: '채팅', description: '팀원들과 대화하기' },
@@ -63,6 +38,8 @@ function Dashboard({ organization, onBack, onLeave }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const dashboardData = useDashboardData(organization.id, activeMenu === 'dashboard')
+  const activities = dashboardData.activities ?? []
 
   const organizationName = organization?.name || 'HelloCloud 개발팀'
   const organizationInitials =
@@ -209,7 +186,6 @@ function Dashboard({ organization, onBack, onLeave }) {
                     <h2>워크스페이스 현황</h2>
                     <p>팀의 주요 활동을 간편하게 살펴보세요.</p>
                   </div>
-                  <span className="dashboard-sample-note">예시 데이터</span>
                 </div>
 
                 <div className="dashboard-summary-grid">
@@ -219,10 +195,9 @@ function Dashboard({ organization, onBack, onLeave }) {
                         {item.icon}
                       </div>
                       <p>{item.label}</p>
+                      {/* 불러오지 못한 카드만 – 로 둔다 */}
                       <strong>
-                        {item.id === 'members'
-                          ? organization?.members ?? item.value
-                          : item.value}
+                        {dashboardData.loading ? '…' : dashboardData[item.id] ?? '–'}
                       </strong>
                     </article>
                   ))}
@@ -236,27 +211,31 @@ function Dashboard({ organization, onBack, onLeave }) {
                       <h2>최근 활동</h2>
                       <p>워크스페이스의 새로운 소식</p>
                     </div>
-                    <span className="dashboard-sample-note">예시</span>
                   </div>
 
                   <div className="dashboard-activity-list">
+                    {!dashboardData.loading && activities.length === 0 && (
+                      <p className="dashboard-activity-empty">아직 활동이 없습니다</p>
+                    )}
                     {activities.map((activity) => (
                       <div className="dashboard-activity" key={activity.id}>
                         <span
-                          className={`dashboard-activity-avatar ${activity.tone}`}
+                          className={`dashboard-activity-avatar ${activityTones[activity.kind]}`}
                         >
-                          {activity.initials}
+                          {activity.name.slice(0, 1)}
                         </span>
 
                         <div className="dashboard-activity-body">
                           <p>
-                            <strong>{activity.name}</strong>님이{' '}
+                            <strong>{activity.subject}</strong>{' '}
                             {activity.action}
                           </p>
                           <span>{activity.detail}</span>
                         </div>
 
-                        <time>{activity.time}</time>
+                        <time dateTime={activity.at}>
+                          {relativeTime(activity.at, new Date())}
+                        </time>
                       </div>
                     ))}
                   </div>
@@ -294,6 +273,8 @@ function Dashboard({ organization, onBack, onLeave }) {
             </>
           ) : activeMenu === 'files' ? (
             <FileManager key={organization.id} orgId={organization.id} organizationRole={organization.role} />
+          ) : activeMenu === 'chat' ? (
+            <ChatPage key={organization.id} organization={organization} />
           ) : activeMenu === 'members' ? (
             <MemberList organization={organization} onLeave={onLeave} />
           ) : (

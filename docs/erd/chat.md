@@ -33,7 +33,7 @@ DB: MongoDB
   "senderType": "USER",
   "senderId": "3f2c8e1a-...",
   "text": "내용",
-  "attachments": [{ "fileId": "5", "name": "기획서.pdf" }],
+  "attachments": [{ "fileId": "5", "name": "기획서.pdf", "contentType": "application/pdf" }],
   "reactions": [{ "emoji": "👍", "userIds": ["3f2c8e1a-..."] }],
   "acknowledgement": {
     "requiredUserIds": ["a", "b"],
