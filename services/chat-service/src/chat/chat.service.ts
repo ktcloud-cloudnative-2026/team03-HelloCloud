@@ -13,7 +13,8 @@ import { RedisService } from '../redis/redis.service';
 import { Channel, ChannelType } from './schemas/channel.schema';
 import { Message } from './schemas/message.schema';
 
-function toMessageResponse<T extends { _id: unknown }>(
+// 화면이 채널과 메시지를 같은 모양(id 문자열)으로 다루도록 MongoDB의 _id를 바꾼다
+function toResponse<T extends { _id: unknown }>(
   message: T,
 ): Omit<T, '_id'> & { id: string } {
   const { _id, ...data } = message;
@@ -41,11 +42,13 @@ export class ChatService {
 
   // 조직에 속한 채팅방 목록 조회
   async getChannels(orgId: string) {
-    return this.channelModel
+    const channels = await this.channelModel
       .find({ orgId })
       .sort({ createdAt: 1 })
       .lean()
       .exec();
+
+    return channels.map(toResponse);
   }
 
   // 특정 채팅방 조회
@@ -101,7 +104,7 @@ export class ChatService {
       createdBy,
     });
 
-    return channel.toObject();
+    return toResponse(channel.toObject());
   }
 
   // 메시지 저장
@@ -139,7 +142,7 @@ export class ChatService {
         );
       }
 
-      return toMessageResponse(existingMessage);
+      return toResponse(existingMessage);
     }
 
     // 채널별 메시지 번호를 원자적으로 증가
@@ -172,7 +175,7 @@ export class ChatService {
         },
       });
 
-      const savedMessage = toMessageResponse(message.toObject());
+      const savedMessage = toResponse(message.toObject());
 
       // MongoDB 저장 성공 후 Redis 이벤트 발행
       try {
@@ -209,7 +212,7 @@ export class ChatService {
             );
           }
 
-          return toMessageResponse(savedMessage);
+          return toResponse(savedMessage);
         }
 
         throw new ConflictException(
@@ -251,6 +254,6 @@ export class ChatService {
       .lean()
       .exec();
 
-    return messages.map(toMessageResponse);
+    return messages.map(toResponse);
   }
 }

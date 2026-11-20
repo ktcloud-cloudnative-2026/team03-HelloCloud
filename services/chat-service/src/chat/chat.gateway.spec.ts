@@ -17,6 +17,19 @@ class FakeSocket extends EventEmitter {
     this.sent.push(JSON.parse(data) as Record<string, unknown>);
   }
 
+  pings = 0;
+  terminated = false;
+
+  ping(): void {
+    this.pings += 1;
+  }
+
+  terminate(): void {
+    this.terminated = true;
+    this.readyState = WebSocket.CLOSED;
+    this.emit('close');
+  }
+
   close(code: number, reason: string): void {
     this.closedWith = { code, reason };
     this.readyState = WebSocket.CLOSED;
@@ -205,6 +218,25 @@ describe('ChatGateway', () => {
       await flush();
 
       expect(socket.closedWith?.reason).toBe('User mismatch');
+    });
+  });
+
+  describe('pingClients', () => {
+    it('pong을 돌려주는 연결은 유지하고 다시 ping한다', () => {
+      gateway.pingClients();
+      socket.emit('pong');
+      gateway.pingClients();
+
+      expect(socket.pings).toBe(2);
+      expect(socket.terminated).toBe(false);
+    });
+
+    it('한 주기 동안 pong이 없으면 끊는다', () => {
+      gateway.pingClients();
+      gateway.pingClients();
+
+      expect(socket.pings).toBe(1);
+      expect(socket.terminated).toBe(true);
     });
   });
 
