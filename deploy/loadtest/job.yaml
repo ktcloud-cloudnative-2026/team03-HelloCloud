@@ -54,7 +54,8 @@ spec:
             # 200명(초당 약 600요청)이면 1코어에서 k6 자체가 먼저 지칠 수 있다(#146). 실행 중 k6 CPU를 같이 본다
             limits:
               cpu: "2"
-              memory: 512Mi
+              # 가상 사용자 하나에 1~5MB라 200명이면 512Mi에 닿을 수 있다. 넘으면 다시 돌지 않고 요약도 안 남는다
+              memory: 1Gi
           volumeMounts:
             - name: script
               mountPath: /scripts

@@ -82,7 +82,11 @@ function currentStep() {
     return undefined;
   }
   const elapsed = (Date.now() - exec.scenario.startTime) / 1000;
-  const index = Math.min(Math.floor(elapsed / STEP_SECONDS), STEPS.length - 1);
+  const index = Math.floor(elapsed / STEP_SECONDS);
+  // 마지막 칸 뒤 사람이 줄어드는 30초는 따로 센다. 섞이면 마지막 칸 성적이 흐려진다
+  if (index >= STEPS.length) {
+    return 'down';
+  }
   return String(STEPS[index]);
 }
 
@@ -93,10 +97,12 @@ function logStepStart(step) {
     return;
   }
   lastLoggedStep = step;
-  const planned = new Date(exec.scenario.startTime + STEPS.indexOf(Number(step)) * STEP_SECONDS * 1000);
+  const position = step === 'down' ? STEPS.length : STEPS.indexOf(Number(step));
+  const planned = new Date(exec.scenario.startTime + position * STEP_SECONDS * 1000);
   // Grafana는 브라우저 시간(한국)으로 보여서 한국 시각으로 찍는다
   const kst = new Date(planned.getTime() + 9 * 3600 * 1000).toISOString().replace('Z', '+09:00');
-  console.log(`step ${step}명 시작 ${kst}`);
+  const label = step === 'down' ? '줄이기' : `${step}명`;
+  console.log(`step ${label} 시작 ${kst}`);
 }
 
 function login() {
