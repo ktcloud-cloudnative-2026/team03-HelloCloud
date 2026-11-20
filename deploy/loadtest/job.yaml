@@ -51,8 +51,9 @@ spec:
             requests:
               cpu: 500m
               memory: 256Mi
+            # 200명(초당 약 600요청)이면 1코어에서 k6 자체가 먼저 지칠 수 있다(#146). 실행 중 k6 CPU를 같이 본다
             limits:
-              cpu: "1"
+              cpu: "2"
               memory: 512Mi
           volumeMounts:
             - name: script

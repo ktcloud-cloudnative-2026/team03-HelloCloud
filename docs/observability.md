@@ -57,7 +57,7 @@ k6(가상 사용자를 만들어 요청을 계속 보내는 도구)로 user · f
 - k6는 클러스터 안 `loadtest` 네임스페이스에서 Job으로 한 번 돌고 끝납니다. 실제 사용자와 같은
   입구(dev Gateway)를 지나고, cp와 CPU를 나눠 쓰지 않기 위해서입니다. 한 번 쓰고 지우는 도구라
   Argo CD 밖에서 손으로 올립니다(팀장 승인). 파일은 [deploy/loadtest/](../deploy/loadtest/)에 있습니다.
-- k6 파드는 CPU를 0.5~1개로 제한하고, 테스트 대상 파드와 되도록 다른 노드에 뜹니다. 같은 노드면
+- k6 파드는 CPU를 0.5~2개로 제한하고, 테스트 대상 파드와 되도록 다른 노드에 뜹니다. 같은 노드면
   CPU를 나눠 써서 결과가 흔들립니다. 워커가 2대라 항상 피하지는 못하니 실행 후 노드를 확인합니다.
 
 ### 준비 (한 번)
@@ -90,16 +90,32 @@ kubectl apply -k .
 kubectl -n loadtest get pods -o wide
 kubectl -n loadtest logs -f job/k6-read-apis
 
-# 3. 본 실행: Job은 고칠 수 없어 지우고 다시 만든다. VUS는 10 → 30 → 50으로 올려 본다
+# 3. 병목 찾기: 2분마다 10 → 30 → 50 → 100 → 200명. HPA를 끈 뒤(파드 1개의 한계를 본다) 채널에 시간대를 알리고 시작한다
+kubectl -n loadtest delete job k6-read-apis
+printf 'MODE=step\nORG_ID=7\n' > run.env
+kubectl apply -k .
+kubectl -n loadtest logs -f job/k6-read-apis
+
+# 4. 본 실행: Job은 고칠 수 없어 지우고 다시 만든다. VUS는 3에서 찾은 병목 칸의 사람 수
 kubectl -n loadtest delete job k6-read-apis
 printf 'MODE=full\nVUS=30\nORG_ID=7\n' > run.env
 kubectl apply -k .
 kubectl -n loadtest logs -f job/k6-read-apis
 ```
 
+- 병목 찾기(`MODE=step`): 사람 수를 칸마다 30초에 걸쳐 늘리고(한꺼번에 늘리면 새 가상 사용자 로그인으로 Keycloak CPU가 튐)
+  나머지 90초는 그대로 둡니다. 요약에 칸(`step:10`, `step:30` …)마다 p95 · 에러율이 따로 나오고, 로그에
+  `step 30명 시작 <시각>`이 칸마다 한 줄 찍힙니다. 꺾이는 지점은 이 시각으로 Grafana 시간대별 p95 · 요청 수를 보고 찾습니다
+- 그 칸에서 먼저 한계에 닿는 것(user · file CPU, DB 연결, 메모리)이 병목입니다. k6 자신과 Keycloak의 CPU도 같이 봅니다.
+  k6가 먼저 지치면 서비스가 아니라 측정 도구의 한계입니다. file 목록 API는 user의 소속 확인을 부르므로 file p95에는 user
+  시간이 섞입니다. 병목이 DB나 소속 확인 호출이면 HPA만으로는 나아지지 않으니 인덱스나 캐시를 두 번째 개선으로 잡습니다
+- 어느 칸이든 에러가 5%를 넘으면(30초 지켜본 뒤) dev를 지키려고 k6가 스스로 멈춥니다. 칸은 `STEPS`(예: `STEPS=10,30,50`),
+  칸 길이는 `STEP_SECONDS`(기본 120)로 바꿉니다. Job은 15분이 지나면 강제로 끝나니 칸 수 × 칸 길이 + 30초가 15분을 넘지 않게 합니다
 - 로그 끝의 요약에서 `http_req_duration{scenario:load,type:api}`의 p(95)와
   `http_req_failed{scenario:load,type:api}`를 봅니다. 합격선을 넘으면 ✗가 붙습니다.
-- 같은 시간대의 Grafana 화면(요청 수, 에러율, p95, CPU, 파드 수)을 캡처합니다.
+- 같은 시간대의 Grafana 화면(요청 수, 에러율, p95, CPU, 파드 수)을 캡처합니다. 전후 비교 그래프는 시간 범위 길이를 같게
+  맞춥니다. 2차(HPA 켬)는 파드 수 패널을 꼭 캡처합니다(P4 심화 (3) "Pod 수 · 응답 시간 그래프")
+- Istio 전후 비교는 requests · HPA 상태를 같게 두고, 사이드카 CPU · 메모리도 같이 적습니다
 
 ### HPA 끄고 켜기
 
@@ -120,6 +136,16 @@ cd / && rm -rf /tmp/k6-loadtest
 
 ### 결과
 
-| 회차 | 날짜 | HPA | 가상 사용자 | p95 | 에러율 | 최대 파드 수 |
-|---|---|---|---|---|---|---|
-| | | | | | | |
+에러율은 k6 `http_req_failed`(4xx도 실패로 셈)를 씁니다. 대시보드 에러율 패널은 5xx만 셉니다.
+
+| 회차 | 날짜 | HPA · CPU requests | 가상 사용자 | p95 | 처리량(초당 요청) | 에러율 | 최대 파드 수 |
+|---|---|---|---|---|---|---|---|
+| | | | | | | | |
+
+### 최적화 보고서
+
+P4 기본 (3)의 결과물입니다. 병목마다 아래 세 칸으로 적습니다.
+
+| 문제 (무엇이 먼저 한계에 닿았나) | 조치 (무엇을 바꿨나, PR) | 효과 (전후 p95 · 처리량) |
+|---|---|---|
+| | | |
