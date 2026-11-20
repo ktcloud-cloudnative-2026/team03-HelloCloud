@@ -348,7 +348,7 @@ startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니
 - dev Application: `deploy/argocd/services/web-dev.yaml`
 - Gateway 연결 대상: `ideaconnection-dev` namespace의 `web:80`
 - 자원: requests CPU 10m · 메모리 32Mi, 메모리 상한 64Mi(`values/web/values.yaml`). nginx가 정적 파일만 내줘서 2026-11-19 실사용이 1m · 5Mi입니다
-- dev는 파드 1개, prod는 2개로 설정합니다. prod Application은 아직 작성하지 않았습니다.
+- dev는 파드 1개, prod는 2개로 설정합니다. prod Application과 최초 배포 조건은 아래 "prod 배포 준비"를 따릅니다.
 
 `bash deploy/scripts/validate-helm.sh`는 user-service와 웹의 dev·prod 설정을
 모두 검사합니다. 실제 이미지가 없어도 설정 검사는 가능하며 서버를 변경하지 않습니다.
@@ -406,3 +406,98 @@ dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 기�
 되돌릴 때는 이미지 태그 변경을 `git revert`하는 PR을 사용합니다.
 이미지 롤백으로 DB 마이그레이션은 되돌아가지 않으므로 스키마 호환성은
 백엔드 담당자와 확인합니다.
+
+## prod 배포 준비 (미등록 초안)
+
+관련 이슈: [#137 운영 외부 공개·HTTPS·Keycloak·SeaweedFS](https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud/issues/137).
+강사의 [11/19 도메인 선행 작업 안내](https://docs.google.com/document/d/1aVdRTmqnm5zpszbMRa7uHwan-cNoIp0rTYsIZ8kPR_s/edit)에 따라
+운영 공개 주소는 `https://ideaconnection.jpexstudio.com`입니다. 강사가 Cloudflare 터널·도메인·외부 HTTPS를
+처리하고, 팀은 prod Gateway의 HTTP 80·HTTPRoute·서비스 응답을 준비합니다.
+팀이 Gateway 인증서나 cloudflared를 별도로 설치하지 않습니다. #137의 공개 방식 비교는 이전 검토 내용입니다.
+#137의 DB VM 회신 대기는 과거 상태이며, 현재 설치 근거는 #142·#150과 `cluster/README.md`입니다.
+
+`argocd/services/`의 web·user-service·file-service·chat-service `*-prod.yaml`은
+**운영 클러스터의 Argo CD**에서 사용할 앱입니다. main의 기존 차트와 공통 values,
+각 `values-prod.yaml`을 읽어 `ideaconnection-prod`에 배포합니다.
+앱 파일을 dev 클러스터에 등록하면 그곳에 운영 이름의 namespace가 생기므로 등록하지 않습니다.
+현재는 로컬 초안·검사 단계이며 운영 앱 등록·Secret 생성·실제 배포는 하지 않았습니다.
+
+### 이미지와 배포 전 조건
+
+- 팀 규칙대로 dev에서 확인한 이미지의 동일한 SHA 태그를 prod values에 PR로 반영합니다.
+  최신 dev 태그나 CI 성공만으로 운영 검증 완료라고 판단하지 않습니다.
+- 현재 web의 `75583e7`은 이전 dev 파일 화면 검증에 사용한 후보입니다.
+  최신 로그인·권한·화면 변경을 포함할 배포 후보와 실제 dev 검증 결과를 재확인한 뒤 확정합니다.
+- user·file·chat prod 이미지 태그는 아직 비어 있습니다. 검사용 `0000000`은
+  명령행에서만 사용하고 prod values에 저장하거나 실제 배포하지 않습니다.
+- 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server·모니터링의 prod 도입은
+  이 초안에 포함하지 않습니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
+- 앱은 기존 dev와 같은 자동 동기화·prune·selfHeal 설정입니다. 앱 최초 등록 시
+  바로 배포될 수 있으므로 아래 선행 조건과 diff를 확인하고 팀 확인 후 등록합니다.
+  이미지 태그가 있는 web도 준비 완료 전 검증용으로 등록하지 않습니다.
+- user·file 첫 기동은 Flyway DB 마이그레이션을 포함합니다. 백업·스키마·계정 권한과
+  첫 기동 범위를 확인한 뒤 진행합니다. 이미지 롤백만으로 DB 변경이 되돌아가지는 않습니다.
+
+### 서비스별 운영 연결 준비표
+
+다음은 Secret **이름·키와 공개 연결 값**만 정리한 것입니다. 실제 비밀번호·인증키를
+이 표·Git·PR에 넣지 않습니다. Secret 값은 운영 DB VM에서 운영 클러스터로 안전하게 전달하며,
+dev Secret이나 dev DB 자격증명을 복사하지 않습니다.
+
+| 서비스 | 준비된 연결 | 운영 Secret 키 / 남은 결정 |
+| --- | --- | --- |
+| web | 내부 Service `web:80`, 컨테이너 80 | DB·로그인 Secret 없음. 접속 주소 기준 `/api`, `/realms` 호출. realm `hellocloud`, client `hellocloud-web` 유지 |
+| user | `jdbc:mysql://10.10.24.20:3306/user_service`, 사용자 `user_service` | `user-service-env`: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `OIDC_ISSUER_URI`, `INVITE_BASE_URL`, `REDIS_URL`, `REDIS_PASSWORD` |
+| file | `jdbc:mysql://10.10.24.20:3306/file_service`, 사용자 `file_service`, 내부 user 주소 `http://user-service` | `file-service-env`: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `OIDC_ISSUER_URI`, `USER_SERVICE_URL`, `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` |
+| chat | `mongodb://10.10.24.20:27017/chat_service?authSource=chat_service`, 사용자 `chat_service`, 내부 user 주소 `http://user-service` | `chat-service-env`: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`, `OIDC_ISSUER_URI`. `USER_SERVICE_URL`은 공통 values에 있음 |
+
+user·chat은 같은 운영 Redis `redis://10.10.24.20:6379`를 사용합니다. user의 Redis 키는
+차트에서 optional이지만, 누락하면 `MEMBER_REMOVED`가 전달되지 않아 권한 회수 검증을
+완료할 수 없습니다. `INVITE_BASE_URL`도 optional이나 운영에서 생략하면 localhost 초대 링크가
+만들어지므로 실제 웹 주소를 넣습니다. 두 항목 모두 운영 배포 준비에서는 필수로 확인합니다.
+
+- 공개 주소: `https://ideaconnection.jpexstudio.com` (접속 개통 여부는 별도 확인)
+- 위 주소에 맞춰 구성: Keycloak issuer `https://ideaconnection.jpexstudio.com/realms/hellocloud`,
+  웹 redirect URI·허용 origin, `INVITE_BASE_URL=https://ideaconnection.jpexstudio.com`
+- SeaweedFS는 #137에 따라 주소 확정 전에도 배치·복제본·PVC·버전 등 사전 준비가 가능합니다.
+  기존 dev 저장소를 재설치하거나 PVC를 옮기지 않고 운영 구성을 따로 준비합니다. 확정할 값은 내부/브라우저 S3 주소,
+  region·bucket과 파일 서비스 전용 권한, 웹 origin의 CORS
+- OIDC issuer는 브라우저 토큰의 발급자와 정확히 같아야 하고 파드에서도 접근 가능해야 합니다.
+  file의 브라우저 S3 요청에는 로그인 토큰을 보내지 않습니다.
+- 공개 Gateway·HTTPS·JWT 검사와 Istio mTLS/호출 허용은 담당 작업과 맞춰 확인합니다.
+  dev 이관용 Envoy hook Skip 설정이나 HTTP·관리 화면 노출을 prod에 그대로 복사하지 않습니다.
+- MySQL 원본 제한, Docker 포트에 유효한 방화벽 규칙, Redis ACL, 백업·복구와
+  운영 모니터링은 DB 설치 기록의 후속 항목을 따릅니다. 아직 적용·검증 완료가 아닙니다.
+
+### 지금 할 수 있는 로컬 검사
+
+```bash
+bash deploy/scripts/validate-helm.sh
+```
+
+user·file·chat·web의 dev·prod 총 8개 조합을 검사용 이미지로 검사합니다.
+실제 이미지·DB·Secret·인증서·클러스터 CRD의 존재나 서비스 동작을 검증하지 않습니다.
+prod의 빈 이미지 태그를 임시로 채워 서버에 적용하는 명령은 아닙니다.
+
+### 확정 후 한 번에 진행할 순서
+
+1. HTTP 80 Gateway와 web 경로·이미지를 검토하고 prod Argo CD에서 준비합니다.
+   bastion에서 `curl -i http://<prod Gateway IP>/`로 웹 응답을 확인해 IP·상태 코드·경로를 강사에게 전달합니다.
+   `hostnames`는 강사 안내대로 web 경로에서 생략해 IP 직접 검사도 가능합니다.
+   Gateway 재생성으로 IP가 바뀌면 터널 연결도 끊길 수 있으므로 임의로 지우지 않고 변경 시 강사에게 알립니다.
+   외부 개통 전 관리자 경로·시험 계정·기본 비밀번호 노출을 점검하고 dev는 공개하지 않습니다.
+   현재 prod 경로 초안은 web만 포함하며 `/admin`이나 Keycloak·API·S3 경로는 연결하지 않았습니다.
+   HTTPS 개통 후 Keycloak 운영 모드(`start`)·proxy 설정·issuer를 공개 주소와 맞추고,
+   realm·client는 기존 이름, 표시 이름은 `IdeaConnection`을 사용합니다.
+   SeaweedFS 배치·저장소 준비와 운영 endpoint·CORS 연결은 별도로 검증합니다.
+2. 각 서비스의 dev 검증 근거·배포 SHA를 확인하고 prod values에 반영합니다.
+3. 운영 namespace·서비스별 Secret을 준비하고 DB 접속·권한·백업 준비 상태를 확인합니다.
+4. 팀 검토 후 운영 Argo CD에 앱을 등록합니다. DB·인증·저장소가 준비된 순서로
+   user → file·chat을 확인하며 web과 Gateway 경로를 연결합니다.
+5. Synced/Healthy뿐 아니라 동기화 Succeeded·파드 2개 Ready·상태 확인 응답을 확인합니다.
+6. 실제 로그인 → 조직·초대 → 파일 업로드·미리보기·다운로드 원본 비교·삭제를 확인합니다.
+7. 조직 간 접근 차단과 멤버 제거 후 HTTP·실시간 연결 권한 회수를 측정합니다.
+   기존 임시 파일 URL의 유효기간은 새 URL 발급 차단과 별도 검증 항목으로 구분합니다.
+8. chat은 서로 다른 파드의 전달과 재연결 복구를 검증하고, 결과·이미지 SHA·측정 범위를 기록합니다.
+
+이 문서의 검사 통과는 실제 운영 배포 완료나 전체 보안 요구사항 충족을 뜻하지 않습니다.
