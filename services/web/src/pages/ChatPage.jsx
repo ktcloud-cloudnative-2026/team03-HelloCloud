@@ -15,6 +15,7 @@ import AttachPicker from './chat/AttachPicker'
 import DecisionLog from './chat/DecisionLog'
 import MessageItem from './chat/MessageItem'
 import { fetchAfter, lastSeq, mergeMessages } from './chat/messages'
+import { browserStorage, markSeen } from './dashboard/unread'
 import './ChatPage.css'
 
 const MAX_TEXT = 4000
@@ -123,6 +124,14 @@ function ChatPage({ organization }) {
     connection?.subscribe(activeId)
     return () => connection?.unsubscribe(activeId)
   }, [activeId])
+
+  // 대시보드의 새 메시지 수를 위해, 지금 보고 있는 채널의 마지막 메시지까지 본 것으로 기록한다
+  useEffect(() => {
+    const last = messages.at(-1)
+    const storage = browserStorage()
+    if (!last || last.channelId !== activeId || !storage || !myId) return
+    markSeen(storage, myId, activeId, lastSeq(messages))
+  }, [messages, activeId, myId])
 
   // 맨 아래 근처에 있을 때만 새 메시지로 내려간다. 위 내용을 읽는 중이면 그대로 둔다
   useEffect(() => {
