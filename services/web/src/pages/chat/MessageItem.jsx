@@ -44,7 +44,7 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
     try {
       onDecided(await registerDecision(message.id))
     } catch (e) {
-      onError(`결정으로 등록하지 못했어요: ${e.message}`)
+      onError(`메시지를 고정하지 못했어요: ${e.message}`)
     } finally {
       setBusy(false)
     }
@@ -64,10 +64,35 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
   }
 
   return (
-    <li className={`${mine ? 'mine' : ''} ${focused ? 'focused' : ''}`} data-message-id={message.id}>
+    <li
+      className={`${mine ? 'mine' : ''} ${focused ? 'focused' : ''} ${pickerOpen ? 'picking' : ''}`}
+      data-message-id={message.id}
+    >
       <div className="chat-meta">
         <strong>{nameOf(message.senderId)}</strong>
         <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
+        {decided && (
+          <span className="chat-pinned" title="고정된 메시지" aria-label="고정된 메시지">
+            📌
+          </span>
+        )}
+        {/* 디스코드처럼 메시지에 마우스를 올리면 뜨는 도구 */}
+        <span className="chat-message-actions">
+          <button
+            type="button"
+            aria-label="이모지 달기"
+            title="이모지 달기"
+            aria-expanded={pickerOpen}
+            onClick={() => setPickerOpen((open) => !open)}
+          >
+            ☺
+          </button>
+          {!decided && (
+            <button type="button" aria-label="고정하기" title="고정하기" disabled={busy} onClick={handleDecide}>
+              📌
+            </button>
+          )}
+        </span>
       </div>
       {message.text && <p className="chat-text">{message.text}</p>}
       {message.attachments?.length > 0 && (
@@ -108,45 +133,31 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
         </div>
       )}
 
-      <div className="chat-reactions">
-        {(message.reactions ?? []).map((reaction) => (
-          <button
-            key={reaction.emoji}
-            type="button"
-            className={`chat-chip ${reaction.userIds.includes(myId) ? 'active' : ''}`}
-            title={reaction.userIds.map(nameOf).join(', ')}
-            disabled={busy}
-            onClick={() => toggleReaction(reaction.emoji)}
-          >
-            {reaction.emoji} {reaction.userIds.length}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="chat-chip add"
-          aria-label="이모지 달기"
-          aria-expanded={pickerOpen}
-          onClick={() => setPickerOpen((open) => !open)}
-        >
-          ☺+
-        </button>
-        {decided ? (
-          <span className="chat-chip done">📌 결정</span>
-        ) : (
-          <button type="button" className="chat-chip add" disabled={busy} onClick={handleDecide}>
-            📌 결정으로 등록
-          </button>
-        )}
-        {pickerOpen && (
-          <span className="chat-reaction-picker">
-            {REACTIONS.map((emoji) => (
-              <button key={emoji} type="button" onClick={() => toggleReaction(emoji)}>
-                {emoji}
-              </button>
-            ))}
-          </span>
-        )}
-      </div>
+      {((message.reactions ?? []).length > 0 || pickerOpen) && (
+        <div className="chat-reactions">
+          {(message.reactions ?? []).map((reaction) => (
+            <button
+              key={reaction.emoji}
+              type="button"
+              className={`chat-chip ${reaction.userIds.includes(myId) ? 'active' : ''}`}
+              title={reaction.userIds.map(nameOf).join(', ')}
+              disabled={busy}
+              onClick={() => toggleReaction(reaction.emoji)}
+            >
+              {reaction.emoji} {reaction.userIds.length}
+            </button>
+          ))}
+          {pickerOpen && (
+            <span className="chat-reaction-picker">
+              {REACTIONS.map((emoji) => (
+                <button key={emoji} type="button" onClick={() => toggleReaction(emoji)}>
+                  {emoji}
+                </button>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
     </li>
   )
 }
