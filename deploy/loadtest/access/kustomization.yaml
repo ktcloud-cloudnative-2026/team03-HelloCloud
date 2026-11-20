@@ -1,0 +1,15 @@
+# #173 권한 측정. 부하 테스트와 같이 Argo CD 밖에서 손으로 올리고 끝나면 지운다(AGENTS.md 예외)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: loadtest
+resources:
+  - job.yaml
+configMapGenerator:
+  - name: k6-access-script
+    files:
+      - access-check.js
+  - name: k6-access-run
+    envs:
+      - run.env
+generatorOptions:
+  disableNameSuffixHash: true
