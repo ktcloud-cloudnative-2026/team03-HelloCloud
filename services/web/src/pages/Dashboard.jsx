@@ -9,16 +9,8 @@ import Icon from '../components/Icon'
 import MemberList from '../components/MemberList'
 import { relativeTime } from './dashboard/activity'
 import { useDashboardData } from './dashboard/useDashboardData'
+import { menuItems, menuLabel } from './dashboardMenu'
 import './Dashboard.css'
-
-const menuItems = [
-  { id: 'dashboard', icon: 'grid', label: '대시보드' },
-  { id: 'members', icon: 'users', label: '멤버' },
-  { id: 'chat', icon: 'chat', label: '채팅' },
-  { id: 'files', icon: 'folder', label: '파일 관리' },
-  { id: 'tasks', icon: 'check', label: '업무 관리', preview: true },
-  { id: 'calendar', icon: 'calendar', label: '캘린더', preview: true },
-]
 
 const summaryItems = [
   { id: 'members', label: '조직 멤버', icon: 'users', tone: 'green' },
@@ -143,7 +135,7 @@ function Dashboard({ organization, onBack, onLeave }) {
             <div className="dashboard-breadcrumb">
               <span>{organizationName}</span>
               <span className="dashboard-breadcrumb-divider">/</span>
-              <strong>대시보드</strong>
+              <strong aria-current="page">{menuLabel(activeMenu)}</strong>
             </div>
           </div>
 
@@ -288,7 +280,7 @@ function Dashboard({ organization, onBack, onLeave }) {
                 <BrandIcon size={44} />
               </span>
               <h1>
-                {menuItems.find((item) => item.id === activeMenu)?.label}
+                {menuLabel(activeMenu)}
               </h1>
               <p>
                 이 기능은 현재 준비 중이에요.
