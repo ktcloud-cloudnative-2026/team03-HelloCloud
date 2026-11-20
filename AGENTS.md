@@ -31,7 +31,9 @@
 *   Argo CD로 배포한다. `main`이 곧 클러스터 상태이고, 롤백은 `git revert`다.
     공개 차트 버전은 `targetRevision`에 고정한다.
 *   클러스터를 손으로 바꾸지 않는다. 예외는 kubeadm, CNI, Argo CD 설치와
-    시크릿 생성이며 절차는 `deploy/cluster/`에 둔다.
+    시크릿 생성이며 절차는 `deploy/cluster/`에 둔다. 한 번 돌고 지우는 측정
+    도구(부하 테스트 k6 Job)도 예외다. 파일은 `deploy/loadtest/`, 실행 · 삭제
+    절차는 `docs/observability.md`에 두고, 끝나면 지운다.
 *   PR 확인 방법: `helm template` 또는 `argocd app diff` 결과. 머지하면 바로
     배포된다.
 
