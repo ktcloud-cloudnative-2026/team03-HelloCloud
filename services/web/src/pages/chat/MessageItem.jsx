@@ -6,6 +6,7 @@ import {
   registerDecision,
   removeReaction,
 } from '../../api/chat'
+import AttachmentItem from './AttachmentItem'
 import { REACTIONS, ackState, formatTime, hasReacted } from './messages'
 
 function MessageItem({ message, myId, names, decided, focused, onUpdated, onDecided, onError }) {
@@ -68,7 +69,14 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
         <strong>{nameOf(message.senderId)}</strong>
         <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
       </div>
-      <p className="chat-text">{message.text}</p>
+      {message.text && <p className="chat-text">{message.text}</p>}
+      {message.attachments?.length > 0 && (
+        <ul className="chat-attachments">
+          {message.attachments.map((attachment) => (
+            <AttachmentItem key={attachment.fileId} attachment={attachment} onError={onError} />
+          ))}
+        </ul>
+      )}
 
       {ack && (
         <div className="chat-ack">

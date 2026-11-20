@@ -415,3 +415,110 @@
 .chat-messages li.focused .chat-text {
   outline: 3px solid var(--color-warning);
 }
+
+.chat-attachments {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-messages li .chat-attachment {
+  max-width: none;
+  margin: 0 0 6px;
+  text-align: left;
+}
+
+.chat-attachment-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.chat-attachment-name {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.chat-attachment-image {
+  display: block;
+  max-width: min(420px, 100%);
+  max-height: 320px;
+  margin-top: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  object-fit: contain;
+}
+
+.chat-messages li.mine .chat-attachment-image {
+  margin-left: auto;
+}
+
+.chat-attach-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  margin: 0 24px 8px;
+  padding: 10px 14px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+}
+
+.chat-attach-picker legend {
+  padding: 0 4px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.chat-attach-picker > .chat-chip {
+  align-self: flex-start;
+}
+
+.chat-attach-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-attach-files label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.chat-selected-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 24px 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.chat-selected-files li {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 4px 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.chat-selected-files button {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
