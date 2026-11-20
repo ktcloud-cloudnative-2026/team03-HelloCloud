@@ -3,7 +3,7 @@
 # 빌드 컨텍스트: services/chat-service
 # docker build -t chat-service:test .
 
-FROM node:24-alpine AS build
+FROM node:24.22.3-alpine3.24 AS build
 WORKDIR /app
 
 COPY package*.json ./
@@ -21,7 +21,7 @@ COPY test ./test
 RUN npm test -- --runInBand
 
 # 실제 서비스 실행 이미지
-FROM node:24-alpine AS runtime
+FROM node:24.22.3-alpine3.24 AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 

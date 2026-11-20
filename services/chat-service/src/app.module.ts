@@ -8,6 +8,7 @@ import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChatModule } from './chat/chat.module';
+import { HealthController } from './health/health.controller';
 
 const dbUrl = process.env.DB_URL;
 
@@ -27,7 +28,7 @@ if (!dbUrl) {
     MembershipModule,
     ChatModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, HealthController],
   providers: [AppService],
 })
 export class AppModule {}
