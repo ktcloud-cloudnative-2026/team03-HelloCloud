@@ -105,7 +105,7 @@ DB 말고 다른 곳에 연결하면 대상 이름을 앞에 붙입니다. 예: 
 - **이미지 태그:** 커밋 SHA(커밋마다 붙는 고유 번호)를 씁니다. 어떤 코드로 만든 이미지인지 바로 알 수 있습니다.
 - **이미지 이름:** `ghcr.io/ktcloud-cloudnative-2026/idcn-<서비스 폴더 이름>:<커밋 7자리>`입니다. 예) `idcn-user-service:3f2c8e1`
 - **되돌리기:** `git revert`로 변경을 취소합니다.
-- **서버를 손으로 바꾸지 않습니다:** 손으로 바꾸면 Git과 실제 서버가 달라지기 때문입니다. 예외는 kubeadm, CNI, Argo CD 설치와 시크릿 생성이며, 절차는 `deploy/cluster/`에 둡니다.
+- **서버를 손으로 바꾸지 않습니다:** 손으로 바꾸면 Git과 실제 서버가 달라지기 때문입니다. 예외는 kubeadm, CNI, Argo CD 설치와 시크릿 생성이며, 절차는 `deploy/cluster/`에 둡니다. 한 번 돌고 지우는 측정 도구(부하 테스트 k6 Job)도 예외입니다. Argo CD가 보지 않는 `deploy/loadtest/`에 두고 실행 · 삭제 절차는 `docs/observability.md`에 두며, 끝나면 지워서 Git과 서버가 다른 상태가 남지 않게 합니다.
 - **환경:** dev와 prod 클러스터 두 개를 둡니다. 앱마다 공통 설정은 `values.yaml`에, 환경별 차이만 `values-dev.yaml`과 `values-prod.yaml`에 씁니다.
 - **Helm 차트(설치 묶음):** 공개 차트를 먼저 찾고, 없거나 맞지 않으면 직접 만듭니다. 공개 차트 버전은 `targetRevision`에 고정합니다.
 - **작성 형식:** 이름은 `kebab-case`, YAML 들여쓰기는 2칸으로 쓰고, 리소스마다 `namespace`를 적습니다.
