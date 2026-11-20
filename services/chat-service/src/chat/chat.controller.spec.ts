@@ -10,7 +10,11 @@ describe('ChatController', () => {
   const auth = 'Bearer t';
   let controller: ChatController;
   let membershipService: { assertMember: jest.Mock; isMember: jest.Mock };
-  let decisionService: { register: jest.Mock; list: jest.Mock };
+  let decisionService: {
+    register: jest.Mock;
+    unregister: jest.Mock;
+    list: jest.Mock;
+  };
   let chatService: {
     getChannels: jest.Mock;
     getChannel: jest.Mock;
@@ -23,6 +27,7 @@ describe('ChatController', () => {
   beforeEach(() => {
     decisionService = {
       register: jest.fn(),
+      unregister: jest.fn().mockResolvedValue(undefined),
       list: jest.fn().mockResolvedValue([]),
     };
     membershipService = {
@@ -166,6 +171,26 @@ describe('ChatController', () => {
         controller.registerDecision(auth, 'm1', res() as never),
       ).rejects.toThrow('403');
       expect(decisionService.register).not.toHaveBeenCalled();
+    });
+
+    it('고정 해제는 메시지 조직의 멤버인지 확인하고 지운다', async () => {
+      await controller.unregisterDecision(auth, 'm1');
+
+      expect(membershipService.assertMember).toHaveBeenCalledWith(
+        'org1',
+        'u1',
+        't',
+      );
+      expect(decisionService.unregister).toHaveBeenCalledWith('m1');
+    });
+
+    it('멤버가 아니면 고정을 풀지 않는다', async () => {
+      membershipService.assertMember.mockRejectedValue(new Error('403'));
+
+      await expect(controller.unregisterDecision(auth, 'm1')).rejects.toThrow(
+        '403',
+      );
+      expect(decisionService.unregister).not.toHaveBeenCalled();
     });
 
     it('목록은 orgId가 문자열이 아니면 400', async () => {

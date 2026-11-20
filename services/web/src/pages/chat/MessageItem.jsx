@@ -9,7 +9,7 @@ import {
 import AttachmentItem from './AttachmentItem'
 import { REACTIONS, ackState, formatTime, hasReacted } from './messages'
 
-function MessageItem({ message, myId, names, decided, focused, onUpdated, onDecided, onError }) {
+function MessageItem({ message, myId, names, decided, focused, onUpdated, onDecided, onUnpin, onError }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [ackList, setAckList] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -45,6 +45,15 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
       onDecided(await registerDecision(message.id))
     } catch (e) {
       onError(`메시지를 고정하지 못했어요: ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleUnpin = async () => {
+    setBusy(true)
+    try {
+      await onUnpin(message.id)
     } finally {
       setBusy(false)
     }
@@ -87,7 +96,18 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
           >
             ☺
           </button>
-          {!decided && (
+          {decided ? (
+            <button
+              type="button"
+              className="pinned"
+              aria-label="고정 해제"
+              title="고정 해제"
+              disabled={busy}
+              onClick={handleUnpin}
+            >
+              📌
+            </button>
+          ) : (
             <button type="button" aria-label="고정하기" title="고정하기" disabled={busy} onClick={handleDecide}>
               📌
             </button>

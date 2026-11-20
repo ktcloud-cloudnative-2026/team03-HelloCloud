@@ -71,6 +71,11 @@ export class DecisionService {
     };
   }
 
+  // 고정 해제. 이미 없으면 그냥 끝낸다(두 번 눌러도 같은 결과)
+  async unregister(sourceMessageId: string) {
+    await this.decisionModel.deleteOne({ sourceMessageId }).exec();
+  }
+
   async list(orgId: string) {
     const decisions = await this.decisionModel
       .find({ orgId })

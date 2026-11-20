@@ -58,6 +58,11 @@ export function registerDecision(messageId) {
   return apiRequest(`${messagePath(messageId)}/decision`, { method: 'POST' })
 }
 
+// 고정 해제. 이미 풀려 있어도 204
+export function unregisterDecision(messageId) {
+  return apiRequest(`${messagePath(messageId)}/decision`, { method: 'DELETE' })
+}
+
 export function getDecisions(orgId) {
   return apiRequest(`/api/chat/decisions?${new URLSearchParams({ orgId })}`)
 }
