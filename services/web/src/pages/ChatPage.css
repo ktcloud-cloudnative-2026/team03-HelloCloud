@@ -56,10 +56,42 @@
   font-weight: 700;
 }
 
+.chat-channels-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-channels-title h2 {
+  margin-bottom: 0;
+}
+
+.chat-add-channel {
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-add-channel:hover,
+.chat-add-channel[aria-expanded='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+.chat-add-channel:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 .chat-new-channel {
   display: flex;
-  gap: 6px;
-  margin-top: auto;
 }
 
 .chat-new-channel input {
@@ -190,6 +222,60 @@
   margin-bottom: 14px;
 }
 
+.chat-pinned {
+  font-size: 12px;
+}
+
+/* 이모지 · 고정하기는 메시지에 마우스를 올리거나 키보드로 들어왔을 때만 보인다 */
+.chat-message-actions {
+  display: inline-flex;
+  gap: 2px;
+  padding: 1px 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.chat-messages li:hover .chat-message-actions,
+.chat-messages li:focus-within .chat-message-actions,
+.chat-messages li.picking .chat-message-actions {
+  visibility: visible;
+  opacity: 1;
+}
+
+.chat-message-actions button {
+  padding: 1px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chat-message-actions button:hover,
+.chat-message-actions button[aria-expanded='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+/* 마우스가 없는 화면(휴대폰)에서는 늘 보인다 */
+@media (hover: none) {
+  .chat-message-actions {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+/* 내 메시지는 오른쪽 정렬이라 도구가 이름 앞에 오게 한다 */
+.chat-messages li.mine .chat-message-actions {
+  order: -1;
+}
+
 .chat-messages li.mine {
   margin-left: auto;
   text-align: right;
@@ -248,8 +334,7 @@
   resize: none;
 }
 
-.chat-composer button,
-.chat-new-channel button {
+.chat-composer button {
   padding: 0 16px;
   border: none;
   border-radius: var(--radius-sm);
@@ -260,8 +345,7 @@
   cursor: pointer;
 }
 
-.chat-composer button:disabled,
-.chat-new-channel button:disabled {
+.chat-composer button:disabled {
   background: var(--color-border);
   cursor: not-allowed;
 }

@@ -37,6 +37,8 @@ function ChatPage({ organization }) {
   const [revoked, setRevoked] = useState(false)
   const [error, setError] = useState('')
   const [newChannel, setNewChannel] = useState('')
+  // + 버튼을 눌렀을 때만 새 채널 입력칸을 보인다
+  const [creatingChannel, setCreatingChannel] = useState(false)
   // null이면 보기 모드, 문자열이면 헤더에서 이름을 고치는 중
   const [renameDraft, setRenameDraft] = useState(null)
   const [renaming, setRenaming] = useState(false)
@@ -152,6 +154,7 @@ function ChatPage({ organization }) {
       setChannels((prev) => [...prev, created])
       selectChannel(created.id)
       setNewChannel('')
+      setCreatingChannel(false)
     } catch (e) {
       setError(`채널을 만들지 못했어요: ${e.message}`)
     }
@@ -244,7 +247,40 @@ function ChatPage({ organization }) {
         >
           📌 고정 메시지 <span>{decisions.length}</span>
         </button>
-        <h2>채널</h2>
+        <div className="chat-channels-title">
+          <h2>채널</h2>
+          <button
+            type="button"
+            className="chat-add-channel"
+            onClick={() => setCreatingChannel((open) => !open)}
+            aria-expanded={creatingChannel}
+            aria-label="채널 만들기"
+            title="채널 만들기"
+            disabled={revoked}
+          >
+            +
+          </button>
+        </div>
+        {creatingChannel && (
+          <form className="chat-new-channel" onSubmit={handleCreateChannel}>
+            <input
+              value={newChannel}
+              onChange={(e) => setNewChannel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setNewChannel('')
+                  setCreatingChannel(false)
+                }
+              }}
+              onBlur={() => !newChannel.trim() && setCreatingChannel(false)}
+              maxLength={MAX_CHANNEL_NAME}
+              placeholder="새 채널 이름 (Enter)"
+              aria-label="새 채널 이름"
+              autoFocus
+              disabled={revoked}
+            />
+          </form>
+        )}
         <ul>
           {channels.map((channel) => (
             <li key={channel.id}>
@@ -258,20 +294,9 @@ function ChatPage({ organization }) {
             </li>
           ))}
         </ul>
-        {channels.length === 0 && <p className="chat-empty">아직 채널이 없어요.</p>}
-        <form className="chat-new-channel" onSubmit={handleCreateChannel}>
-          <input
-            value={newChannel}
-            onChange={(e) => setNewChannel(e.target.value)}
-            maxLength={MAX_CHANNEL_NAME}
-            placeholder="새 채널 이름"
-            aria-label="새 채널 이름"
-            disabled={revoked}
-          />
-          <button type="submit" disabled={!newChannel.trim() || revoked}>
-            만들기
-          </button>
-        </form>
+        {channels.length === 0 && !creatingChannel && (
+          <p className="chat-empty">아직 채널이 없어요. + 를 눌러 만들어 보세요.</p>
+        )}
       </aside>
 
       <div className="chat-room">
