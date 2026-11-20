@@ -401,7 +401,15 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 | `REDIS_PASSWORD` | `/opt/redis/.env`의 `REDIS_PASSWORD` |
 | `OIDC_ISSUER_URI` | `http://10.10.24.101/realms/hellocloud` (비밀값은 아니지만 다른 서비스처럼 Secret에 둡니다. 없으면 chat이 시작하지 않습니다) |
 
-- Redis를 쓰는 다른 서비스(user 등)는 자기 Secret에 `REDIS_URL`, `REDIS_PASSWORD`를 넣습니다
+- user-service도 멤버 제거를 chat에 알리려고(`MEMBER_REMOVED`) 같은 Redis를 씁니다. `user-service-env`에 `REDIS_URL`, `REDIS_PASSWORD`를 더합니다. 키가 없어도 user-service는 뜨지만 알림이 빠집니다
+
+**user Secret에 Redis 더하기** — 내 PC(WSL)에서 실행합니다. 기존 키는 그대로 두고 두 키만 더합니다. 비밀번호는 화면에 나오지 않습니다.
+
+```bash
+ssh t4-db 'R=$(grep "^REDIS_PASSWORD=" /opt/redis/.env | cut -d= -f2-); printf "{\"stringData\":{\"REDIS_URL\":\"redis://10.10.24.10:6379\",\"REDIS_PASSWORD\":\"%s\"}}" "$R"' | ssh t4-dev-cp 'kubectl patch secret user-service-env -n ideaconnection-dev --type merge --patch-file=/dev/stdin'
+```
+- 확인 (cp에서): `kubectl get secret user-service-env -n ideaconnection-dev -o yaml | grep -oE "^  [A-Z_]+:"`에 `REDIS_URL`, `REDIS_PASSWORD`가 보이면 정상
+- Secret을 바꿔도 이미 뜬 파드는 모릅니다. `kubectl rollout restart deployment/user-service -n ideaconnection-dev`로 다시 띄웁니다
 - Redis 로그의 `Memory overcommit must be enabled` 경고는 디스크 저장 중 메모리가 모자랄 때의 이야기라, 저장을 끈 지금은 영향이 없습니다
 
 **chat Secret 만들기** — chat을 dev에 처음 배포하기 전에 한 번 합니다. 내 PC(WSL)에서 실행합니다. 비밀번호는 DB VM의 `.env`에서 cp의 `kubectl`로 바로 넘어가므로 화면 · 파일 · 명령 기록에 남지 않습니다.
