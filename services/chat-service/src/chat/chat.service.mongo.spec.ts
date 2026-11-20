@@ -132,4 +132,26 @@ describeMongo('ChatService (MongoDB)', () => {
       service.addReaction(message.id, 'bob', '💩'),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('첨부만 있으면 글 없이 보낼 수 있고, 둘 다 없으면 400', async () => {
+    const file = {
+      fileId: '5',
+      name: '기획서.pdf',
+      contentType: 'application/pdf',
+    };
+    const message = await service.createMessage(
+      channelId,
+      'alice',
+      'c-file',
+      '',
+      [],
+      [file],
+    );
+    expect(message.attachments).toEqual([file]);
+    expect(message.text).toBe('');
+
+    await expect(
+      service.createMessage(channelId, 'alice', 'c-empty', '  ', [], []),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });

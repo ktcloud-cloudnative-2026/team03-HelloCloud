@@ -11,6 +11,10 @@ export class Attachment {
 
   @Prop({ required: true })
   name!: string;
+
+  // 화면이 미리보기 가능한 형식인지 고를 때 쓴다
+  @Prop({ default: 'application/octet-stream' })
+  contentType!: string;
 }
 
 export const AttachmentSchema = SchemaFactory.createForClass(Attachment);
@@ -80,7 +84,8 @@ export class Message {
   @Prop({ required: true })
   senderId!: string;
 
-  @Prop({ required: true })
+  // 첨부만 보내면 비어 있을 수 있다
+  @Prop({ default: '' })
   text!: string;
 
   @Prop({ type: [AttachmentSchema], default: [] })
