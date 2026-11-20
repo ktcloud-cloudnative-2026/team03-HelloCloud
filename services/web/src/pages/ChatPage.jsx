@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createChannel, getChannels, getDecisions, getMessages, sendMessage } from '../api/chat'
+import { createChannel, getChannels, getDecisions, getMessages, renameChannel, sendMessage } from '../api/chat'
 import { getMembers } from '../api/members'
 import { getAccessToken, getCurrentUserId } from '../auth/keycloak'
 import { chatSocketUrl, createChatConnection } from './chat/chatConnection'
@@ -37,6 +37,9 @@ function ChatPage({ organization }) {
   const [revoked, setRevoked] = useState(false)
   const [error, setError] = useState('')
   const [newChannel, setNewChannel] = useState('')
+  // null이면 보기 모드, 문자열이면 헤더에서 이름을 고치는 중
+  const [renameDraft, setRenameDraft] = useState(null)
+  const [renaming, setRenaming] = useState(false)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -130,6 +133,7 @@ function ChatPage({ organization }) {
 
   const selectChannel = (id) => {
     setView('channel')
+    setRenameDraft(null)
     if (id === activeIdRef.current) return
     activeIdRef.current = id
     messagesRef.current = []
@@ -149,6 +153,27 @@ function ChatPage({ organization }) {
       setNewChannel('')
     } catch (e) {
       setError(`채널을 만들지 못했어요: ${e.message}`)
+    }
+  }
+
+  const handleRename = async (event) => {
+    event.preventDefault()
+    const name = renameDraft?.trim()
+    if (!name || !activeId || renaming) return
+    if (name === activeChannel?.name) {
+      setRenameDraft(null)
+      return
+    }
+    setRenaming(true)
+    setError('')
+    try {
+      const updated = await renameChannel(activeId, name)
+      setChannels((prev) => prev.map((c) => (c.id === updated.id ? { ...c, name: updated.name } : c)))
+      setRenameDraft(null)
+    } catch (e) {
+      setError(`채널 이름을 바꾸지 못했어요: ${e.message}`)
+    } finally {
+      setRenaming(false)
     }
   }
 
@@ -238,7 +263,41 @@ function ChatPage({ organization }) {
 
       <div className="chat-room">
         <header className="chat-room-header">
-          <h1>{view === 'decisions' ? '📌 결정 로그' : activeChannel ? `# ${activeChannel.name}` : '채팅'}</h1>
+          {view === 'channel' && activeChannel && renameDraft !== null ? (
+            <form className="chat-rename" onSubmit={handleRename}>
+              <span aria-hidden="true">#</span>
+              <input
+                value={renameDraft}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && setRenameDraft(null)}
+                maxLength={MAX_CHANNEL_NAME}
+                aria-label="채널 이름"
+                autoFocus
+                disabled={renaming}
+              />
+              <button type="submit" disabled={!renameDraft.trim() || renaming}>
+                저장
+              </button>
+              <button type="button" onClick={() => setRenameDraft(null)} disabled={renaming}>
+                취소
+              </button>
+            </form>
+          ) : (
+            <div className="chat-room-title">
+              <h1>{view === 'decisions' ? '📌 결정 로그' : activeChannel ? `# ${activeChannel.name}` : '채팅'}</h1>
+              {view === 'channel' && activeChannel && !revoked && (
+                <button
+                  type="button"
+                  className="chat-rename-button"
+                  onClick={() => setRenameDraft(activeChannel.name)}
+                  title="채널 이름 바꾸기"
+                  aria-label="채널 이름 바꾸기"
+                >
+                  ✏️
+                </button>
+              )}
+            </div>
+          )}
           <span className={`chat-status ${status}`} role="status">
             {STATUS_LABELS[status]}
           </span>

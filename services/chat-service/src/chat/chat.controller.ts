@@ -7,6 +7,7 @@ import {
   HttpCode,
   Headers,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -29,6 +30,10 @@ type CreateChannelBody = {
   orgId?: unknown;
   name?: unknown;
   type?: unknown;
+};
+
+type RenameChannelBody = {
+  name?: unknown;
 };
 
 type CreateMessageBody = {
@@ -162,6 +167,27 @@ export class ChatController {
       userId,
       type ?? ChannelType.NORMAL,
     );
+  }
+
+  // 조직 멤버면 누구나 바꿀 수 있다(만들기와 같은 권한)
+  @Patch('channels/:id')
+  async renameChannel(
+    @Headers('authorization') authorization: string,
+    @Param('id') channelId: string,
+    @Body() body: RenameChannelBody,
+  ) {
+    const { token, userId } = await this.authenticate(authorization);
+    const name = optionalString(body?.name, 'name');
+
+    if (!name?.trim()) {
+      throw new BadRequestException('채널 이름이 필요합니다.');
+    }
+
+    const channel = await this.chatService.getChannel(channelId);
+
+    await this.membershipService.assertMember(channel.orgId, userId, token);
+
+    return this.chatService.renameChannel(channelId, name);
   }
 
   @Post('channels/:id/messages')

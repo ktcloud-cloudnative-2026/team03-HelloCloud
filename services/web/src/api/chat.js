@@ -11,6 +11,13 @@ export function createChannel(orgId, name) {
   })
 }
 
+export function renameChannel(channelId, name) {
+  return apiRequest(`/api/chat/channels/${encodeURIComponent(channelId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  })
+}
+
 export function getMessages(channelId, after = 0, limit = 100) {
   const query = new URLSearchParams({ after, limit })
   return apiRequest(`/api/chat/channels/${encodeURIComponent(channelId)}/messages?${query}`)

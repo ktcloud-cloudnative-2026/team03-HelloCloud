@@ -25,6 +25,25 @@ function toResponse<T extends { _id: unknown }>(
   };
 }
 
+export const MAX_CHANNEL_NAME = 50;
+
+// 앞뒤 공백을 빼고 1~50자인지 확인한다
+function validChannelName(name: string | undefined): string {
+  const channelName = name?.trim();
+
+  if (!channelName) {
+    throw new BadRequestException('채널 이름이 필요합니다.');
+  }
+
+  if (channelName.length > MAX_CHANNEL_NAME) {
+    throw new BadRequestException(
+      `채널 이름은 최대 ${MAX_CHANNEL_NAME}자까지 입력할 수 있습니다.`,
+    );
+  }
+
+  return channelName;
+}
+
 // 메시지에 달 수 있는 이모지. 화면의 선택지와 같다
 export const ALLOWED_REACTIONS = ['👍', '✅', '❤️', '😂', '🎉', '👀'];
 // 확인 요청으로 지정할 수 있는 최대 인원
@@ -86,9 +105,7 @@ export class ChatService {
     createdBy: string,
     type: ChannelType = ChannelType.NORMAL,
   ) {
-    const channelName = name?.trim();
-
-    if (!orgId?.trim() || !createdBy?.trim() || !channelName) {
+    if (!orgId?.trim() || !createdBy?.trim() || !name?.trim()) {
       throw new BadRequestException(
         '조직 ID, 채널 이름, 생성자 ID가 필요합니다.',
       );
@@ -98,11 +115,7 @@ export class ChatService {
       throw new BadRequestException('올바르지 않은 채널 유형입니다.');
     }
 
-    if (channelName.length > 50) {
-      throw new BadRequestException(
-        '채널 이름은 최대 50자까지 입력할 수 있습니다.',
-      );
-    }
+    const channelName = validChannelName(name);
 
     const channel = await this.channelModel.create({
       orgId,
@@ -113,6 +126,30 @@ export class ChatService {
     });
 
     return toResponse(channel.toObject());
+  }
+
+  // 채널 이름 바꾸기. 같은 조직 멤버인지는 컨트롤러에서 확인한다
+  async renameChannel(channelId: string, name: string) {
+    const channelName = validChannelName(name);
+
+    if (!Types.ObjectId.isValid(channelId)) {
+      throw new NotFoundException('채팅방을 찾을 수 없습니다.');
+    }
+
+    const channel = await this.channelModel
+      .findByIdAndUpdate(
+        channelId,
+        { $set: { name: channelName } },
+        { new: true },
+      )
+      .lean()
+      .exec();
+
+    if (!channel) {
+      throw new NotFoundException('채팅방을 찾을 수 없습니다.');
+    }
+
+    return toResponse(channel);
   }
 
   // 메시지 저장

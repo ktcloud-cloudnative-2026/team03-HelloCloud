@@ -20,6 +20,7 @@
 |---|---|---|---|---|---|
 | `GET /api/chat/channels?orgId=` | 멤버 | 채널 목록 | 200 | 403 | US-06 |
 | `POST /api/chat/channels` | 멤버 | 채널 생성 | 201 | 400, 403 | US-06 |
+| `PATCH /api/chat/channels/{id}` | 멤버 | 채널 이름 바꾸기 (`{ "name": "1~50자" }`) | 200 | 400, 403, 404 | US-06 |
 | `POST /api/chat/channels/{id}/messages` | 멤버 | 메시지 보내기 | 201 | 400, 403, 404 | US-06, US-11 |
 | `GET /api/chat/channels/{id}/messages?after=&limit=` | 멤버 | 놓친 메시지 조회 | 200 | 403, 404 | US-07 |
 | `WS /api/chat/ws` | 멤버 | 새 메시지 받기 | 연결 | 401, 403 | US-06 |
