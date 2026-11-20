@@ -535,3 +535,70 @@ prod의 빈 이미지 태그를 임시로 채워 서버에 적용하는 명령�
 8. chat은 서로 다른 파드의 전달과 재연결 복구를 검증하고, 결과·이미지 SHA·측정 범위를 기록합니다.
 
 이 문서의 검사 통과는 실제 운영 배포 완료나 전체 보안 요구사항 충족을 뜻하지 않습니다.
+
+## 운영 Keycloak 준비
+
+prod DB `10.10.24.20:3306/keycloak`의 전용 계정 `keycloak`을 사용합니다.
+기존 dev Keycloak과 같은 `quay.io/keycloak/keycloak:26.4.0`을 고정하고,
+운영 모드 `start --import-realm`으로 기동합니다. 메모리 요청 512Mi·상한 1Gi,
+초기 파드 1개이며 데이터는 외부 MySQL에 저장됩니다. 단일 로그인 파드이므로 재시작 중
+로그인이 잠시 중단되는 한계가 있습니다. 다중 파드·캐시 구성은 별도 검증 전 임의로 늘리지 않습니다.
+
+- Keycloak 자원: `deploy/manifests/keycloak/prod/`, 앱: `keycloak-prod`
+- 같은 namespace의 Service `keycloak:8080`, 상태 확인은 관리 포트 9000의
+  `/health/started`, `/health/live`, `/health/ready`를 사용합니다. 관리 포트는 외부 Service에 내지 않습니다
+- 공개 주소·issuer: `https://ideaconnection.jpexstudio.com`, `/realms/hellocloud`
+- realm `hellocloud`, 표시 이름 `IdeaConnection`, public client `hellocloud-web`
+- 웹 client는 Authorization Code + PKCE S256, redirect URI와 origin은 운영 도메인만 허용하며
+  password grant(Direct Access Grants)·implicit flow는 끕니다. dev 계정·테스트 클라이언트를 복사하지 않습니다
+- `/realms`·`/resources`만 운영 Gateway에서 Keycloak으로 보냅니다. `/admin` 경로는 추가하지 않습니다
+- Cloudflare 외부 HTTPS와 Gateway 내부 HTTP를 구분하기 위해 해당 Route가
+  `X-Forwarded-Proto: https`, `X-Forwarded-Port: 443`을 덮어씁니다.
+  Keycloak은 고정 HTTPS hostname·HTTP 수신·xforwarded 헤더를 사용합니다
+- ConfigMap import는 첫 realm 생성용입니다. 기존 realm이 있으면 자동 덮어쓰기하지 않으므로
+  이후 설정 변경은 관리자 절차와 함께 확인합니다
+
+[Keycloak hostname](https://www.keycloak.org/server/hostname)·
+[reverse proxy](https://www.keycloak.org/server/reverseproxy)·
+[health](https://www.keycloak.org/observability/health)를 기준으로 구성했습니다.
+
+### DB·Secret 선행 준비 (운영 전용)
+
+운영 DB VM의 `/opt/mysql/keycloak.env`에 `KEYCLOAK_DB_PASSWORD`를 생성하고,
+MySQL의 `keycloak` DB·전용 계정에만 권한을 부여했습니다. VM 안에서 해당 계정으로
+DB 로그인을 확인했습니다. 실제 비밀번호와 파일은 Git에 넣지 않습니다.
+접속 원본은 초기 `keycloak@%`이며 다른 운영 MySQL 계정과 함께 제한할 후속 항목입니다.
+
+현재 필요한 Secret은 `ideaconnection-prod/keycloak-db-env`의 `KC_DB_PASSWORD`,
+`keycloak-bootstrap-admin`의 `username`, `password`입니다.
+다음은 내 PC WSL에서 실행하는 최초 생성 예시로, 기존 Secret이 있으면 덮어쓰지 않습니다.
+비밀번호를 화면·로컬 파일·명령 기록에 쓰지 않고 VM에서 cp의 kubectl로 전달합니다.
+
+```bash
+ssh t3-prod-db 'sed "s/^KEYCLOAK_DB_PASSWORD=/KC_DB_PASSWORD=/" /opt/mysql/keycloak.env' \
+  | ssh t3-prod-cp 'kubectl create secret generic keycloak-db-env -n ideaconnection-prod --from-env-file=/dev/stdin'
+ssh t3-prod-cp 'kubectl create secret generic keycloak-bootstrap-admin -n ideaconnection-prod --from-literal=username=admin --from-literal=password="$(openssl rand -hex 24)"'
+```
+
+SSH 별칭은 본인 PC에 맞추며 Secret 전체나 비밀번호 파일을 출력하지 않습니다.
+운영 namespace는 선행 gateway-prod/web-prod 등록으로 생성된 상태여야 합니다.
+
+### 배포와 확인
+
+PR 검토·머지 후, prod cp에서 아래 **Keycloak 앱 파일만** 등록합니다.
+Gateway 앱은 이미 등록돼 있으므로 같은 PR의 keycloak-route 추가는 자동 반영됩니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/keycloak-prod.yaml
+kubectl get applications -n argocd
+kubectl get pods -n ideaconnection-prod
+```
+
+Cloudflare 연결 개통 후 realm 공개 설정의 issuer가 운영 HTTPS 주소와 같은지 확인하고,
+실제 회원가입·로그인, user API 연결을 별도로 검증합니다. 건강 응답만으로 로그인 성공을 판단하지 않습니다.
+관리자는 외부 `/admin` 공개 대신 승인된 SSH·port-forward 경로로 관리하고,
+정식 관리자 생성·로그인 확인 후 임시 bootstrap 관리자를 삭제하고 Deployment의 bootstrap 참조와
+해당 Secret을 정리합니다. Secret만 먼저 지우면 재기동 시 필수 참조가 없어 실패하므로 순서를 지킵니다.
+
+서버 dry-run 통과는 실제 MySQL 스키마 초기화·Keycloak 기동·HTTPS 로그인 성공을 뜻하지 않습니다.
+이번 구성의 첫 기동은 전용 DB에 Keycloak 스키마를 생성하는 작업을 포함합니다.
