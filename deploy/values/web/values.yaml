@@ -1,2 +1,10 @@
 image:
   repository: ghcr.io/ktcloud-cloudnative-2026/idcn-web
+
+# 2026-11-19 kubectl top: 1m · 5Mi. nginx가 정적 파일만 내줘서 작게 잡는다
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 64Mi

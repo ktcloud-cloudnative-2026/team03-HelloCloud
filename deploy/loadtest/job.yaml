@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-read-apis
+  namespace: loadtest
+spec:
+  # 실패해도 다시 돌지 않는다. 다시 돌면 부하가 두 번 걸려 결과가 섞인다
+  backoffLimit: 0
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k6
+    spec:
+      restartPolicy: Never
+      affinity:
+        # 테스트 대상과 같은 노드면 CPU를 나눠 써서 p95 · HPA 결과가 흔들린다.
+        # 워커가 2대라 항상 피할 수는 없어서 "되도록"으로 둔다
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                namespaces:
+                  - ideaconnection-dev
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: spring-service
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: k6
+          image: grafana/k6:2.4.0
+          args:
+            - run
+            - /scripts/read-apis.js
+          envFrom:
+            - configMapRef:
+                name: k6-run
+          # 테스트 계정 Secret은 Keycloak 담당이 손으로 만든다(Git에 비밀번호를 두지 않음)
+          env:
+            - name: K6_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: k6-loadtest-credentials
+                  key: username
+            - name: K6_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: k6-loadtest-credentials
+                  key: password
+          resources:
+            requests:
+              cpu: 500m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: k6-script

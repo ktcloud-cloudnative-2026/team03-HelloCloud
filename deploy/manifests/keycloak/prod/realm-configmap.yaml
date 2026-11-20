@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm
+  namespace: ideaconnection-prod
+data:
+  hellocloud-realm.json: |
+    {
+      "realm": "hellocloud",
+      "displayName": "IdeaConnection",
+      "enabled": true,
+      "registrationAllowed": true,
+      "sslRequired": "external",
+      "clients": [
+        {
+          "clientId": "hellocloud-web",
+          "enabled": true,
+          "publicClient": true,
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": false,
+          "implicitFlowEnabled": false,
+          "serviceAccountsEnabled": false,
+          "redirectUris": [
+            "https://ideaconnection.jpexstudio.com/*"
+          ],
+          "webOrigins": [
+            "https://ideaconnection.jpexstudio.com"
+          ],
+          "attributes": {
+            "post.logout.redirect.uris": "https://ideaconnection.jpexstudio.com/*",
+            "pkce.code.challenge.method": "S256"
+          }
+        }
+      ],
+      "bruteForceProtected": true
+    }

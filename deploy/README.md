@@ -28,6 +28,8 @@ Gateway 리소스 5개와 컨트롤러·CRD 33개를 Argo CD가 관리하며, �
   경로를 변경하지 않습니다.
 - `user-service-route`: `/api/users`, `/api/orgs` → `user-service:80`. 경로 앞부분을
   자르지 않고 그대로 전달합니다. 다른 서비스도 `/api` 아래를 쓰므로 서비스별 경로만 연결합니다.
+- `chat-service-route`: `/api/chat` → `chat-service:80`. WebSocket(`/api/chat/ws`)도
+  같은 경로로 연결합니다.
 - `keycloak/allow-hellocloud-gateway`: `ideaconnection-dev`의 HTTPRoute가
   `keycloak` Service를 참조하도록 허용합니다. Route 이름으로는 제한할 수 없습니다.
 - `10.10.24.101`은 MetalLB가 할당한 현재 주소입니다. `status`의 값을
@@ -42,7 +44,7 @@ Client는 전달받은 이름을 유지하고 관리자 API로 재확인하지 �
 
 ### 관리 범위와 최초 이관
 
-`argocd/platform/gateway-dev.yaml`은 위의 리소스 6개만 관리합니다.
+`argocd/platform/gateway-dev.yaml`은 위의 리소스와 `manifests/gateway/dev/`의 다른 Route만 관리합니다.
 `web-dev`, `user-service-dev`의 Deployment와 Service는 그대로 둡니다.
 `FailOnSharedResource=true`로 다른 앱의 관리 대상과 겹치면 동기화를 중단합니다.
 `prune: false`로 자동 삭제를 막습니다. 공용 `eg-test`는 `envoy-test/test-gateway`도
@@ -200,6 +202,10 @@ HPA(요청이 몰리면 파드를 자동으로 늘리기)는 공통 차트에 �
 (requests 합 2Gi, w1 여유 약 5Gi)를 보고 정했습니다. 켜면 Deployment의 `replicas`는 쓰지 않습니다. 파드 수는
 HPA가 정하고, 적어 두면 Argo CD가 매번 원래 수로 되돌리기 때문입니다. 확인: `kubectl get hpa -n ideaconnection-dev`
 
+user · file은 `autoscaling.behavior`로 늘리기 전 2분 동안 CPU가 계속 높은지 봅니다(`scaleUp.stabilizationWindowSeconds: 120`).
+Java가 켜질 때 잠깐 CPU를 많이 써서, 이 설정이 없으면 재배포 때마다 파드가 3개로 늘었다가 줄어듭니다(#146).
+대신 부하가 갑자기 늘면 파드가 늘기까지 2분쯤 늦어집니다. 차트 기본값은 비어 있어 다른 서비스에는 영향이 없습니다
+
 ## dev 자동 배포
 
 `argocd/services/user-service-dev.yaml`은 dev 클러스터에 설치된 Argo CD의
@@ -250,6 +256,10 @@ node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)�
 - 끈 것: kubeadm은 controller-manager · scheduler · etcd · kube-proxy 지표를 127.0.0.1에만 열어서
   수집이 항상 실패하므로 끕니다
 - Alertmanager: 켜 두지만 받는 곳(Discord)은 아직 없습니다
+- 대시보드: Grafana는 저장 공간이 없어 화면에서 만든 대시보드가 재시작하면 사라집니다. 그래서 JSON 파일을
+  `manifests/monitoring/dev/`에 두고, 차트의 사이드카(옆에서 같이 도는 도우미)가 `grafana_dashboard: "1"`
+  이름표가 붙은 ConfigMap을 찾아 등록하게 합니다. 화면에서 고쳐도 저장되지 않으니 JSON을 고쳐 PR로 올립니다.
+  미리 보려면 Dashboards → New → Import에 JSON을 올립니다. 지금은 "HelloCloud 부하 테스트"(#146) 하나입니다
 
 ### 처음 설치 순서
 
@@ -345,7 +355,8 @@ startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니
 - 이미지: `ghcr.io/ktcloud-cloudnative-2026/idcn-web`
 - dev Application: `deploy/argocd/services/web-dev.yaml`
 - Gateway 연결 대상: `ideaconnection-dev` namespace의 `web:80`
-- dev는 파드 1개, prod는 2개로 설정합니다. prod Application은 아직 작성하지 않았습니다.
+- 자원: requests CPU 10m · 메모리 32Mi, 메모리 상한 64Mi(`values/web/values.yaml`). nginx가 정적 파일만 내줘서 2026-11-19 실사용이 1m · 5Mi입니다
+- dev는 파드 1개, prod는 2개로 설정합니다. prod Application과 최초 배포 조건은 아래 "prod 배포 준비"를 따릅니다.
 
 `bash deploy/scripts/validate-helm.sh`는 user-service와 웹의 dev·prod 설정을
 모두 검사합니다. 실제 이미지가 없어도 설정 검사는 가능하며 서버를 변경하지 않습니다.
@@ -416,3 +427,315 @@ dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 기�
 되돌릴 때는 이미지 태그 변경을 `git revert`하는 PR을 사용합니다.
 이미지 롤백으로 DB 마이그레이션은 되돌아가지 않으므로 스키마 호환성은
 백엔드 담당자와 확인합니다.
+
+## prod 배포 준비 (미등록 초안)
+
+관련 이슈: [#137 운영 외부 공개·HTTPS·Keycloak·SeaweedFS](https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud/issues/137).
+강사의 [11/19 도메인 선행 작업 안내](https://docs.google.com/document/d/1aVdRTmqnm5zpszbMRa7uHwan-cNoIp0rTYsIZ8kPR_s/edit)에 따라
+운영 공개 주소는 `https://ideaconnection.jpexstudio.com`입니다. 강사가 Cloudflare 터널·도메인·외부 HTTPS를
+처리하고, 팀은 prod Gateway의 HTTP 80·HTTPRoute·서비스 응답을 준비합니다.
+팀이 Gateway 인증서나 cloudflared를 별도로 설치하지 않습니다. #137의 공개 방식 비교는 이전 검토 내용입니다.
+#137의 DB VM 회신 대기는 과거 상태이며, 현재 설치 근거는 #142·#150과 `cluster/README.md`입니다.
+
+`argocd/services/`의 web·user-service·file-service·chat-service `*-prod.yaml`은
+**운영 클러스터의 Argo CD**에서 사용할 앱입니다. main의 기존 차트와 공통 values,
+각 `values-prod.yaml`을 읽어 `ideaconnection-prod`에 배포합니다.
+앱 파일을 dev 클러스터에 등록하면 그곳에 운영 이름의 namespace가 생기므로 등록하지 않습니다.
+현재는 로컬 초안·검사 단계이며 운영 앱 등록·Secret 생성·실제 배포는 하지 않았습니다.
+
+### 이미지와 배포 전 조건
+
+- 팀 규칙대로 dev에서 확인한 이미지의 동일한 SHA 태그를 prod values에 PR로 반영합니다.
+  최신 dev 태그나 CI 성공만으로 운영 검증 완료라고 판단하지 않습니다.
+- 현재 web의 `75583e7`은 이전 dev에서 확인한 이미지로, 최초 Gateway IP·웹 HTTP 응답 확인에만 사용합니다.
+  최신 채팅·권한·화면 기능의 최종 운영 버전이 아닙니다. 전체 기능 배포 전 dev 검증이 끝난 최신 SHA를
+  별도 검토해 prod values에 반영하고 기능을 다시 확인합니다.
+- user·file·chat prod 이미지 태그는 아직 비어 있습니다. 검사용 `0000000`은
+  명령행에서만 사용하고 prod values에 저장하거나 실제 배포하지 않습니다.
+- 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server·모니터링의 prod 도입은
+  이 초안에 포함하지 않습니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
+- 앱은 기존 dev와 같은 자동 동기화·prune·selfHeal 설정입니다. 앱 최초 등록 시
+  바로 배포될 수 있으므로 아래 선행 조건과 diff를 확인하고 팀 확인 후 등록합니다.
+  web은 아래 최초 웹 응답 확인 범위가 검토·승인된 뒤에만 등록합니다. 백엔드 앱은 아직 등록하지 않습니다.
+- user·file 첫 기동은 Flyway DB 마이그레이션을 포함합니다. 백업·스키마·계정 권한과
+  첫 기동 범위를 확인한 뒤 진행합니다. 이미지 롤백만으로 DB 변경이 되돌아가지는 않습니다.
+
+### Gateway 고정 IP와 최초 등록
+
+prod GatewayClass `eg-prod`는 `ideaconnection-prod/prod-proxy-config` EnvoyProxy를 참조합니다.
+EnvoyProxy가 생성할 Service에 `metallb.io/loadBalancerIPs: "10.10.24.200"`을 지정해
+강사 터널의 연결 IP를 고정합니다. EnvoyProxy는 sync wave -1로 먼저 준비합니다.
+운영 `dev-pool`의 범위가 10.10.24.200~223이고 기존 LoadBalancer Service가 없는 것을
+11/20에 읽기 전용으로 확인했습니다. 이름만 dev-pool이며 풀 이름·컨트롤러는 변경하지 않습니다.
+이 요청은 아직 IP를 할당받았다는 뜻이 아닙니다. 등록 직전 다른 Service의 할당 여부를 다시 보고,
+할당 실패 시 Service 이벤트를 확인하며 강사에게 전달할 IP는 실제 Gateway ADDRESS와 대조합니다.
+
+[Envoy Gateway 1.9 설정 방법](https://gateway.envoyproxy.io/v1.9/tasks/operations/customize-envoyproxy/)과
+[MetalLB IP 지정](https://metallb.io/usage/#requesting-specific-ips)을 따릅니다.
+현재 v1.9.3 컨트롤러는 운영 서버에 이미 설치돼 있습니다. 해당 컨트롤러의 Argo CD 관리권 이관은
+후속 작업이며, 기존 Helm values·인증서·Webhook·CRD의 소유권을 확인한 뒤 진행합니다.
+dev 이관용 설정을 복사해 컨트롤러를 재설치하거나 덮어쓰지 않습니다.
+
+다음 명령은 PR 머지와 배포 범위 확인 후 **prod cp에서** 파일별로 실행합니다.
+실제 배포를 시작하는 명령이며, `services/` 또는 `platform/` 폴더 전체를 적용하지 않습니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/gateway-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/web-prod.yaml
+```
+
+앱 등록 후 Gateway `Accepted/Programmed`, web-route `Accepted/ResolvedRefs`, 웹 파드 2개 Ready,
+Argo 동기화 Succeeded를 확인합니다. Gateway ADDRESS가 `10.10.24.200`인지 확인한 다음
+bastion에서 `curl -i http://10.10.24.200/`의 경로·상태 코드를 기록해 팀장님께 공유합니다.
+이 단계는 웹 응답 확인이며 로그인·API·파일·chat 전체 기능의 운영 완료가 아닙니다.
+
+### 서비스별 운영 연결 준비표
+
+다음은 Secret **이름·키와 공개 연결 값**만 정리한 것입니다. 실제 비밀번호·인증키를
+이 표·Git·PR에 넣지 않습니다. Secret 값은 운영 DB VM에서 운영 클러스터로 안전하게 전달하며,
+dev Secret이나 dev DB 자격증명을 복사하지 않습니다.
+
+| 서비스 | 준비된 연결 | 운영 Secret 키 / 남은 결정 |
+| --- | --- | --- |
+| web | 내부 Service `web:80`, 컨테이너 80 | DB·로그인 Secret 없음. 접속 주소 기준 `/api`, `/realms` 호출. realm `hellocloud`, client `hellocloud-web` 유지 |
+| user | `jdbc:mysql://10.10.24.20:3306/user_service`, 사용자 `user_service` | `user-service-env`: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `OIDC_ISSUER_URI`, `INVITE_BASE_URL`, `REDIS_URL`, `REDIS_PASSWORD` |
+| file | `jdbc:mysql://10.10.24.20:3306/file_service`, 사용자 `file_service`, 내부 user 주소 `http://user-service` | `file-service-env`: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `OIDC_ISSUER_URI`, `USER_SERVICE_URL`, `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` |
+| chat | `mongodb://10.10.24.20:27017/chat_service?authSource=chat_service`, 사용자 `chat_service`, 내부 user 주소 `http://user-service` | `chat-service-env`: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_URL`, `REDIS_PASSWORD`, `OIDC_ISSUER_URI`. `USER_SERVICE_URL`은 공통 values에 있음 |
+
+user·chat은 같은 운영 Redis `redis://10.10.24.20:6379`를 사용합니다. user의 Redis 키는
+차트에서 optional이지만, 누락하면 `MEMBER_REMOVED`가 전달되지 않아 권한 회수 검증을
+완료할 수 없습니다. `INVITE_BASE_URL`도 optional이나 운영에서 생략하면 localhost 초대 링크가
+만들어지므로 실제 웹 주소를 넣습니다. 두 항목 모두 운영 배포 준비에서는 필수로 확인합니다.
+
+- 공개 주소: `https://ideaconnection.jpexstudio.com` (접속 개통 여부는 별도 확인)
+- 위 주소에 맞춰 구성: Keycloak issuer `https://ideaconnection.jpexstudio.com/realms/hellocloud`,
+  웹 redirect URI·허용 origin, `INVITE_BASE_URL=https://ideaconnection.jpexstudio.com`
+- SeaweedFS는 #137에 따라 주소 확정 전에도 배치·복제본·PVC·버전 등 사전 준비가 가능합니다.
+  기존 dev 저장소를 재설치하거나 PVC를 옮기지 않고 운영 구성을 따로 준비합니다. 확정할 값은 내부/브라우저 S3 주소,
+  region·bucket과 파일 서비스 전용 권한, 웹 origin의 CORS
+- OIDC issuer는 브라우저 토큰의 발급자와 정확히 같아야 하고 파드에서도 접근 가능해야 합니다.
+  file의 브라우저 S3 요청에는 로그인 토큰을 보내지 않습니다.
+- 공개 Gateway·HTTPS·JWT 검사와 Istio mTLS/호출 허용은 담당 작업과 맞춰 확인합니다.
+  dev 이관용 Envoy hook Skip 설정이나 HTTP·관리 화면 노출을 prod에 그대로 복사하지 않습니다.
+- MySQL 원본 제한, Docker 포트에 유효한 방화벽 규칙, Redis ACL, 백업·복구와
+  운영 모니터링은 DB 설치 기록의 후속 항목을 따릅니다. 아직 적용·검증 완료가 아닙니다.
+
+### 지금 할 수 있는 로컬 검사
+
+```bash
+bash deploy/scripts/validate-helm.sh
+```
+
+user·file·chat·web의 dev·prod 총 8개 조합을 검사용 이미지로 검사합니다.
+실제 이미지·DB·Secret·인증서·클러스터 CRD의 존재나 서비스 동작을 검증하지 않습니다.
+prod의 빈 이미지 태그를 임시로 채워 서버에 적용하는 명령은 아닙니다.
+
+### 확정 후 한 번에 진행할 순서
+
+1. HTTP 80 Gateway와 web 경로·이미지를 검토하고 prod Argo CD에서 준비합니다.
+   bastion에서 `curl -i http://<prod Gateway IP>/`로 웹 응답을 확인해 IP·상태 코드·경로를 강사에게 전달합니다.
+   `hostnames`는 강사 안내대로 web 경로에서 생략해 IP 직접 검사도 가능합니다.
+   Gateway 재생성으로 IP가 바뀌면 터널 연결도 끊길 수 있으므로 임의로 지우지 않고 변경 시 강사에게 알립니다.
+   외부 개통 전 관리자 경로·시험 계정·기본 비밀번호 노출을 점검하고 dev는 공개하지 않습니다.
+   현재 prod 경로 초안은 web만 포함하며 `/admin`이나 Keycloak·API·S3 경로는 연결하지 않았습니다.
+   HTTPS 개통 후 Keycloak 운영 모드(`start`)·proxy 설정·issuer를 공개 주소와 맞추고,
+   realm·client는 기존 이름, 표시 이름은 `IdeaConnection`을 사용합니다.
+   SeaweedFS 배치·저장소 준비와 운영 endpoint·CORS 연결은 별도로 검증합니다.
+2. 각 서비스의 dev 검증 근거·배포 SHA를 확인하고 prod values에 반영합니다.
+3. 운영 namespace·서비스별 Secret을 준비하고 DB 접속·권한·백업 준비 상태를 확인합니다.
+4. 팀 검토 후 운영 Argo CD에 앱을 등록합니다. DB·인증·저장소가 준비된 순서로
+   user → file·chat을 확인하며 web과 Gateway 경로를 연결합니다.
+5. Synced/Healthy뿐 아니라 동기화 Succeeded·파드 2개 Ready·상태 확인 응답을 확인합니다.
+6. 실제 로그인 → 조직·초대 → 파일 업로드·미리보기·다운로드 원본 비교·삭제를 확인합니다.
+7. 조직 간 접근 차단과 멤버 제거 후 HTTP·실시간 연결 권한 회수를 측정합니다.
+   기존 임시 파일 URL의 유효기간은 새 URL 발급 차단과 별도 검증 항목으로 구분합니다.
+8. chat은 서로 다른 파드의 전달과 재연결 복구를 검증하고, 결과·이미지 SHA·측정 범위를 기록합니다.
+
+이 문서의 검사 통과는 실제 운영 배포 완료나 전체 보안 요구사항 충족을 뜻하지 않습니다.
+
+## 운영 Keycloak 준비
+
+prod DB `10.10.24.20:3306/keycloak`의 전용 계정 `keycloak`을 사용합니다.
+기존 dev Keycloak과 같은 `quay.io/keycloak/keycloak:26.4.0`을 고정하고,
+운영 모드 `start --import-realm`으로 기동합니다. 메모리 요청 512Mi·상한 1Gi,
+초기 파드 1개이며 데이터는 외부 MySQL에 저장됩니다. 단일 로그인 파드이므로 재시작 중
+로그인이 잠시 중단되는 한계가 있습니다. 다중 파드·캐시 구성은 별도 검증 전 임의로 늘리지 않습니다.
+
+- Keycloak 자원: `deploy/manifests/keycloak/prod/`, 앱: `keycloak-prod`
+- 같은 namespace의 Service `keycloak:8080`, 상태 확인은 관리 포트 9000의
+  `/health/started`, `/health/live`, `/health/ready`를 사용합니다. 관리 포트는 외부 Service에 내지 않습니다
+- 공개 주소·issuer: `https://ideaconnection.jpexstudio.com`, `/realms/hellocloud`
+- realm `hellocloud`, 표시 이름 `IdeaConnection`, public client `hellocloud-web`
+- 웹 client는 Authorization Code + PKCE S256, redirect URI와 origin은 운영 도메인만 허용하며
+  password grant(Direct Access Grants)·implicit flow는 끕니다. dev 계정·테스트 클라이언트를 복사하지 않습니다
+- `/realms/hellocloud`·`/resources`만 운영 Gateway에서 Keycloak으로 보냅니다. master realm 경로는 공개하지 않습니다. `/admin` 경로는 추가하지 않습니다
+- Cloudflare 외부 HTTPS와 Gateway 내부 HTTP를 구분하기 위해 해당 Route가
+  `X-Forwarded-Proto: https`, `X-Forwarded-Port: 443`을 덮어씁니다.
+  Keycloak은 고정 HTTPS hostname·HTTP 수신·xforwarded 헤더를 사용합니다
+- ConfigMap import는 첫 realm 생성용입니다. 기존 realm이 있으면 자동 덮어쓰기하지 않으므로
+  이후 설정 변경은 관리자 절차와 함께 확인합니다
+
+[Keycloak hostname](https://www.keycloak.org/server/hostname)·
+[reverse proxy](https://www.keycloak.org/server/reverseproxy)·
+[health](https://www.keycloak.org/observability/health)를 기준으로 구성했습니다.
+
+### DB·Secret 선행 준비 (운영 전용)
+
+운영 DB VM의 `/opt/mysql/keycloak.env`에 `KEYCLOAK_DB_PASSWORD`를 생성하고,
+MySQL의 `keycloak` DB·전용 계정에만 권한을 부여했습니다. VM 안에서 해당 계정으로
+DB 로그인을 확인했습니다. 실제 비밀번호와 파일은 Git에 넣지 않습니다.
+접속 원본은 초기 `keycloak@%`이며 다른 운영 MySQL 계정과 함께 제한할 후속 항목입니다.
+
+현재 필요한 Secret은 `ideaconnection-prod/keycloak-db-env`의 `KC_DB_PASSWORD`,
+`keycloak-bootstrap-admin`의 `username`, `password`입니다.
+다음은 내 PC WSL에서 실행하는 최초 생성 예시로, 기존 Secret이 있으면 덮어쓰지 않습니다.
+비밀번호를 화면·로컬 파일·명령 기록에 쓰지 않고 VM에서 cp의 kubectl로 전달합니다.
+
+```bash
+ssh t3-prod-db 'sed "s/^KEYCLOAK_DB_PASSWORD=/KC_DB_PASSWORD=/" /opt/mysql/keycloak.env' \
+  | ssh t3-prod-cp 'kubectl create secret generic keycloak-db-env -n ideaconnection-prod --from-env-file=/dev/stdin'
+ssh t3-prod-cp 'kubectl create secret generic keycloak-bootstrap-admin -n ideaconnection-prod --from-literal=username=admin --from-literal=password="$(openssl rand -hex 24)"'
+```
+
+SSH 별칭은 본인 PC에 맞추며 Secret 전체나 비밀번호 파일을 출력하지 않습니다.
+운영 namespace는 선행 gateway-prod/web-prod 등록으로 생성된 상태여야 합니다.
+
+### 배포와 확인
+
+PR 검토·머지 후, prod cp에서 아래 **Keycloak 앱 파일만** 등록합니다.
+Gateway 앱은 이미 등록돼 있으므로 같은 PR의 keycloak-route 추가는 자동 반영됩니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/keycloak-prod.yaml
+kubectl get applications -n argocd
+kubectl get pods -n ideaconnection-prod
+```
+
+Cloudflare 연결 개통 후 realm 공개 설정의 issuer가 운영 HTTPS 주소와 같은지 확인하고,
+실제 회원가입·로그인, user API 연결을 별도로 검증합니다. 건강 응답만으로 로그인 성공을 판단하지 않습니다.
+관리자는 외부 `/admin` 공개 대신 승인된 SSH·port-forward 경로로 관리하고,
+정식 관리자 생성·로그인 확인 후 임시 bootstrap 관리자를 삭제하고 Deployment의 bootstrap 참조와
+해당 Secret을 정리합니다. Secret만 먼저 지우면 재기동 시 필수 참조가 없어 실패하므로 순서를 지킵니다.
+
+서버 dry-run 통과는 실제 MySQL 스키마 초기화·Keycloak 기동·HTTPS 로그인 성공을 뜻하지 않습니다.
+이번 구성의 첫 기동은 전용 DB에 Keycloak 스키마를 생성하는 작업을 포함합니다.
+
+## 운영 저장소와 서비스 연결 준비
+
+운영 SeaweedFS는 dev와 동일한 차트 4.53.0·이미지 4.53을 사용합니다.
+`seaweedfs-prod` 앱은 **운영 클러스터**의 `seaweedfs` namespace에 설치하며,
+dev 클러스터의 Secret·PVC·파일을 복사하거나 수정하지 않습니다.
+공통 values의 local-path PVC(master 1Gi, filer 1Gi, volume 10Gi)를 새로 생성합니다.
+초기 단일 복제본과 노드 로컬 저장소이므로 노드 장애 시 자동 복구·백업을 보장하지 않습니다.
+PVC 삭제·앱 prune은 하지 않으며, 백업·복구와 다중 노드 저장 구성은 별도 검증 항목입니다.
+
+- 먼저 운영 `seaweedfs/seaweedfs-s3-auth` Secret을 준비합니다.
+  고정 차트 렌더링에서 인증 파일 키 `seaweedfs_s3_config`를 확인했습니다.
+- 파일 서비스 전용 S3 계정은 `chat-attachments` 버킷에 필요한 권한만 부여합니다.
+  dev 관리자 인증을 재사용하지 않습니다. 실제 인증값은 Git에 넣지 않습니다.
+- 운영 버킷 생성과 브라우저 업로드에 필요한 CORS 확인이 끝나기 전에는
+  저장소 준비 완료로 판단하지 않습니다.
+- 내부 S3 주소는 `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333`,
+  외부 S3 주소는 `https://ideaconnection.jpexstudio.com`입니다.
+  `/chat-attachments` 경로와 ReferenceGrant로 namespace 간 Service 참조를 허용합니다.
+
+운영 Gateway에 `/api/users`·`/api/orgs`·`/api/invitations`는 user-service,
+`/api/files`는 file-service, `/api/chat`은 chat-service로 연결합니다.
+각 운영 이미지 태그는 이 작업 시점의 dev values에 지정된 버전을 고정했습니다.
+이는 운영에서 로그인·WebSocket·파일 기능을 검증했다는 뜻은 아닙니다.
+
+서비스 앱 등록 전 `ideaconnection-prod`에 각 전용 Secret을 준비합니다.
+필수 키는 각 서비스 공통 values의 secretKeyRef와 일치해야 합니다.
+user-service의 선택 키인 INVITE_BASE_URL·REDIS_URL·REDIS_PASSWORD도 운영에서는
+설정하여 초대 링크가 localhost로 만들어지거나 멤버 제거 알림이 빠지지 않게 합니다.
+issuer는 `https://ideaconnection.jpexstudio.com/realms/hellocloud`로 통일합니다.
+
+등록 순서는 Keycloak → SeaweedFS → user-service → file-service → chat-service입니다.
+각 단계의 준비 상태·인증 연결을 확인한 뒤 다음 앱을 등록합니다.
+SeaweedFS 앱은 dev와 같이 수동 동기화로 두므로 등록 후 diff를 검토하고 동기화합니다.
+폴더 전체를 apply하지 않고 아래 파일을 운영 cp에서 하나씩 등록합니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/seaweedfs-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/user-service-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/file-service-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/chat-service-prod.yaml
+```
+
+이 명령은 선행 조건이 충족된 단계에서만 실행합니다. 현재 Secret·버킷 초기화,
+실제 서비스 기동과 외부 HTTPS 연결 검증은 진행 중입니다.
+
+운영 저장소 인증은 `deploy/cluster/scripts/prepare-prod-storage-secret.py`로 준비합니다.
+`--check`는 구조만 검사하며 서버를 바꾸지 않습니다. 실제 실행 시 운영 노드 3개의
+InternalIP를 검사하고 기존 Secret이 있으면 덮어쓰지 않고 중단합니다.
+키는 메모리에서 무작위 생성하고 kubectl 표준 입력으로만 전달합니다.
+관리 계정과 `chat-attachments` 버킷으로 권한을 제한한 파일 서비스 계정을 분리합니다.
+운영 namespace 준비와 Secret 생성은 담당자가 명령을 확인한 뒤 직접 실행합니다.
+관리용 키는 버킷 초기화·CORS 설정용이며 file-service에는 전달하지 않습니다.
+인증 형식 근거: [SeaweedFS 4.53 예제](https://github.com/seaweedfs/seaweedfs/blob/4.53/docker/compose/s3.json),
+[버킷별 권한 검사](https://github.com/seaweedfs/seaweedfs/blob/4.53/weed/s3api/auth_credentials.go).
+
+서비스 Secret 준비 스크립트는 `deploy/cluster/scripts/prepare-prod-service-secrets.py`입니다.
+`--check`로 키 구조를 검사합니다. `export-db`는 운영 DB VM의 기존 비밀번호를
+읽어 표준 출력으로 전달하므로 **단독 실행하거나 tee·파일 저장·화면 출력하지 않습니다**.
+내 PC WSL에서 아래처럼 반드시 `register` 입력으로 연결합니다.
+두 SSH 사이에서 전달되는 내용에는 비밀값이 있으므로 디버그 출력·쉘 추적을 켜지 않습니다.
+
+```bash
+scp deploy/cluster/scripts/prepare-prod-service-secrets.py t3-prod-db:/tmp/prepare-prod-service-secrets.py
+scp deploy/cluster/scripts/prepare-prod-service-secrets.py t3-prod-cp:/tmp/prepare-prod-service-secrets.py
+set -o pipefail
+ssh -T t3-prod-db 'python3 /tmp/prepare-prod-service-secrets.py export-db' \
+  | ssh -T t3-prod-cp 'python3 /tmp/prepare-prod-service-secrets.py register'
+```
+
+`register`는 운영 노드 IP를 검사하고 세 서비스 Secret이 모두 없는지 확인한 뒤 생성합니다.
+기존 Secret은 수정하지 않습니다. 생성 도중 오류가 나면 일부만 생성됐을 수 있으므로
+이름과 키 개수만 확인하고, 임의 삭제·재실행 대신 원인을 확인합니다.
+파일 서비스에는 관리용 S3 키 대신 전용 버킷 계정만 전달합니다.
+Secret 생성은 DB 로그인·Flyway·외부 issuer 접근 성공을 의미하지 않습니다.
+
+운영 SeaweedFS 동기화 후 `PostSync` Job이 관리자 키를 Secret에서 읽어
+`chat-attachments` 버킷과 CORS를 준비합니다. 기존 버킷은 삭제하지 않습니다.
+CORS는 기존 파일 서비스 스크립트와 같은 메서드·헤더를 사용하되 origin은
+`https://ideaconnection.jpexstudio.com` 하나만 허용합니다.
+Job 도구는 AWS CLI 2.32.4로 고정하며 Secret이나 임시 URL을 로그로 출력하지 않습니다.
+성공 Job은 정리하고 실패 Job은 남겨 원인을 확인합니다.
+실패 시 SeaweedFS 준비 완료로 판단하지 않고 저장소 상태와 Job 로그부터 확인합니다.
+
+### 이번 변경의 검사 기록 (2026-11-20)
+
+- user·file·chat·web의 dev/prod 총 8조합 Helm lint·template 통과
+- 운영 Gateway·Keycloak·SeaweedFS manifest와 Argo CD 앱 총 21개 리소스의
+  prod cp server dry-run 통과. 실제 적용은 하지 않음
+- Secret 준비 스크립트 구조, 서비스 필수 키 일치, 잘못된 클러스터 실행 거부와
+  기존 Secret 덮어쓰기 방지를 로컬 검사로 확인
+- 담당자가 운영 저장소 인증과 user·file·chat Secret 생성 성공 확인
+- 실제 로그인·DB 마이그레이션·S3 초기화·서비스 연결·공개 HTTPS 동작은
+  머지 후 앱을 순서대로 등록·동기화하며 확인할 항목
+
+운영 web·chat 이미지는 후속 main 변경 #174·#175를 확인하여
+dev values에 지정된 `e0f3224`로 함께 맞췄습니다.
+고정 메시지 해제 API는 기존 `/api/chat` 경로에 포함되므로 Gateway 경로 추가는 필요하지 않습니다.
+아직 머지되지 않은 #144 로그인 테마는 포함하지 않습니다.
+
+### PR #176 리뷰 보완
+
+공개 경로를 앱 realm `/realms/hellocloud`로 제한하고, 첫 import JSON에
+`bruteForceProtected: true`를 설정했습니다. 이미 만들어진 realm에는 import가
+덮어쓰지 않으므로, 해당 경우 관리자 접속 경로에서 로그인 실패 잠금도 함께 확인합니다.
+
+Keycloak과 외부 도메인 연결 후 **user-service 앱 등록 전에**, 운영 파드에서
+공개 issuer 접근을 확인합니다. 다음 임시 파드 생성·정리는 담당자가 확인 후 실행합니다.
+출력은 HTTP 상태 코드뿐이며 비밀값을 출력하지 않습니다.
+
+```bash
+kubectl run oidc-check -n ideaconnection-prod --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- \
+  curl -sS --max-time 20 -o /dev/null -w '%{http_code}\n' https://ideaconnection.jpexstudio.com/realms/hellocloud/.well-known/openid-configuration
+```
+
+200 응답과 discovery의 issuer·JWKS 주소가 맞는지 확인한 뒤 서비스 등록을 이어갑니다.
+실패하면 DNS·터널·외부 HTTPS 경로부터 확인하며, 토큰 issuer를 임의로 내부 주소로 바꾸지 않습니다.
+내부 JWKS 경로로 분리할 경우 chat과 Spring 서비스의 설정 지원 여부를 따로 검토합니다.
+머지 직후 Gateway 경로가 먼저 반영되므로 서비스가 준비될 때까지 로그인·API 요청이
+500/503으로 실패할 수 있습니다. 공개 완료 안내는 기능 검증 이후에 합니다.

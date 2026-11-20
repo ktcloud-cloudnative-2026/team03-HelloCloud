@@ -395,13 +395,11 @@
   font-size: 12px;
 }
 
-.dashboard-sample-note {
-  flex-shrink: 0;
-  padding: 5px 9px;
-  border-radius: 7px;
-  background: #eaf0f8;
+.dashboard-activity-empty {
+  margin: 0;
+  padding: 17px 0;
   color: #64748b;
-  font-size: 10px;
+  font-size: 13px;
 }
 
 /* Summary cards */

@@ -15,11 +15,20 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+  data:
+    redis:
+      # Redis가 멈췄을 때 멤버 제거 요청이 오래 기다리지 않게 한다(기본 60초)
+      timeout: 1s
+      connect-timeout: 1s
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${OIDC_ISSUER_URI}
+# 주소와 비밀번호는 RedisConfig가 읽는다(spring.data.redis.url은 password를 무시함)
+redis:
+  url: ${REDIS_URL:redis://localhost:6379}
+  password: ${REDIS_PASSWORD:}
 invite:
   # 초대 링크 앞부분. 웹 화면 주소를 넣는다.
   base-url: ${INVITE_BASE_URL:http://localhost:5173}
