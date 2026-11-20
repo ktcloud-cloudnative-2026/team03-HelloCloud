@@ -15,6 +15,7 @@ describe('ChatController', () => {
     getChannels: jest.Mock;
     getChannel: jest.Mock;
     createChannel: jest.Mock;
+    renameChannel: jest.Mock;
     createMessage: jest.Mock;
     getMessage: jest.Mock;
   };
@@ -32,6 +33,7 @@ describe('ChatController', () => {
       getChannels: jest.fn().mockResolvedValue([]),
       getChannel: jest.fn().mockResolvedValue({ orgId: 'org1' }),
       createChannel: jest.fn().mockResolvedValue({}),
+      renameChannel: jest.fn().mockResolvedValue({ id: 'ch1', name: '새 이름' }),
       createMessage: jest.fn().mockResolvedValue({}),
       getMessage: jest.fn().mockResolvedValue({ _id: 'm1', orgId: 'org1' }),
     };
@@ -206,6 +208,38 @@ describe('ChatController', () => {
         [],
         [file],
       );
+    });
+  });
+
+  describe('채널 이름 바꾸기', () => {
+    it.each([[{}], [{ name: 5 }], [{ name: '   ' }]])(
+      '이름이 없거나 문자열이 아니면 400: %j',
+      async (body) => {
+        await expect(
+          controller.renameChannel(auth, 'ch1', body),
+        ).rejects.toBeInstanceOf(BadRequestException);
+        expect(chatService.renameChannel).not.toHaveBeenCalled();
+      },
+    );
+
+    it('채널 조직의 멤버인지 확인하고 서비스로 넘긴다', async () => {
+      await controller.renameChannel(auth, 'ch1', { name: '새 이름' });
+
+      expect(membershipService.assertMember).toHaveBeenCalledWith(
+        'org1',
+        'u1',
+        't',
+      );
+      expect(chatService.renameChannel).toHaveBeenCalledWith('ch1', '새 이름');
+    });
+
+    it('멤버가 아니면 바꾸지 않는다', async () => {
+      membershipService.assertMember.mockRejectedValue(new Error('403'));
+
+      await expect(
+        controller.renameChannel(auth, 'ch1', { name: '새 이름' }),
+      ).rejects.toThrow('403');
+      expect(chatService.renameChannel).not.toHaveBeenCalled();
     });
   });
 });

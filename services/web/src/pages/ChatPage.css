@@ -90,6 +90,65 @@
   font-size: 18px;
 }
 
+.chat-room-title,
+.chat-rename {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chat-rename-button {
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.chat-rename-button:hover,
+.chat-rename-button:focus-visible {
+  border-color: var(--color-border);
+  opacity: 1;
+}
+
+.chat-rename span {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.chat-rename input {
+  width: min(320px, 100%);
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 16px;
+}
+
+.chat-rename button {
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chat-rename button[type='submit'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.chat-rename button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .chat-status {
   font-size: 13px;
   color: var(--color-text-muted);

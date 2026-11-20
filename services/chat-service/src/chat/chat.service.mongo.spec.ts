@@ -58,6 +58,14 @@ describeMongo('ChatService (MongoDB)', () => {
       ack,
     );
 
+  it('채널 이름을 바꾸면 목록에도 바뀐 이름이 나온다', async () => {
+    const renamed = await service.renameChannel(channelId, ' 기획 ');
+
+    expect(renamed).toMatchObject({ id: channelId, name: '기획' });
+    const channels = await service.getChannels('org1');
+    expect(channels.find((c) => c.id === channelId)?.name).toBe('기획');
+  });
+
   it('확인 요청 대상에서 보낸 사람은 빠진다', async () => {
     const message = await send(['bob', 'alice', 'carol']);
     expect(message.acknowledgement.requiredUserIds).toEqual(['bob', 'carol']);
