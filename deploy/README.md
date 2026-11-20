@@ -551,7 +551,7 @@ prod DB `10.10.24.20:3306/keycloak`의 전용 계정 `keycloak`을 사용합니�
 - realm `hellocloud`, 표시 이름 `IdeaConnection`, public client `hellocloud-web`
 - 웹 client는 Authorization Code + PKCE S256, redirect URI와 origin은 운영 도메인만 허용하며
   password grant(Direct Access Grants)·implicit flow는 끕니다. dev 계정·테스트 클라이언트를 복사하지 않습니다
-- `/realms`·`/resources`만 운영 Gateway에서 Keycloak으로 보냅니다. `/admin` 경로는 추가하지 않습니다
+- `/realms/hellocloud`·`/resources`만 운영 Gateway에서 Keycloak으로 보냅니다. master realm 경로는 공개하지 않습니다. `/admin` 경로는 추가하지 않습니다
 - Cloudflare 외부 HTTPS와 Gateway 내부 HTTP를 구분하기 위해 해당 Route가
   `X-Forwarded-Proto: https`, `X-Forwarded-Port: 443`을 덮어씁니다.
   Keycloak은 고정 HTTPS hostname·HTTP 수신·xforwarded 헤더를 사용합니다
@@ -701,3 +701,24 @@ Job 도구는 AWS CLI 2.32.4로 고정하며 Secret이나 임시 URL을 로그�
 dev values에 지정된 `e0f3224`로 함께 맞췄습니다.
 고정 메시지 해제 API는 기존 `/api/chat` 경로에 포함되므로 Gateway 경로 추가는 필요하지 않습니다.
 아직 머지되지 않은 #144 로그인 테마는 포함하지 않습니다.
+
+### PR #176 리뷰 보완
+
+공개 경로를 앱 realm `/realms/hellocloud`로 제한하고, 첫 import JSON에
+`bruteForceProtected: true`를 설정했습니다. 이미 만들어진 realm에는 import가
+덮어쓰지 않으므로, 해당 경우 관리자 접속 경로에서 로그인 실패 잠금도 함께 확인합니다.
+
+Keycloak과 외부 도메인 연결 후 **user-service 앱 등록 전에**, 운영 파드에서
+공개 issuer 접근을 확인합니다. 다음 임시 파드 생성·정리는 담당자가 확인 후 실행합니다.
+출력은 HTTP 상태 코드뿐이며 비밀값을 출력하지 않습니다.
+
+```bash
+kubectl run oidc-check -n ideaconnection-prod --rm -i --restart=Never --image=curlimages/curl:8.11.1 -- \
+  curl -sS --max-time 20 -o /dev/null -w '%{http_code}\n' https://ideaconnection.jpexstudio.com/realms/hellocloud/.well-known/openid-configuration
+```
+
+200 응답과 discovery의 issuer·JWKS 주소가 맞는지 확인한 뒤 서비스 등록을 이어갑니다.
+실패하면 DNS·터널·외부 HTTPS 경로부터 확인하며, 토큰 issuer를 임의로 내부 주소로 바꾸지 않습니다.
+내부 JWKS 경로로 분리할 경우 chat과 Spring 서비스의 설정 지원 여부를 따로 검토합니다.
+머지 직후 Gateway 경로가 먼저 반영되므로 서비스가 준비될 때까지 로그인·API 요청이
+500/503으로 실패할 수 있습니다. 공개 완료 안내는 기능 검증 이후에 합니다.

@@ -10,7 +10,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /realms
+            value: /realms/hellocloud
         - path:
             type: PathPrefix
             value: /resources

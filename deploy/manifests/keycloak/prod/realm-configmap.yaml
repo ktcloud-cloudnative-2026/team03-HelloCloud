@@ -4,13 +4,33 @@ metadata:
   name: keycloak-realm
   namespace: ideaconnection-prod
 data:
-  hellocloud-realm.json: "{\n  \"realm\": \"hellocloud\",\n  \"displayName\": \"IdeaConnection\"\
-    ,\n  \"enabled\": true,\n  \"registrationAllowed\": true,\n  \"sslRequired\":\
-    \ \"external\",\n  \"clients\": [\n    {\n      \"clientId\": \"hellocloud-web\"\
-    ,\n      \"enabled\": true,\n      \"publicClient\": true,\n      \"standardFlowEnabled\"\
-    : true,\n      \"directAccessGrantsEnabled\": false,\n      \"implicitFlowEnabled\"\
-    : false,\n      \"serviceAccountsEnabled\": false,\n      \"redirectUris\": [\n\
-    \        \"https://ideaconnection.jpexstudio.com/*\"\n      ],\n      \"webOrigins\"\
-    : [\n        \"https://ideaconnection.jpexstudio.com\"\n      ],\n      \"attributes\"\
-    : {\n        \"post.logout.redirect.uris\": \"https://ideaconnection.jpexstudio.com/*\"\
-    ,\n        \"pkce.code.challenge.method\": \"S256\"\n      }\n    }\n  ]\n}\n"
+  hellocloud-realm.json: |
+    {
+      "realm": "hellocloud",
+      "displayName": "IdeaConnection",
+      "enabled": true,
+      "registrationAllowed": true,
+      "sslRequired": "external",
+      "clients": [
+        {
+          "clientId": "hellocloud-web",
+          "enabled": true,
+          "publicClient": true,
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": false,
+          "implicitFlowEnabled": false,
+          "serviceAccountsEnabled": false,
+          "redirectUris": [
+            "https://ideaconnection.jpexstudio.com/*"
+          ],
+          "webOrigins": [
+            "https://ideaconnection.jpexstudio.com"
+          ],
+          "attributes": {
+            "post.logout.redirect.uris": "https://ideaconnection.jpexstudio.com/*",
+            "pkce.code.challenge.method": "S256"
+          }
+        }
+      ],
+      "bruteForceProtected": true
+    }
