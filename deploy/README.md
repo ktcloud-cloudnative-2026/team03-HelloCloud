@@ -378,10 +378,14 @@ Keycloak 기본 화면(`keycloak.v2`)의 배치는 그대로 두고 색, 모서�
 로고는 웹 아이콘(`services/web/src/brand/brandIcon.js`)과 같은 그림이고, 웹 테스트가 둘이 같은지 확인합니다.
 
 - 로컬: `services/compose.yaml`이 테마 폴더를 붙이고, 로컬 realm 파일이 테마 · 표시 이름 `IdeaConnection` · 기본 언어 한국어를 켭니다
-- dev · prod: 아직 적용하지 않았습니다. 두 방법 중 하나를 Keycloak 담당자와 정합니다
-  - Keycloak 이미지(`keycloak:26.8.2`)에 테마를 복사한 이미지를 CI로 만들기. **포기하는 점:** 테마를 고칠 때마다 이미지를 다시 만들고 Keycloak을 다시 띄웁니다
-  - 테마 폴더를 Keycloak 파드에 볼륨으로 붙이기. **포기하는 점:** 폴더 안의 하위 폴더 구조를 ConfigMap만으로는 담기 어려워 붙이는 방법을 따로 정해야 합니다
-- 적용한 뒤 realm 설정 세 가지(로그인 테마 `ideaconnection`, 표시 이름 `IdeaConnection`, 다국어 켜기 · 기본 언어 `ko`)는 Keycloak 관리 화면의 Realm settings에서 바꿉니다
+- prod: 아직 적용하지 않았습니다. 후속 PR에서 테마 파일 3개를 ConfigMap으로 만들어
+  `deploy/manifests/keycloak/prod/`의 Keycloak 파드에 `/opt/keycloak/themes/ideaconnection`으로 붙입니다
+  (ConfigMap `items.path`로 `login/...` 하위 폴더 구조를 만듭니다). keycloak-prod는 자동 동기화라
+  머지하면 Keycloak이 다시 떠서 로그인이 잠깐 끊기므로 Keycloak 담당자와 시간을 맞춥니다
+  로컬은 `keycloak:26.8.2`, prod는 `26.4.0`이라 붙이기 전에 로컬을 prod 버전으로 바꿔 화면을 다시 확인합니다
+- realm 설정(로그인 테마 `ideaconnection`, 표시 이름 `IdeaConnection`, 다국어 켜기 · 기본 언어 `ko`)은 realm 파일에 넣어도
+  처음 만들 때만 적용됩니다. 이미 있는 realm은 Keycloak 관리 화면(port-forward)의 Realm settings에서 바꿉니다
+- dev: Keycloak이 저장소 밖에서 관리되므로 적용하지 않습니다(발표는 prod 기준)
 
 ## GitHub Actions 연결
 
