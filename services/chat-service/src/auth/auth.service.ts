@@ -51,8 +51,16 @@ export class AuthService {
         userId: payload.sub,
         claims: payload,
       };
-    } catch {
-      throw new UnauthorizedException('유효하지 않은 로그인 토큰입니다.');
+    } catch (error) {
+      console.error(
+        '[JWT 검증 실패]',
+        error instanceof Error ? error.name : 'UnknownError',
+        error instanceof Error ? error.message : '',
+      );
+
+      throw new UnauthorizedException(
+        '유효하지 않은 로그인 토큰입니다.',
+      );
     }
   }
 }

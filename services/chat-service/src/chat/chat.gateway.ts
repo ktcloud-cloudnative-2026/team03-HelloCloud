@@ -6,11 +6,15 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { WebSocket, RawData } from 'ws';
+
 import { AuthService } from '../auth/auth.service';
+import { MembershipService } from '../membership/membership.service';
 import { RedisService } from '../redis/redis.service';
+import { ChatService } from './chat.service';
 
 type AuthenticatedSocket = WebSocket & {
   userId?: string;
+  token?: string;
   subscriptions?: Set<string>;
 };
 
@@ -19,6 +23,31 @@ type ClientMessage = {
   token?: string;
   channelId?: string;
 };
+
+type ChatEvent = {
+  type: string;
+  channelId: string;
+  message: {
+    orgId: string;
+    createdAt: string;
+    [key: string]: unknown;
+  };
+};
+
+function isChatEvent(value: unknown): value is ChatEvent {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const event = value as Partial<ChatEvent>;
+
+  return (
+    typeof event.type === 'string' &&
+    typeof event.channelId === 'string' &&
+    typeof event.message === 'object' &&
+    event.message !== null &&
+    typeof event.message.orgId === 'string' &&
+    typeof event.message.createdAt === 'string'
+  );
+}
 
 @WebSocketGateway({
   path: '/api/chat/ws',
@@ -31,51 +60,56 @@ export class ChatGateway
 
   constructor(
     private readonly authService: AuthService,
+    private readonly membershipService: MembershipService,
+    private readonly chatService: ChatService,
     private readonly redisService: RedisService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // 개발용 Redis 전달 테스트
-    if (process.env.CHAT_RELAY_TEST_MODE !== 'true') {
-      this.logger.log('개발용 Redis 전달 테스트 비활성화');
+    await this.redisService.subscribe(
+      'hellocloud-chat-events',
+      (rawMessage: string) => this.relayChatEvent(rawMessage),
+    );
+
+    this.logger.log('Redis → WebSocket 채팅 전달 준비 완료');
+  }
+
+  relayChatEvent(rawMessage: string): void {
+    let event: ChatEvent;
+
+    try {
+      const parsed: unknown = JSON.parse(rawMessage);
+
+      if (!isChatEvent(parsed)) {
+        this.logger.warn('잘못된 Redis 채팅 이벤트');
+        return;
+      }
+
+      event = parsed;
+    } catch {
+      this.logger.warn('잘못된 Redis 채팅 이벤트');
       return;
     }
 
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        '운영 환경에서는 CHAT_RELAY_TEST_MODE를 사용할 수 없습니다.',
-      );
+    if (event.type !== 'MESSAGE_CREATED') return;
+
+    const payload = JSON.stringify({
+      type: event.type,
+      orgId: event.message.orgId,
+      channelId: event.channelId,
+      data: event.message,
+      sentAt: event.message.createdAt,
+    });
+
+    for (const client of this.clients) {
+      if (
+        client.userId &&
+        client.readyState === WebSocket.OPEN &&
+        client.subscriptions?.has(event.channelId)
+      ) {
+        client.send(payload);
+      }
     }
-
-    await this.redisService.subscribe(
-      'hellocloud-chat-relay-test',
-      (rawMessage: string) => {
-        let data: unknown;
-
-        try {
-          data = JSON.parse(rawMessage);
-        } catch {
-          this.logger.warn('잘못된 Redis 테스트 메시지');
-          return;
-        }
-
-        const event = JSON.stringify({
-          type: 'RELAY_TEST',
-          data,
-        });
-
-        for (const client of this.clients) {
-          if (
-            client.userId &&
-            client.readyState === WebSocket.OPEN
-          ) {
-            client.send(event);
-          }
-        }
-      },
-    );
-
-    this.logger.log('개발용 Redis → WebSocket 전달 준비 완료');
   }
 
   handleConnection(client: AuthenticatedSocket): void {
@@ -97,52 +131,20 @@ export class ChatGateway
       }
     }, 10000);
 
-    client.on('message', async (raw: RawData) => {
-      let message: ClientMessage;
+    // 메시지를 소켓마다 받은 순서대로 하나씩 처리한다. 동시에 처리하면
+    // AUTH가 끝나기 전에 SUBSCRIBE가 거절되거나, 늦게 끝난 SUBSCRIBE가
+    // 먼저 처리된 UNSUBSCRIBE를 덮어쓴다.
+    let queue: Promise<void> = Promise.resolve();
 
-      try {
-        const parsed: unknown = JSON.parse(raw.toString());
-
-        if (
-          typeof parsed !== 'object' ||
-          parsed === null ||
-          Array.isArray(parsed)
-        ) {
-          throw new Error('Invalid message');
-        }
-
-        message = parsed as ClientMessage;
-      } catch {
-        client.close(1008, 'Invalid message format');
-        return;
-      }
-
-      // 인증되지 않은 사용자는 AUTH만 허용
-      if (!client.userId && message.type !== 'AUTH') {
-        client.close(1008, 'Authentication required');
-        return;
-      }
-
-      switch (message.type) {
-        case 'AUTH':
-          await this.handleAuth(client, message, authTimeout);
-          break;
-
-        case 'SUBSCRIBE':
-          this.handleSubscribe(client, message);
-          break;
-
-        case 'UNSUBSCRIBE':
-          this.handleUnsubscribe(client, message);
-          break;
-
-        default:
-          this.sendError(
-            client,
-            'UNSUPPORTED_MESSAGE',
-            '지원하지 않는 메시지 유형입니다.',
+    client.on('message', (raw: RawData) => {
+      queue = queue
+        .then(() => this.handleMessage(client, raw, authTimeout))
+        .catch((error: unknown) => {
+          this.logger.error(
+            'WebSocket 메시지 처리 실패',
+            error instanceof Error ? error.stack : String(error),
           );
-      }
+        });
     });
 
     client.once('close', () => {
@@ -150,6 +152,59 @@ export class ChatGateway
       client.subscriptions?.clear();
       this.clients.delete(client);
     });
+  }
+
+  private async handleMessage(
+    client: AuthenticatedSocket,
+    raw: RawData,
+    authTimeout: ReturnType<typeof setTimeout>,
+  ): Promise<void> {
+    if (client.readyState !== WebSocket.OPEN) return;
+
+    let message: ClientMessage;
+
+    try {
+      const parsed: unknown = JSON.parse(raw.toString());
+
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
+        throw new Error('Invalid message');
+      }
+
+      message = parsed as ClientMessage;
+    } catch {
+      client.close(1008, 'Invalid message format');
+      return;
+    }
+
+    if (!client.userId && message.type !== 'AUTH') {
+      client.close(1008, 'Authentication required');
+      return;
+    }
+
+    switch (message.type) {
+      case 'AUTH':
+        await this.handleAuth(client, message, authTimeout);
+        break;
+
+      case 'SUBSCRIBE':
+        await this.handleSubscribe(client, message);
+        break;
+
+      case 'UNSUBSCRIBE':
+        this.handleUnsubscribe(client, message);
+        break;
+
+      default:
+        this.sendError(
+          client,
+          'UNSUPPORTED_MESSAGE',
+          '지원하지 않는 메시지 유형입니다.',
+        );
+    }
   }
 
   private async handleAuth(
@@ -168,13 +223,12 @@ export class ChatGateway
     }
 
     try {
-      const user = await this.authService.verifyToken(
-        message.token,
-      );
+      const user = await this.authService.verifyToken(message.token);
 
       if (client.readyState !== WebSocket.OPEN) return;
 
       client.userId = user.userId;
+      client.token = message.token;
       clearTimeout(authTimeout);
 
       client.send(JSON.stringify({ type: 'AUTH_OK' }));
@@ -184,10 +238,10 @@ export class ChatGateway
     }
   }
 
-  private handleSubscribe(
+  private async handleSubscribe(
     client: AuthenticatedSocket,
     message: ClientMessage,
-  ): void {
+  ): Promise<void> {
     if (
       typeof message.channelId !== 'string' ||
       !message.channelId.trim()
@@ -200,14 +254,48 @@ export class ChatGateway
       return;
     }
 
-    // TODO: MongoDB channels에서 channelId로 orgId 조회
-    // TODO: MembershipService.assertMember(orgId, userId, token)
-    // 권한 검증 전에는 구독을 허용하지 않는다.
-    this.sendError(
-      client,
-      'CHANNEL_VERIFICATION_UNAVAILABLE',
-      '채널 권한 검증 기능이 아직 준비되지 않았습니다.',
-    );
+    if (!client.userId || !client.token) {
+      this.sendError(
+        client,
+        'AUTH_REQUIRED',
+        '인증이 필요합니다.',
+      );
+      return;
+    }
+
+    try {
+      const channel = await this.chatService.getChannel(
+        message.channelId,
+      );
+
+      await this.membershipService.assertMember(
+        channel.orgId,
+        client.userId,
+        client.token,
+      );
+
+      if (client.readyState !== WebSocket.OPEN) return;
+
+      client.subscriptions?.add(message.channelId);
+
+      client.send(
+        JSON.stringify({
+          type: 'SUBSCRIBED',
+          channelId: message.channelId,
+        }),
+      );
+    } catch (error) {
+      this.logger.error(
+        '채널 구독 권한 검증 실패',
+        error instanceof Error ? error.stack : String(error),
+      );
+
+      this.sendError(
+        client,
+        'CHANNEL_ACCESS_DENIED',
+        '채널이 없거나 접근 권한이 없습니다.',
+      );
+    }
   }
 
   private handleUnsubscribe(

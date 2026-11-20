@@ -1,15 +1,33 @@
 
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { MembershipModule } from './membership/membership.module';
-import { ChatGateway } from './chat/chat.gateway';
+import { ChatModule } from './chat/chat.module';
+
+const dbUrl = process.env.DB_URL;
+
+if (!dbUrl) {
+  throw new Error('DB_URL 환경변수가 필요합니다.');
+}
 
 @Module({
-  imports: [RedisModule, AuthModule, MembershipModule],
+  imports: [
+    MongooseModule.forRoot(dbUrl, {
+      user: process.env.DB_USERNAME,
+      pass: process.env.DB_PASSWORD,
+      serverSelectionTimeoutMS: 5000,
+    }),
+    RedisModule,
+    AuthModule,
+    MembershipModule,
+    ChatModule,
+  ],
   controllers: [AppController],
-  providers: [AppService, ChatGateway],
+  providers: [AppService],
 })
 export class AppModule {}
