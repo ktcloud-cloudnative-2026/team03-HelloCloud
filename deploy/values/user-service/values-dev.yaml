@@ -1,5 +1,6 @@
 replicaCount: 1
 image:
   tag: "362d733"
+# 부하 테스트 1차(#146): HPA를 끄고 파드 1개일 때를 잰다
 autoscaling:
-  enabled: true
+  enabled: false
