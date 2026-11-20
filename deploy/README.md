@@ -321,6 +321,29 @@ kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team
 
 확인: `kubectl top nodes`, `kubectl top pods -n ideaconnection-dev`
 
+## 로그 (dev)
+
+`argocd/platform/loki-dev.yaml`과 `alloy-dev.yaml`이 `logging` namespace에 로그 도구 두 개를 설치합니다(#169).
+Loki(로그 보관소)는 공개 차트 grafana-community/loki(21.4.1), Alloy(로그 수거원)는 grafana/alloy(1.16.0)입니다.
+모니터링처럼 자동 동기화는 켜지 않습니다. 동기화는 확인받고 실행합니다.
+
+- Loki: 파드 하나(Monolithic)가 받기 · 저장 · 검색을 다 합니다. 노드 디스크 `local-path` 5Gi에 3일 보관합니다.
+  차트 기본값 중 chunksCache(8GB) · resultsCache · lokiCanary · test · gateway는 끕니다. 특히 chunksCache를 켜 두면
+  워커 메모리를 넘습니다
+- Alloy: 파드 하나가 쿠버네티스 API로 `ideaconnection-dev` 파드 로그를 읽어 Loki에 보냅니다. 노드 디스크를 직접 읽지
+  않아 노드마다 띄우지 않습니다. 대신 로그가 API 서버를 거칩니다. 우리 서비스 로그 양에서는 부담이 작습니다
+- 메모리 상한: Loki 512Mi, Alloy 256Mi + 설정 갱신 도우미 32Mi
+- Grafana: `values/monitoring/values-dev.yaml`에 Loki 데이터 소스를 추가합니다. Explore에서 Loki를 고르고
+  `{namespace="ideaconnection-dev", app="user-service"} | json`처럼 찾습니다
+
+### 설치 순서
+
+1. 워커 여유 확인: `kubectl describe nodes`(메모리 requests), 워커 디스크 `df -h`(Loki 5Gi)
+2. 앱 등록 (cp, 확인받고): `kubectl apply -f`로 `loki-dev.yaml`, `alloy-dev.yaml`을 GitHub 주소에서 바로 적용합니다
+3. 동기화 (확인받고): `loki-dev` → `alloy-dev` → `monitoring-dev`(데이터 소스) 순서. 명령은 모니터링의 patch와 같고
+   `syncOptions`는 `CreateNamespace=true`만 씁니다
+4. 확인: `kubectl get pods -n logging`(모두 Running), Grafana Explore에서 user · file 로그가 보이는지
+
 ## 담당자 간 연결 정보
 
 현재 차트가 제공하는 user-service 연결 정보입니다. Gateway 담당자와 경로를

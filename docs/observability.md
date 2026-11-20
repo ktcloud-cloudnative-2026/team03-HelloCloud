@@ -37,6 +37,10 @@ dev에서는 Grafana의 Explore(질문을 바로 넣어 보는 화면)에서 봅
 {"time":"2026-11-04T09:00:00+09:00","level":"info","service":"<서비스>","request_id":"<id>","message":"<내용>"}
 ```
 
+- dev 로그는 Loki에 모읍니다([deploy/README.md](../deploy/README.md#로그-dev)). Grafana Explore에서 Loki를 고르고
+  `{namespace="ideaconnection-dev", app="user-service"} | json | request_id="<id>"`로 한 요청의 로그를 찾습니다.
+- user · file은 공통 `JsonLogFormatter`로 이 형식을 씁니다. chat(NestJS)은 아직 기본 형식입니다.
+
 ## 4. 알림 기준
 | 조건 | 받는 사람 | 대응 문서(런북) |
 |---|---|---|

@@ -1,0 +1,53 @@
+# 로그 보관소. 파드 하나가 받기 · 저장 · 검색을 다 한다(Monolithic). dev · 발표용이라 하나면 충분하다
+deploymentMode: Monolithic
+
+loki:
+  # 팀 하나만 쓰므로 테넌트(사용자 구분)를 나누지 않는다
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  # 노드 디스크(local-path)에 저장한다. SeaweedFS(S3)보다 설정이 쉽지만 파드가 그 노드에 묶인다
+  storage:
+    type: filesystem
+  schemaConfig:
+    configs:
+      - from: "2026-11-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  # 보관 기간이 지나면 compactor가 지운다. 기간은 values-<환경>.yaml의 limits_config.retention_period
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+
+singleBinary:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  # Go가 상한에 닿기 전에 메모리를 정리하게 한다. 없으면 상한을 넘겨 강제 종료(OOMKilled)될 수 있다
+  extraEnv:
+    - name: GOMEMLIMIT
+      value: 450MiB
+
+# 기본값이 켜져 있지만 쓰지 않는 것들. 특히 chunksCache는 기본 8GB를 잡아 워커 메모리를 넘는다
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+# Grafana가 클러스터 안에서 Loki를 바로 부르므로 nginx 입구는 필요 없다
+gateway:
+  enabled: false
+sidecar:
+  rules:
+    enabled: false
