@@ -46,3 +46,11 @@ export function removeReaction(messageId, emoji) {
     method: 'DELETE',
   })
 }
+
+export function registerDecision(messageId) {
+  return apiRequest(`${messagePath(messageId)}/decision`, { method: 'POST' })
+}
+
+export function getDecisions(orgId) {
+  return apiRequest(`/api/chat/decisions?${new URLSearchParams({ orgId })}`)
+}

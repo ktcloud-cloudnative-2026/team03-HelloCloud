@@ -3,11 +3,12 @@ import {
   addReaction,
   confirmMessage,
   getAcknowledgements,
+  registerDecision,
   removeReaction,
 } from '../../api/chat'
 import { REACTIONS, ackState, formatTime, hasReacted } from './messages'
 
-function MessageItem({ message, myId, names, onUpdated, onError }) {
+function MessageItem({ message, myId, names, decided, focused, onUpdated, onDecided, onError }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [ackList, setAckList] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -37,6 +38,17 @@ function MessageItem({ message, myId, names, onUpdated, onError }) {
     )
   }
 
+  const handleDecide = async () => {
+    setBusy(true)
+    try {
+      onDecided(await registerDecision(message.id))
+    } catch (e) {
+      onError(`결정으로 등록하지 못했어요: ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const toggleAckList = async () => {
     if (ackList) {
       setAckList(null)
@@ -51,7 +63,7 @@ function MessageItem({ message, myId, names, onUpdated, onError }) {
   }
 
   return (
-    <li className={mine ? 'mine' : ''}>
+    <li className={`${mine ? 'mine' : ''} ${focused ? 'focused' : ''}`} data-message-id={message.id}>
       <div className="chat-meta">
         <strong>{nameOf(message.senderId)}</strong>
         <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
@@ -110,6 +122,13 @@ function MessageItem({ message, myId, names, onUpdated, onError }) {
         >
           ☺+
         </button>
+        {decided ? (
+          <span className="chat-chip done">📌 결정</span>
+        ) : (
+          <button type="button" className="chat-chip add" disabled={busy} onClick={handleDecide}>
+            📌 결정으로 등록
+          </button>
+        )}
         {pickerOpen && (
           <span className="chat-reaction-picker">
             {REACTIONS.map((emoji) => (
