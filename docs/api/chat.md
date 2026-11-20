@@ -75,26 +75,60 @@
 
 ### WebSocket
 
-연결 후 인증 메시지로 로그인 토큰을 보내고, 볼 채널을 구독합니다.
+주소는 `/api/chat/ws`입니다. 연결하면 서버가 `AUTH_REQUIRED`를 보내고, 화면은 10초 안에 `AUTH`로 로그인 토큰을 보냅니다. `AUTH_OK`를 받은 뒤 볼 채널을 구독합니다.
 
-서버는 30초마다 ping을 보내고, 다음 ping 때까지 응답(pong)이 없으면 연결을 끊습니다. 브라우저는 자동으로 응답하므로 화면이 할 일은 없습니다. 아무 메시지 없이 열린 연결이 중간에서 끊기지 않게 하고, 사라진 브라우저의 연결을 정리하려는 것입니다.
+| 방향 | `type` | 모양 | 언제 |
+|---|---|---|---|
+| 화면 → 서버 | `AUTH` | `{ type, token }` | 연결 직후. 만료 전에 새 토큰으로 다시 보내면 연결이 이어집니다 |
+| 화면 → 서버 | `SUBSCRIBE`, `UNSUBSCRIBE` | `{ type, channelId }` | 채널을 열고 닫을 때 |
+| 서버 → 화면 | `AUTH_REQUIRED` | `{ type, message }` | 연결 직후 |
+| 서버 → 화면 | `AUTH_OK` | `{ type }` | 토큰 확인 성공 |
+| 서버 → 화면 | `SUBSCRIBED`, `UNSUBSCRIBED` | `{ type, channelId }` | 구독 처리 완료 |
+| 서버 → 화면 | `ERROR` | `{ type, code, message }` | `CHANNEL_ACCESS_DENIED`(그 조직 멤버가 아님), `INVALID_CHANNEL_ID`, `UNSUPPORTED_MESSAGE` |
+| 서버 → 화면 | `MESSAGE_CREATED`, `MESSAGE_UPDATED` | `{ type, orgId, channelId, data, sentAt }` | 구독한 채널의 새 메시지, 이모지 · 확인 변경 |
+
+멤버 제거(`MEMBER_REMOVED`)는 user가 Redis로 chat에 알리는 서버 사이 신호라 화면에는 오지 않습니다. 대신 아래 표처럼 연결이 닫힙니다.
 
 ```json
-{ "type": "SUBSCRIBE", "channelId": "10" }
+{ "type": "SUBSCRIBE", "channelId": "6721e9b0c3a4d5e6f7a8b9c0" }
 ```
 
 서버가 보내는 메시지
 
 ```json
-{ "type": "MESSAGE_CREATED", "orgId": "1", "channelId": "10", "data": { "id": "6721f0a3", "seq": 121, "text": "내용" }, "sentAt": "2026-11-06T09:00:00+09:00" }
+{
+  "type": "MESSAGE_CREATED",
+  "orgId": "1",
+  "channelId": "6721e9b0c3a4d5e6f7a8b9c0",
+  "data": {
+    "id": "6721f0a3c3a4d5e6f7a8b9c1",
+    "seq": 121,
+    "clientMessageId": "브라우저가 만든 값",
+    "senderId": "user-uuid",
+    "text": "내용",
+    "attachments": [],
+    "createdAt": "2026-11-19T09:00:00.000Z"
+  },
+  "sentAt": "2026-11-19T09:00:00.000Z"
+}
 ```
 
-이모지와 확인 변경은 `MESSAGE_UPDATED`로 보냅니다. 모양은 `MESSAGE_CREATED`와 같고, `data`는 바뀐 뒤의 메시지 전체입니다. 화면은 같은 `id`의 메시지를 바꿔 끼웁니다.
+- `data`는 HTTP의 메시지 응답(`POST`, `GET .../messages`)과 같은 모양입니다. 화면은 메시지를 그리는 코드를 하나만 씁니다. 아이디는 MongoDB의 `_id`가 아니라 `id`(문자열)입니다
+- `MESSAGE_UPDATED`의 `data`는 바뀐 뒤의 메시지 전체입니다. 화면은 같은 `id`의 메시지를 바꿔 끼웁니다
+- 내가 보낸 메시지는 HTTP 응답과 WebSocket으로 두 번 옵니다. 화면은 `id`로 같은 메시지를 알아보고 하나만 보여 줍니다. 같은 `clientMessageId`로 다시 보내면 서버는 새로 저장하지 않고 처음 저장한 메시지(같은 `id`)를 돌려줍니다
+- `seq`는 채널 안 순서이고 빈 번호가 생길 수 있습니다(저장 실패, 동시 재전송). 화면은 번호가 연속이라고 가정하지 않습니다. 다시 연결하면 마지막으로 받은 `seq`를 `after`로 넘겨 놓친 메시지를 받습니다(US-07)
+- `sentAt`은 메시지가 저장된 시각(`data.createdAt`과 같음)입니다. `MESSAGE_UPDATED`에서도 처음 저장된 시각입니다. 전달 시간(US-06)은 받은 시각에서 이 값을 빼서 잽니다
+
+서버는 30초마다 ping을 보내고, 다음 ping 때까지 응답(pong)이 없으면 연결을 끊습니다. 브라우저는 자동으로 응답하므로 화면이 할 일은 없습니다. 아무 메시지 없이 열린 연결이 중간에서 끊기지 않게 하고, 사라진 브라우저의 연결을 정리하려는 것입니다.
 
 연결이 끊기는 경우는 아래와 같습니다. 모두 코드 `1008`로 닫으며, 화면은 새 토큰으로 다시 연결합니다.
 
 | 이유(reason) | 언제 |
 |---|---|
+| `Authentication timeout` | 연결 후 10초 안에 `AUTH`가 오지 않았을 때 |
+| `Authentication required` | `AUTH_OK` 전에 다른 메시지를 보냈을 때 |
+| `Token required`, `Invalid token` | `AUTH`에 토큰이 없거나 확인에 실패했을 때 |
+| `Invalid message format` | JSON 객체가 아닌 메시지를 보냈을 때 |
 | `Membership revoked` | user가 `MEMBER_REMOVED`를 알렸고, 그 사용자가 그 조직 채널을 구독 중일 때(US-04) |
 | `Token expired` | 로그인 토큰이 만료됐을 때. 만료 전에 새 토큰으로 `AUTH`를 다시 보내면 연결이 이어집니다 |
 | `User mismatch` | 다시 보낸 `AUTH`가 다른 사용자의 토큰일 때 |
