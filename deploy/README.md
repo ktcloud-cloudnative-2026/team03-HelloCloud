@@ -252,6 +252,10 @@ node-exporter(노드 지표), kube-state-metrics(쿠버네티스 상태 지표)�
 - 끈 것: kubeadm은 controller-manager · scheduler · etcd · kube-proxy 지표를 127.0.0.1에만 열어서
   수집이 항상 실패하므로 끕니다
 - Alertmanager: 켜 두지만 받는 곳(Discord)은 아직 없습니다
+- 대시보드: Grafana는 저장 공간이 없어 화면에서 만든 대시보드가 재시작하면 사라집니다. 그래서 JSON 파일을
+  `manifests/monitoring/dev/`에 두고, 차트의 사이드카(옆에서 같이 도는 도우미)가 `grafana_dashboard: "1"`
+  이름표가 붙은 ConfigMap을 찾아 등록하게 합니다. 화면에서 고쳐도 저장되지 않으니 JSON을 고쳐 PR로 올립니다.
+  미리 보려면 Dashboards → New → Import에 JSON을 올립니다. 지금은 "HelloCloud 부하 테스트"(#146) 하나입니다
 
 ### 처음 설치 순서
 

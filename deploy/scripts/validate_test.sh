@@ -84,11 +84,25 @@ spec:
     namespace: smoke-test
 EOF
 
+# 7. manifests/에 kustomize가 묶는 데이터 JSON(kind 없음) → 통과
+mkdir -p "$TMP/data_json_passes/manifests/x"
+cat > "$TMP/data_json_passes/manifests/x/kustomization.yaml" <<'EOF'
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: x
+configMapGenerator:
+  - name: x
+    files:
+      - dashboard.json
+EOF
+printf '{"uid": "x", "title": "x"}\n' > "$TMP/data_json_passes/manifests/x/dashboard.json"
+
 check empty_deploy_passes zero
 check broken_yaml_fails nonzero
 check broken_yml_extension_fails nonzero
 check invalid_deployment_fails nonzero
 check broken_chart_fails nonzero
 check argocd_application_passes zero
+check data_json_passes zero
 
 exit $FAILED
