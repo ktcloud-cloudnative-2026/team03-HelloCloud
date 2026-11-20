@@ -248,10 +248,10 @@ P=$(cut -d= -f2- seaweedtest.env); printf "CREATE DATABASE seaweedtest CHARACTER
 - prod cp에서 3306 TCP 연결 성공. 파드에서의 DB 인증과 서비스 동작을 확인한 것은 아닙니다
 - user 운영 연결 주소는 `jdbc:mysql://10.10.24.20:3306/user_service`입니다.
   운영 Secret 등록·서비스 최초 기동(Flyway 포함)은 아직 진행하지 않았습니다
-- 파일 서비스 전용 DB·계정, MongoDB·Redis는 이번 설치 범위에 포함하지 않았습니다
-- 같은 VM에 MongoDB·Redis도 올린다면 dev 기준 MySQL 1GiB + MongoDB 1GiB + Redis 384MiB,
-  exporter 4개 × 64MiB까지 포함해 상한 합계 약 2.6GiB입니다. prod 도입 범위·배분은 미확정이며,
-  4GB VM의 OS 메모리 여유와 실제 사용량을 확인한 뒤 정합니다
+- 11/19 MySQL 설치에는 파일 DB·계정과 MongoDB·Redis를 포함하지 않았습니다. 11/20 추가 설치·검증은 아래 절에 기록합니다
+- 11/20 같은 VM에 MySQL 1GiB + MongoDB 1GiB + Redis 384MiB 상한으로 구성했습니다(합계 2.375GiB).
+  exporter는 운영 서버에 아직 설치하지 않았습니다. 추후 4개 × 64MiB를 추가한다면 합계 약 2.6GiB가 되므로
+  설치 전 OS 메모리 여유와 실제 사용량을 다시 확인합니다
 - 운영 DB 백업 위치·주기·보관 기간과 복구 확인 절차는 아직 준비하지 않았습니다. 실제 데이터 운영 전에 팀에서 정합니다
 - MySQL 이미지가 만든 서비스 계정은 현재 `user_service@%`입니다.
   접속 원본 제한은 운영 파드의 실제 원본 주소를 확인한 뒤 팀과 정해야 합니다.
@@ -262,6 +262,49 @@ P=$(cut -d= -f2- seaweedtest.env); printf "CREATE DATABASE seaweedtest CHARACTER
 같은 주소를 가리키며, bastion 별칭은 본인 설정에 맞춥니다.
 아래 prod DB 지문은 최초 접속 화면과 기존 prod cp에서 조회한 값이 일치한 결과입니다.
 강사가 별도로 제공한 지문과 대조한 것은 아닙니다.
+
+## 파일 DB (prod MySQL)
+
+2026-11-20 운영 MySQL에 `file_service` DB와 같은 이름의 전용 계정을 추가했습니다.
+dev의 `seaweedtest`나 운영 `user_service` 계정을 재사용하지 않습니다.
+계정 권한은 `file_service.*`에만 부여했습니다. 접속 원본은 현재 `file_service@%`이며,
+위 user 계정과 함께 실제 파드의 원본 주소 확인 후 제한해야 합니다.
+
+운영 DB VM의 `/opt/mysql`에서 최초 한 번만 실행합니다. 기존 DB·계정이 있으면
+덮어쓰지 않고 상태를 먼저 확인합니다. 비밀번호 파일은 생성 후 재생성하지 않습니다.
+
+```bash
+cd /opt/mysql
+(
+  umask 077
+  set -o noclobber
+  printf 'FILE_SERVICE_PASSWORD=%s\n' "$(openssl rand -hex 24)" > file_service.env
+)
+stat -c '%a %U %n' file_service.env
+cut -d= -f1 file_service.env
+```
+
+`600 lab file_service.env`와 키 이름만 확인합니다. 아래는 값을 화면에 출력하지 않고
+MySQL 표준 입력으로 전달합니다. 파일 생성 실패 시 다음 단계로 넘어가지 않습니다.
+
+```bash
+file_db_password=$(cut -d= -f2- file_service.env)
+printf "CREATE DATABASE file_service CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;\nCREATE USER 'file_service'@'%%' IDENTIFIED BY '%s';\nGRANT ALL PRIVILEGES ON file_service.* TO 'file_service'@'%%';\n" "$file_db_password" \
+  | docker compose exec -T mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot'
+unset file_db_password
+```
+
+계정 로그인은 비밀번호 대신 계정·DB 이름만 출력해 확인합니다.
+
+```bash
+cut -d= -f2- file_service.env \
+  | docker compose exec -T mysql sh -c 'IFS= read -r file_password; MYSQL_PWD="$file_password" mysql -h127.0.0.1 -ufile_service file_service -e "SELECT CURRENT_USER(), DATABASE();"'
+```
+
+11/20 `file_service@%`, `file_service`를 확인했습니다. 운영 연결 값은
+`DB_URL=jdbc:mysql://10.10.24.20:3306/file_service`, `DB_USERNAME=file_service`이며,
+`DB_PASSWORD`는 VM의 `/opt/mysql/file_service.env`에만 있습니다.
+운영 `file-service-env` 등록·Flyway 기동·SeaweedFS 연결과 파일 API 검증은 아직 하지 않았습니다.
 
 ## 파일 테스트 DB 연결 (`seaweedtest`)
 
@@ -422,6 +465,191 @@ ssh t4-db 'R=$(grep "^REDIS_PASSWORD=" /opt/redis/.env | cut -d= -f2-); printf "
 2. **만들기** — 1번 명령의 마지막 `| grep -oE "^  [A-Z_]+:"`를 `| kubectl apply -f -`로 바꿔 실행합니다. 비밀번호를 바꾼 뒤 다시 실행하면 덮어씁니다
 3. **확인 (cp에서)** — `kubectl get secret chat-service-env -n ideaconnection-dev -o yaml | grep -oE "^  [A-Z_]+:"`
    - `-o yaml`은 `grep` 없이 출력하지 않습니다. 값이 base64로 보이는데, base64는 암호가 아니라 누구나 되돌릴 수 있습니다
+
+## DB VM (prod MongoDB · Redis)
+
+2026-11-20 운영 DB VM `10.10.24.20`에 설치했습니다. dev와 비밀번호·데이터를 공유하지 않습니다.
+Docker는 위 MySQL 설치 때 준비했고, 11/20 팀 확인 후 MongoDB·Redis를 설치했습니다.
+아래 명령은 설치 기록입니다. 재설치 등 실제 변경은 팀 확인 후 진행하며,
+이미 설치된 서버에서는 초기화 명령을 반복하지 않습니다.
+
+| 항목 | MongoDB | Redis |
+| --- | --- | --- |
+| 이미지 | `mongo:8.0.34` | `redis:8.10.0` |
+| 열린 주소 | `10.10.24.20:27017` | `10.10.24.20:6379` |
+| 인증 | `chat_service` DB의 전용 계정, 별도 관리자 | 운영 전용 비밀번호 |
+| 메모리 | 캐시 0.5GB, 컨테이너 상한 1GiB | 데이터 256MB, 컨테이너 상한 384MiB |
+| 파일 | `/opt/mongodb/compose.yaml`, `mongo-init.js`, `.env`(600) | `/opt/redis/compose.yaml`, `.env`(600) |
+| 데이터 | 볼륨 `prod-mongodb_mongodb-data` | 디스크 저장 안 함 |
+
+### MongoDB 최초 설치 (운영 DB VM)
+
+```bash
+docker pull mongo:8.0.34
+sudo mkdir -p /opt/mongodb
+sudo chown lab:lab /opt/mongodb
+cd /opt/mongodb
+cat > compose.yaml <<'EOF'
+name: prod-mongodb
+
+services:
+  mongodb:
+    image: mongo:8.0.34
+    restart: unless-stopped
+    command: ["--wiredTigerCacheSizeGB", "0.5"]
+    mem_limit: 1g
+    ports:
+      - "10.10.24.20:27017:27017"
+    env_file: .env
+    volumes:
+      - mongodb-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand('ping').ok ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  mongodb-data:
+EOF
+cat > mongo-init.js <<'EOF'
+db = db.getSiblingDB(process.env.CHAT_DB);
+db.createUser({
+  user: process.env.CHAT_USER,
+  pwd: process.env.CHAT_PASSWORD,
+  roles: [{ role: "readWrite", db: process.env.CHAT_DB }]
+});
+EOF
+```
+
+비밀번호는 VM 안에서 각각 생성하며 출력하지 않습니다. 기존 `.env`가 있으면 중단합니다.
+
+```bash
+(
+  umask 077
+  set -o noclobber
+  cat > .env <<EOF
+MONGO_INITDB_ROOT_USERNAME=root
+MONGO_INITDB_ROOT_PASSWORD=$(openssl rand -hex 24)
+CHAT_DB=chat_service
+CHAT_USER=chat_service
+CHAT_PASSWORD=$(openssl rand -hex 24)
+EOF
+)
+stat -c '%a %U %n' .env
+cut -d= -f1 .env
+docker compose config --quiet
+```
+
+`600 lab .env`와 키 이름 5개를 확인합니다. 파일 생성·설정 검사 실패 시 실행하지 않습니다.
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose exec -T mongodb sh -c 'mongosh --quiet -u "$CHAT_USER" -p "$CHAT_PASSWORD" --authenticationDatabase "$CHAT_DB" "$CHAT_DB" --eval "printjson({ping: db.runCommand({ping:1}).ok, users: db.runCommand({connectionStatus:1}).authInfo.authenticatedUsers})"'
+docker stats --no-stream prod-mongodb-mongodb-1
+ss -ltn 'sport = :27017'
+```
+
+`healthy`는 프로세스 응답 확인이고, 계정 검사는 별도입니다. `ping: 1`과 인증 사용자
+`chat_service` / 인증 DB `chat_service`를 확인합니다. 초기 계정 스크립트는 빈 볼륨에서만
+실행되므로, 기존 계정 변경을 위해 볼륨을 삭제하거나 `.env`만 바꾸지 않습니다.
+
+### Redis 최초 설치 (운영 DB VM)
+
+```bash
+docker pull redis:8.10.0
+sudo mkdir -p /opt/redis
+sudo chown lab:lab /opt/redis
+cd /opt/redis
+cat > compose.yaml <<'EOF'
+name: prod-redis
+
+services:
+  redis:
+    image: redis:8.10.0
+    restart: unless-stopped
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy noeviction --appendonly no --save ""
+    mem_limit: 384m
+    ports:
+      - "10.10.24.20:6379:6379"
+    env_file: .env
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+EOF
+(
+  umask 077
+  set -o noclobber
+  cat > .env <<EOF
+REDIS_PASSWORD=$(openssl rand -hex 24)
+EOF
+)
+stat -c '%a %U %n' .env
+cut -d= -f1 .env
+docker compose config --quiet
+```
+
+`600 lab .env`와 키 이름 1개를 확인합니다. 기존 파일이 있으면 덮어쓰지 않고 중단합니다.
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose exec -T redis redis-cli ping
+docker compose exec -T redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping'
+docker stats --no-stream prod-redis-redis-1
+```
+
+무인증 요청은 `NOAUTH`, 인증 요청은 `PONG`이어야 합니다. Redis는 실시간 전달용이고
+채팅 원본은 MongoDB가 보관하므로 디스크 저장을 끕니다. `noeviction`은 메모리가 차면
+기존 값을 임의로 지우지 않고 새 저장 요청에 오류를 반환합니다.
+현재 비밀번호 인증은 준비했지만 서비스별 Redis ACL 분리·실제 권한 범위 검증은 아직 하지 않았습니다.
+
+### 연결 정보와 검증 결과 (2026-11-20)
+
+chat 최종 코드(#136)는 `MONGODB_URI` 대신 공통 키를 읽습니다. 아래는 운영 Secret에 넣을
+공개 연결 값이며, 아직 Secret을 등록하거나 서비스를 연결한 것은 아닙니다.
+
+| 키 | 운영 값 / 비밀번호 위치 |
+| --- | --- |
+| `DB_URL` | `mongodb://10.10.24.20:27017/chat_service?authSource=chat_service` |
+| `DB_USERNAME` | `chat_service` |
+| `DB_PASSWORD` | 운영 VM `/opt/mongodb/.env`의 `CHAT_PASSWORD` (값은 기록하지 않음) |
+| `REDIS_URL` | `redis://10.10.24.20:6379` |
+| `REDIS_PASSWORD` | 운영 VM `/opt/redis/.env` (값은 기록하지 않음) |
+
+prod cp에서 아래로 포트 도달 여부를 확인했습니다. 비밀번호 없이 TCP 연결만 확인합니다.
+
+```bash
+for port in 27017 6379; do
+  if timeout 3 bash -c "</dev/tcp/10.10.24.20/$port"; then
+    echo "$port 연결 OK"
+  else
+    echo "$port 연결 실패"
+  fi
+done
+```
+
+- MySQL·MongoDB·Redis 모두 `healthy`, 주소 `10.10.24.20`의 3306·27017·6379 수신 확인
+- MongoDB 전용 계정 인증·ping 성공, Redis 무인증 차단·인증 PONG 확인
+- prod cp에서 27017·6379 TCP 연결 성공 (MySQL 3306은 11/19 확인)
+- 최종 조회 시 메모리: MySQL 약 441MiB/1GiB, MongoDB 약 107MiB/1GiB, Redis 약 4MiB/384MiB
+- VM 가용 메모리 약 2.7GiB, swap 없음. 순간 조회이며 부하 상황 검증은 아닙니다
+- 운영 user의 `MEMBER_REMOVED` 알림 연동 시 `user-service-env`에도 같은 운영 Redis의
+  `REDIS_URL`·`REDIS_PASSWORD`를 넣어야 합니다. Secret 주입과 실제 이벤트 발행·수신 검증은 후속 작업입니다
+- dev·prod 사이의 실제 DB 접속 가능 여부는 아직 검사하지 않았습니다. VM 방화벽에서 DB 포트에
+  prod 노드 IP(10.10.24.21~23)만 허용하는 방안을 실제 접속 원본·필요한 관리 경로 확인 후 적용·검증합니다.
+  Docker 공개 포트는 단순 UFW 규칙만으로 차단되지 않을 수 있으므로 Docker 전달 경로에 유효한 규칙을 확인합니다.
+  내부 IP 바인딩만으로 dev·prod 접근 격리가 완료된 것은 아닙니다
+- 운영 Secret·파드 인증·서비스 API 연결, MySQL 접속 원본 제한, Redis ACL, 백업·복구와
+  운영 DB 모니터링은 후속 범위입니다. dev 비밀번호를 재사용하지 않습니다
+- 실제 비밀번호 파일·전체 `docker inspect`·`--quiet` 없는 compose 설정은 출력하거나 공유하지 않습니다
 
 ## DB VM (dev exporter)
 
