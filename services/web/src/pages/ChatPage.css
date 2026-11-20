@@ -90,63 +90,58 @@
   font-size: 18px;
 }
 
-.chat-room-title,
-.chat-rename {
+.chat-room-title {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 
-.chat-rename-button {
-  padding: 2px 6px;
-  border: 1px solid transparent;
+/* 디스코드처럼 채널 이름 옆 톱니바퀴. 평소엔 흐리게, 올리면 진하게 */
+.chat-settings-button {
+  display: inline-flex;
+  padding: 4px;
+  border: none;
   border-radius: var(--radius-sm);
   background: none;
-  font-size: 14px;
+  color: var(--color-text-muted);
   cursor: pointer;
-  opacity: 0.6;
 }
 
-.chat-rename-button:hover,
-.chat-rename-button:focus-visible {
-  border-color: var(--color-border);
-  opacity: 1;
+.chat-settings-button:hover,
+.chat-settings-button:focus-visible {
+  color: var(--color-text);
+}
+
+.chat-settings-button svg {
+  transition: transform 0.2s;
+}
+
+.chat-settings-button:hover svg {
+  transform: rotate(45deg);
+}
+
+/* 고치는 동안에도 제목처럼 보이게: 테두리 없이 밑줄만 */
+.chat-rename {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .chat-rename span {
-  font-size: 18px;
-  font-weight: 700;
+  margin-right: 0.3em;
 }
 
 .chat-rename input {
   width: min(320px, 100%);
   min-width: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font: inherit;
-  font-size: 16px;
-}
-
-.chat-rename button {
-  padding: 6px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  padding: 0 2px;
+  border: none;
+  border-bottom: 2px solid var(--color-primary);
   background: none;
+  color: inherit;
   font: inherit;
-  cursor: pointer;
-}
-
-.chat-rename button[type='submit'] {
-  border-color: var(--color-primary);
-  background: var(--color-primary);
-  color: #fff;
-}
-
-.chat-rename button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+  outline: none;
 }
 
 .chat-status {

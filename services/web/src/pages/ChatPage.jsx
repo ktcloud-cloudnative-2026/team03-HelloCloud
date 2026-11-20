@@ -40,6 +40,7 @@ function ChatPage({ organization }) {
   // null이면 보기 모드, 문자열이면 헤더에서 이름을 고치는 중
   const [renameDraft, setRenameDraft] = useState(null)
   const [renaming, setRenaming] = useState(false)
+  const renamingRef = useRef(false)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -156,14 +157,15 @@ function ChatPage({ organization }) {
     }
   }
 
-  const handleRename = async (event) => {
-    event.preventDefault()
-    const name = renameDraft?.trim()
-    if (!name || !activeId || renaming) return
-    if (name === activeChannel?.name) {
+  // Enter나 바깥 클릭으로 저장한다. 비었거나 그대로면 그냥 닫는다
+  const commitRename = async () => {
+    if (renameDraft === null || renamingRef.current) return
+    const name = renameDraft.trim()
+    if (!name || !activeId || name === activeChannel?.name) {
       setRenameDraft(null)
       return
     }
+    renamingRef.current = true
     setRenaming(true)
     setError('')
     try {
@@ -173,7 +175,18 @@ function ChatPage({ organization }) {
     } catch (e) {
       setError(`채널 이름을 바꾸지 못했어요: ${e.message}`)
     } finally {
+      renamingRef.current = false
       setRenaming(false)
+    }
+  }
+
+  const handleRenameKeyDown = (event) => {
+    if (event.nativeEvent.isComposing) return
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commitRename()
+    } else if (event.key === 'Escape') {
+      setRenameDraft(null)
     }
   }
 
@@ -264,36 +277,35 @@ function ChatPage({ organization }) {
       <div className="chat-room">
         <header className="chat-room-header">
           {view === 'channel' && activeChannel && renameDraft !== null ? (
-            <form className="chat-rename" onSubmit={handleRename}>
+            <h1 className="chat-rename">
               <span aria-hidden="true">#</span>
               <input
                 value={renameDraft}
                 onChange={(e) => setRenameDraft(e.target.value)}
-                onKeyDown={(e) => e.key === 'Escape' && setRenameDraft(null)}
+                onKeyDown={handleRenameKeyDown}
+                onBlur={commitRename}
                 maxLength={MAX_CHANNEL_NAME}
-                aria-label="채널 이름"
+                aria-label="채널 이름 (Enter 저장, Esc 취소)"
                 autoFocus
+                onFocus={(e) => e.target.select()}
                 disabled={renaming}
               />
-              <button type="submit" disabled={!renameDraft.trim() || renaming}>
-                저장
-              </button>
-              <button type="button" onClick={() => setRenameDraft(null)} disabled={renaming}>
-                취소
-              </button>
-            </form>
+            </h1>
           ) : (
             <div className="chat-room-title">
               <h1>{view === 'decisions' ? '📌 결정 로그' : activeChannel ? `# ${activeChannel.name}` : '채팅'}</h1>
               {view === 'channel' && activeChannel && !revoked && (
                 <button
                   type="button"
-                  className="chat-rename-button"
+                  className="chat-settings-button"
                   onClick={() => setRenameDraft(activeChannel.name)}
                   title="채널 이름 바꾸기"
                   aria-label="채널 이름 바꾸기"
                 >
-                  ✏️
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
                 </button>
               )}
             </div>
