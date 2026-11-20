@@ -2,6 +2,7 @@
 // 클러스터에서는 job.yaml이 실행한다. 비밀번호는 Secret에서 환경 변수로만 받는다.
 import http from 'k6/http';
 import { check, sleep, fail } from 'k6';
+import exec from 'k6/execution';
 
 const BASE_URL = __ENV.BASE_URL || 'http://10.10.24.101';
 const REALM = __ENV.KC_REALM || 'hellocloud';
@@ -11,7 +12,7 @@ const PASSWORD = __ENV.K6_PASSWORD;
 // 클라이언트를 confidential로 만들면 비밀값도 같이 보내야 토큰이 나온다. public이면 비워 둔다
 const CLIENT_SECRET = __ENV.K6_CLIENT_SECRET;
 const VUS = Number(__ENV.VUS || 10);
-const SMOKE = __ENV.MODE === 'smoke';
+const MODE = __ENV.MODE || 'full';
 // 테스트 조직을 정해 두면 그 조직의 파일 목록을 부른다. 비우면 계정이 속한 첫 조직을 쓴다
 const ORG_ID = __ENV.ORG_ID;
 
@@ -30,14 +31,79 @@ const smokeScenarios = {
   load: { executor: 'constant-vus', vus: 1, duration: '30s' },
 };
 
-export const options = {
-  scenarios: SMOKE ? smokeScenarios : fullScenarios,
-  thresholds: {
-    'http_req_duration{scenario:load,type:api}': ['p(95)<500'],
-    'http_req_failed{scenario:load,type:api}': ['rate<0.01'],
+// 병목 찾기: 사람 수를 계단처럼 올리며 p95가 꺾여 오르거나 에러가 생기는 칸을 찾는다.
+// 그 칸의 사람 수가 본 실행(MODE=full)의 VUS가 된다
+const STEPS = (__ENV.STEPS || '10,30,50,100,200').split(',').map(Number);
+const STEP_SECONDS = Number(__ENV.STEP_SECONDS || 120);
+// 새 가상 사용자가 한꺼번에 로그인하면 Keycloak CPU가 튄다. 30초에 걸쳐 나눠서 늘린다
+const RISE_SECONDS = 30;
+const stepScenarios = {
+  step: {
+    executor: 'ramping-vus',
+    startVUs: 0,
+    stages: STEPS.flatMap((target) => [
+      { duration: `${RISE_SECONDS}s`, target },
+      { duration: `${STEP_SECONDS - RISE_SECONDS}s`, target },
+    ]).concat([{ duration: '30s', target: 0 }]),
   },
+};
+
+// 칸마다 따로 p95와 에러율이 요약에 나오게 한다. 에러가 5%를 넘는 칸이 생기면 dev를 지키려고 바로 멈춘다
+function stepThresholds() {
+  const t = {};
+  for (const target of STEPS) {
+    t[`http_req_duration{scenario:step,type:api,step:${target}}`] = ['p(95)<500'];
+    t[`http_req_failed{scenario:step,type:api,step:${target}}`] = [
+      { threshold: 'rate<0.05', abortOnFail: true, delayAbortEval: '30s' },
+    ];
+  }
+  return t;
+}
+
+const loadThresholds = {
+  'http_req_duration{scenario:load,type:api}': ['p(95)<500'],
+  'http_req_failed{scenario:load,type:api}': ['rate<0.01'],
+};
+
+const scenariosByMode = { smoke: smokeScenarios, full: fullScenarios, step: stepScenarios };
+if (!scenariosByMode[MODE]) {
+  throw new Error(`MODE는 smoke, full, step 중 하나입니다: ${MODE}`);
+}
+
+export const options = {
+  scenarios: scenariosByMode[MODE],
+  thresholds: MODE === 'step' ? stepThresholds() : loadThresholds,
   summaryTrendStats: ['avg', 'p(50)', 'p(95)', 'p(99)', 'max'],
 };
+
+// 지금 몇 번째 칸인지. 칸이 바뀌는 처음 30초(사람이 늘어나는 중)도 그 칸으로 센다
+function currentStep() {
+  if (MODE !== 'step') {
+    return undefined;
+  }
+  const elapsed = (Date.now() - exec.scenario.startTime) / 1000;
+  const index = Math.floor(elapsed / STEP_SECONDS);
+  // 마지막 칸 뒤 사람이 줄어드는 30초는 따로 센다. 섞이면 마지막 칸 성적이 흐려진다
+  if (index >= STEPS.length) {
+    return 'down';
+  }
+  return String(STEPS[index]);
+}
+
+// Grafana에서 칸마다 시간 범위를 맞추려고, 칸이 바뀔 때 시각을 한 줄 남긴다(가상 사용자 1번만)
+let lastLoggedStep = null;
+function logStepStart(step) {
+  if (step === undefined || step === lastLoggedStep || exec.vu.idInTest !== 1) {
+    return;
+  }
+  lastLoggedStep = step;
+  const position = step === 'down' ? STEPS.length : STEPS.indexOf(Number(step));
+  const planned = new Date(exec.scenario.startTime + position * STEP_SECONDS * 1000);
+  // Grafana는 브라우저 시간(한국)으로 보여서 한국 시각으로 찍는다
+  const kst = new Date(planned.getTime() + 9 * 3600 * 1000).toISOString().replace('Z', '+09:00');
+  const label = step === 'down' ? '줄이기' : `${step}명`;
+  console.log(`step ${label} 시작 ${kst}`);
+}
 
 function login() {
   const form = { grant_type: 'password', client_id: CLIENT_ID, username: USERNAME, password: PASSWORD };
@@ -81,9 +147,11 @@ export default function (data) {
   if (!session || Date.now() > session.renewAt) {
     session = login();
   }
+  const step = currentStep();
+  logStepStart(step);
   const params = (name) => ({
     headers: { Authorization: `Bearer ${session.token}` },
-    tags: { name, type: 'api' },
+    tags: step ? { name, type: 'api', step } : { name, type: 'api' },
   });
 
   const me = http.get(`${BASE_URL}/api/users/me`, params('GET /api/users/me'));
