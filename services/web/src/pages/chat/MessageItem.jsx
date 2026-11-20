@@ -44,7 +44,7 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
     try {
       onDecided(await registerDecision(message.id))
     } catch (e) {
-      onError(`결정으로 등록하지 못했어요: ${e.message}`)
+      onError(`메시지를 고정하지 못했어요: ${e.message}`)
     } finally {
       setBusy(false)
     }
@@ -131,10 +131,10 @@ function MessageItem({ message, myId, names, decided, focused, onUpdated, onDeci
           ☺+
         </button>
         {decided ? (
-          <span className="chat-chip done">📌 결정</span>
+          <span className="chat-chip done">📌 고정됨</span>
         ) : (
           <button type="button" className="chat-chip add" disabled={busy} onClick={handleDecide}>
-            📌 결정으로 등록
+            📌 고정하기
           </button>
         )}
         {pickerOpen && (

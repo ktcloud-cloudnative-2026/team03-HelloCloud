@@ -25,7 +25,7 @@ function ChatPage({ organization }) {
   const [activeId, setActiveId] = useState(null)
   const [messages, setMessages] = useState([])
   const [members, setMembers] = useState([])
-  // 'channel'이면 채널 대화, 'decisions'이면 결정 로그 목록
+  // 'channel'이면 채널 대화, 'decisions'이면 고정 메시지 목록
   const [view, setView] = useState('channel')
   const [decisions, setDecisions] = useState([])
   const [focusId, setFocusId] = useState(null)
@@ -122,7 +122,7 @@ function ChatPage({ organization }) {
     if (nearBottom || messages.at(-1)?.senderId === myId) list.scrollTop = list.scrollHeight
   }, [messages, myId])
 
-  // 결정 로그에서 원본으로 오면 그 메시지로 스크롤하고 잠깐 강조한다
+  // 고정 메시지에서 원본으로 오면 그 메시지로 스크롤하고 잠깐 강조한다
   useEffect(() => {
     if (!focusId || view !== 'channel') return undefined
     const element = listRef.current?.querySelector(`[data-message-id="${focusId}"]`)
@@ -242,7 +242,7 @@ function ChatPage({ organization }) {
           className={`chat-decision-nav ${view === 'decisions' ? 'active' : ''}`}
           onClick={() => setView('decisions')}
         >
-          📌 결정 로그 <span>{decisions.length}</span>
+          📌 고정 메시지 <span>{decisions.length}</span>
         </button>
         <h2>채널</h2>
         <ul>
@@ -293,7 +293,7 @@ function ChatPage({ organization }) {
             </h1>
           ) : (
             <div className="chat-room-title">
-              <h1>{view === 'decisions' ? '📌 결정 로그' : activeChannel ? `# ${activeChannel.name}` : '채팅'}</h1>
+              <h1>{view === 'decisions' ? '📌 고정 메시지' : activeChannel ? `# ${activeChannel.name}` : '채팅'}</h1>
               {view === 'channel' && activeChannel && !revoked && (
                 <button
                   type="button"
