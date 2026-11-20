@@ -85,6 +85,7 @@ describe('ChatController', () => {
       'c1',
       'hi',
       [],
+      [],
     );
   });
 
@@ -127,6 +128,7 @@ describe('ChatController', () => {
         'c1',
         'hi',
         ['u2', 'u3'],
+        [],
       );
     });
   });
@@ -168,6 +170,42 @@ describe('ChatController', () => {
       await expect(
         controller.getDecisions(auth, ['a', 'b']),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('첨부', () => {
+    const file = {
+      fileId: '5',
+      name: '기획서.pdf',
+      contentType: 'application/pdf',
+    };
+    const send = (attachments: unknown) =>
+      controller.createMessage(auth, 'ch1', {
+        clientMessageId: 'c1',
+        text: '',
+        attachments,
+      });
+
+    it.each([
+      ['목록이 아님', file],
+      ['fileId 없음', [{ name: 'a', contentType: 'b' }]],
+      ['숫자 fileId', [{ ...file, fileId: 5 }]],
+      ['6개', Array.from({ length: 6 }, () => file)],
+    ])('%s이면 400', async (_name, value) => {
+      await expect(send(value)).rejects.toBeInstanceOf(BadRequestException);
+      expect(chatService.createMessage).not.toHaveBeenCalled();
+    });
+
+    it('필요한 칸만 골라 서비스로 넘긴다', async () => {
+      await send([{ ...file, extra: 'x' }]);
+      expect(chatService.createMessage).toHaveBeenCalledWith(
+        'ch1',
+        'u1',
+        'c1',
+        '',
+        [],
+        [file],
+      );
     });
   });
 });

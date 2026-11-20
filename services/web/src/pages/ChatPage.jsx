@@ -3,6 +3,7 @@ import { createChannel, getChannels, getDecisions, getMessages, sendMessage } fr
 import { getMembers } from '../api/members'
 import { getAccessToken, getCurrentUserId } from '../auth/keycloak'
 import { chatSocketUrl, createChatConnection } from './chat/chatConnection'
+import AttachPicker from './chat/AttachPicker'
 import DecisionLog from './chat/DecisionLog'
 import MessageItem from './chat/MessageItem'
 import { fetchAfter, lastSeq, mergeMessages } from './chat/messages'
@@ -30,6 +31,8 @@ function ChatPage({ organization }) {
   const [focusId, setFocusId] = useState(null)
   const [ackOpen, setAckOpen] = useState(false)
   const [ackUserIds, setAckUserIds] = useState([])
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [attachments, setAttachments] = useState([])
   const [status, setStatus] = useState('connecting')
   const [revoked, setRevoked] = useState(false)
   const [error, setError] = useState('')
@@ -151,15 +154,17 @@ function ChatPage({ organization }) {
 
   const handleSend = async () => {
     const body = text.trim()
-    if (!body || !activeId || sending) return
+    if ((!body && attachments.length === 0) || !activeId || sending) return
     setSending(true)
     setError('')
     try {
-      const saved = await sendMessage(activeId, body, { acknowledgementUserIds: ackUserIds })
+      const saved = await sendMessage(activeId, body, { acknowledgementUserIds: ackUserIds, attachments })
       applyMessages([saved])
       setText('')
       setAckUserIds([])
       setAckOpen(false)
+      setAttachments([])
+      setAttachOpen(false)
     } catch (e) {
       setError(`보내지 못했어요: ${e.message}`)
     } finally {
@@ -296,7 +301,37 @@ function ChatPage({ organization }) {
           </fieldset>
         )}
 
+        {attachOpen && (
+          <AttachPicker orgId={organization.id} selected={attachments} onChange={setAttachments} />
+        )}
+        {attachments.length > 0 && (
+          <ul className="chat-selected-files" aria-label="붙일 파일">
+            {attachments.map((a) => (
+              <li key={a.fileId}>
+                📎 {a.name}
+                <button
+                  type="button"
+                  aria-label={`${a.name} 빼기`}
+                  onClick={() => setAttachments((prev) => prev.filter((x) => x.fileId !== a.fileId))}
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className="chat-composer">
+          <button
+            type="button"
+            className={`chat-ack-toggle ${attachments.length ? 'active' : ''}`}
+            aria-expanded={attachOpen}
+            onClick={() => setAttachOpen((open) => !open)}
+            disabled={!activeChannel || revoked}
+            title="파일 붙이기"
+          >
+            📎{attachments.length ? attachments.length : ''}
+          </button>
           <button
             type="button"
             className={`chat-ack-toggle ${ackUserIds.length ? 'active' : ''}`}
@@ -320,7 +355,7 @@ function ChatPage({ organization }) {
           <button
             type="button"
             onClick={handleSend}
-            disabled={!text.trim() || !activeChannel || sending || revoked}
+            disabled={(!text.trim() && attachments.length === 0) || !activeChannel || sending || revoked}
           >
             보내기
           </button>

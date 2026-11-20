@@ -16,7 +16,12 @@ import type { Response } from 'express';
 
 import { AuthService } from '../auth/auth.service';
 import { MembershipService } from '../membership/membership.service';
-import { ChatService, MAX_ACK_USERS } from './chat.service';
+import {
+  AttachmentInput,
+  ChatService,
+  MAX_ACK_USERS,
+  MAX_ATTACHMENTS,
+} from './chat.service';
 import { DecisionService } from './decision.service';
 import { ChannelType } from './schemas/channel.schema';
 
@@ -30,6 +35,7 @@ type CreateMessageBody = {
   clientMessageId?: unknown;
   text?: unknown;
   acknowledgementUserIds?: unknown;
+  attachments?: unknown;
 };
 
 type ReactionBody = {
@@ -59,6 +65,39 @@ function optionalStringArray(value: unknown, field: string): string[] {
   }
 
   return value as string[];
+}
+
+// 파일 자체의 권한은 미리보기 · 다운로드 때 file 서비스가 확인한다. 여기서는 모양만 본다
+function attachmentList(value: unknown): AttachmentInput[] {
+  if (value === undefined || value === null) return [];
+
+  const valid = (item: unknown, key: string, max: number) => {
+    const field = (item as Record<string, unknown>)[key];
+    return typeof field === 'string' && field.trim() !== '' && field.length <= max;
+  };
+
+  if (
+    !Array.isArray(value) ||
+    value.length > MAX_ATTACHMENTS ||
+    !value.every(
+      (item) =>
+        typeof item === 'object' &&
+        item !== null &&
+        valid(item, 'fileId', 100) &&
+        valid(item, 'name', 255) &&
+        valid(item, 'contentType', 100),
+    )
+  ) {
+    throw new BadRequestException(
+      `attachments는 fileId · name · contentType을 가진 최대 ${MAX_ATTACHMENTS}개 목록이어야 합니다.`,
+    );
+  }
+
+  return value.map((item: Record<string, string>) => ({
+    fileId: item.fileId,
+    name: item.name,
+    contentType: item.contentType,
+  }));
 }
 
 @Controller('api/chat')
@@ -146,6 +185,8 @@ export class ChatController {
       ),
     ];
 
+    const attachments = attachmentList(body?.attachments);
+
     if (ackUserIds.length > MAX_ACK_USERS) {
       throw new BadRequestException(
         `확인 요청은 최대 ${MAX_ACK_USERS}명까지 지정할 수 있습니다.`,
@@ -175,6 +216,7 @@ export class ChatController {
       clientMessageId ?? '',
       text ?? '',
       ackUserIds,
+      attachments,
     );
   }
 

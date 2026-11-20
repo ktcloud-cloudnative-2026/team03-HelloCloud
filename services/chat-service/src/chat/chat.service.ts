@@ -29,6 +29,14 @@ function toResponse<T extends { _id: unknown }>(
 export const ALLOWED_REACTIONS = ['👍', '✅', '❤️', '😂', '🎉', '👀'];
 // 확인 요청으로 지정할 수 있는 최대 인원
 export const MAX_ACK_USERS = 20;
+// 메시지 하나에 붙일 수 있는 파일 수
+export const MAX_ATTACHMENTS = 5;
+
+export type AttachmentInput = {
+  fileId: string;
+  name: string;
+  contentType: string;
+};
 
 @Injectable()
 export class ChatService {
@@ -114,11 +122,16 @@ export class ChatService {
     clientMessageId: string,
     text: string,
     acknowledgementUserIds: string[] = [],
+    attachments: AttachmentInput[] = [],
   ) {
-    if (!senderId?.trim() || !clientMessageId?.trim() || !text?.trim()) {
+    if (!senderId?.trim() || !clientMessageId?.trim()) {
       throw new BadRequestException(
-        '작성자, 클라이언트 메시지 ID, 내용이 필요합니다.',
+        '작성자와 클라이언트 메시지 ID가 필요합니다.',
       );
+    }
+
+    if (!text?.trim() && attachments.length === 0) {
+      throw new BadRequestException('내용이나 첨부 파일이 필요합니다.');
     }
 
     // 메시지 최대 길이 제한 (4000자)
@@ -168,7 +181,7 @@ export class ChatService {
         senderType: 'USER',
         senderId,
         text: text.trim(),
-        attachments: [],
+        attachments,
         reactions: [],
         acknowledgement: {
           // 보낸 사람 자신은 확인할 필요가 없다

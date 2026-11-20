@@ -42,12 +42,12 @@
 {
   "clientMessageId": "브라우저가 만든 값",
   "text": "확인 부탁드립니다",
-  "attachments": [{ "fileId": "5", "name": "기획서.pdf" }],
+  "attachments": [{ "fileId": "5", "name": "기획서.pdf", "contentType": "application/pdf" }],
   "acknowledgementUserIds": ["a", "b"]
 }
 ```
 
-`acknowledgementUserIds`(확인을 요청할 사람, 최대 20명)는 선택입니다. 모두 같은 조직 멤버여야 하며 아니면 400입니다. 보낸 사람 자신은 빠집니다.
+`text`와 `attachments`(최대 5개) 중 하나는 있어야 합니다. 첨부는 조직 파일 목록(`GET /api/files`)의 `id` · `name` · `contentType`을 그대로 넣습니다. chat은 모양만 확인하고, 파일을 볼 권한은 미리보기 · 다운로드 주소를 받을 때 file이 확인합니다. `acknowledgementUserIds`(확인을 요청할 사람, 최대 20명)는 선택입니다. 모두 같은 조직 멤버여야 하며 아니면 400입니다. 보낸 사람 자신은 빠집니다.
 
 `GET /api/chat/messages/{id}/acknowledgements` (보낸 사람만)
 
