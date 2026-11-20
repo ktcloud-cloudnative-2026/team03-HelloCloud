@@ -41,7 +41,7 @@ Argo CD(Git 내용대로 클러스터에 배포하는 도구)는 손으로 한 �
 | 버전 | v3.6.1 (2026-11-12 dev 설치) |
 | namespace | `argocd` |
 | 저장소 접근 | 공개 저장소라 등록하지 않음 |
-| 이미지 접근 | GHCR 패키지 `idcn-user-service`, `idcn-web`은 공개라 pull Secret 없음 |
+| 이미지 접근 | GHCR 패키지 `idcn-user-service`, `idcn-file-service`, `idcn-chat-service`, `idcn-web`은 공개라 pull Secret 없음 |
 
 1. **설치 (cp에서)** — 이미 설치돼 있으면 건너뜀(`kubectl get ns argocd`)
    ```bash
@@ -64,6 +64,7 @@ Argo CD(Git 내용대로 클러스터에 배포하는 도구)는 손으로 한 �
    ```
    - 확인: `kubectl get applications -n argocd`에서 `Synced`, `Healthy`
    - `user-service-dev.yaml`은 `ideaconnection-dev`에 `user-service-env` Secret과 DB를 준비한 뒤 등록
+   - `chat-service-dev.yaml`은 [chat Secret](#db-vm-dev-mongodb--redis)을 만든 뒤 등록
 
 ## DB VM (dev MySQL)
 
@@ -398,15 +399,16 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 | `DB_PASSWORD` | `/opt/mongodb/.env`의 `CHAT_PASSWORD` |
 | `REDIS_URL` | `redis://10.10.24.10:6379` |
 | `REDIS_PASSWORD` | `/opt/redis/.env`의 `REDIS_PASSWORD` |
+| `OIDC_ISSUER_URI` | `http://10.10.24.101/realms/hellocloud` (비밀값은 아니지만 다른 서비스처럼 Secret에 둡니다. 없으면 chat이 시작하지 않습니다) |
 
 - Redis를 쓰는 다른 서비스(user 등)는 자기 Secret에 `REDIS_URL`, `REDIS_PASSWORD`를 넣습니다
 - Redis 로그의 `Memory overcommit must be enabled` 경고는 디스크 저장 중 메모리가 모자랄 때의 이야기라, 저장을 끈 지금은 영향이 없습니다
 
 **chat Secret 만들기** — chat을 dev에 처음 배포하기 전에 한 번 합니다. 내 PC(WSL)에서 실행합니다. 비밀번호는 DB VM의 `.env`에서 cp의 `kubectl`로 바로 넘어가므로 화면 · 파일 · 명령 기록에 남지 않습니다.
 
-1. **확인 (클러스터를 바꾸지 않음)** — 키 이름 5개만 나오면 정상
+1. **확인 (클러스터를 바꾸지 않음)** — 키 이름 6개만 나오면 정상
    ```bash
-   ssh t4-db 'M=$(grep "^CHAT_PASSWORD=" /opt/mongodb/.env | cut -d= -f2-); R=$(grep "^REDIS_PASSWORD=" /opt/redis/.env | cut -d= -f2-); printf "%s\n" "DB_URL=mongodb://10.10.24.10:27017/chat_service?authSource=chat_service" "DB_USERNAME=chat_service" "DB_PASSWORD=$M" "REDIS_URL=redis://10.10.24.10:6379" "REDIS_PASSWORD=$R"' | ssh t4-dev-cp 'kubectl create secret generic chat-service-env -n ideaconnection-dev --from-env-file=/dev/stdin --dry-run=client -o yaml | grep -oE "^  [A-Z_]+:"'
+   ssh t4-db 'M=$(grep "^CHAT_PASSWORD=" /opt/mongodb/.env | cut -d= -f2-); R=$(grep "^REDIS_PASSWORD=" /opt/redis/.env | cut -d= -f2-); printf "%s\n" "DB_URL=mongodb://10.10.24.10:27017/chat_service?authSource=chat_service" "DB_USERNAME=chat_service" "DB_PASSWORD=$M" "REDIS_URL=redis://10.10.24.10:6379" "REDIS_PASSWORD=$R" "OIDC_ISSUER_URI=http://10.10.24.101/realms/hellocloud"' | ssh t4-dev-cp 'kubectl create secret generic chat-service-env -n ideaconnection-dev --from-env-file=/dev/stdin --dry-run=client -o yaml | grep -oE "^  [A-Z_]+:"'
    ```
    - 값이 비어 있지 않은지는 위 명령의 `| ssh t4-dev-cp '…'` 부분을 `| awk -F= '{print $1, length($0)-length($1)-1}'`로 바꿔 글자 수로 확인합니다. 0이 있으면 `.env`의 이름이 다른 것입니다
 2. **만들기** — 1번 명령의 마지막 `| grep -oE "^  [A-Z_]+:"`를 `| kubectl apply -f -`로 바꿔 실행합니다. 비밀번호를 바꾼 뒤 다시 실행하면 덮어씁니다

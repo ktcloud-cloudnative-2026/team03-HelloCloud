@@ -28,6 +28,8 @@ Gateway 리소스 5개와 컨트롤러·CRD 33개를 Argo CD가 관리하며, �
   경로를 변경하지 않습니다.
 - `user-service-route`: `/api/users`, `/api/orgs` → `user-service:80`. 경로 앞부분을
   자르지 않고 그대로 전달합니다. 다른 서비스도 `/api` 아래를 쓰므로 서비스별 경로만 연결합니다.
+- `chat-service-route`: `/api/chat` → `chat-service:80`. WebSocket(`/api/chat/ws`)도
+  같은 경로로 연결합니다.
 - `keycloak/allow-hellocloud-gateway`: `ideaconnection-dev`의 HTTPRoute가
   `keycloak` Service를 참조하도록 허용합니다. Route 이름으로는 제한할 수 없습니다.
 - `10.10.24.101`은 MetalLB가 할당한 현재 주소입니다. `status`의 값을
@@ -42,7 +44,7 @@ Client는 전달받은 이름을 유지하고 관리자 API로 재확인하지 �
 
 ### 관리 범위와 최초 이관
 
-`argocd/platform/gateway-dev.yaml`은 위의 리소스 6개만 관리합니다.
+`argocd/platform/gateway-dev.yaml`은 위의 리소스와 `manifests/gateway/dev/`의 다른 Route만 관리합니다.
 `web-dev`, `user-service-dev`의 Deployment와 Service는 그대로 둡니다.
 `FailOnSharedResource=true`로 다른 앱의 관리 대상과 겹치면 동기화를 중단합니다.
 `prune: false`로 자동 삭제를 막습니다. 공용 `eg-test`는 `envoy-test/test-gateway`도
