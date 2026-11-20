@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createChannel, getChannels, getMessages, sendMessage } from '../api/chat'
+import { createChannel, getChannels, getDecisions, getMessages, sendMessage } from '../api/chat'
 import { getMembers } from '../api/members'
 import { getAccessToken, getCurrentUserId } from '../auth/keycloak'
 import { chatSocketUrl, createChatConnection } from './chat/chatConnection'
+import DecisionLog from './chat/DecisionLog'
 import MessageItem from './chat/MessageItem'
 import { fetchAfter, lastSeq, mergeMessages } from './chat/messages'
 import './ChatPage.css'
@@ -23,6 +24,10 @@ function ChatPage({ organization }) {
   const [activeId, setActiveId] = useState(null)
   const [messages, setMessages] = useState([])
   const [members, setMembers] = useState([])
+  // 'channel'이면 채널 대화, 'decisions'이면 결정 로그 목록
+  const [view, setView] = useState('channel')
+  const [decisions, setDecisions] = useState([])
+  const [focusId, setFocusId] = useState(null)
   const [ackOpen, setAckOpen] = useState(false)
   const [ackUserIds, setAckUserIds] = useState([])
   const [status, setStatus] = useState('connecting')
@@ -57,6 +62,9 @@ function ChatPage({ organization }) {
         if (ignore) return
         setMembers(data.items)
       })
+      .catch(() => {})
+    getDecisions(organization.id)
+      .then((data) => !ignore && setDecisions(data))
       .catch(() => {})
     return () => {
       ignore = true
@@ -107,7 +115,18 @@ function ChatPage({ organization }) {
     if (nearBottom || messages.at(-1)?.senderId === myId) list.scrollTop = list.scrollHeight
   }, [messages, myId])
 
+  // 결정 로그에서 원본으로 오면 그 메시지로 스크롤하고 잠깐 강조한다
+  useEffect(() => {
+    if (!focusId || view !== 'channel') return undefined
+    const element = listRef.current?.querySelector(`[data-message-id="${focusId}"]`)
+    if (!element) return undefined
+    element.scrollIntoView({ block: 'center' })
+    const timer = setTimeout(() => setFocusId(null), 2500)
+    return () => clearTimeout(timer)
+  }, [focusId, view, messages])
+
   const selectChannel = (id) => {
+    setView('channel')
     if (id === activeIdRef.current) return
     activeIdRef.current = id
     messagesRef.current = []
@@ -156,6 +175,15 @@ function ChatPage({ organization }) {
     }
   }
 
+  const openSource = (decision) => {
+    setFocusId(decision.sourceMessageId)
+    selectChannel(decision.sourceChannelId)
+  }
+
+  const addDecision = (decision) =>
+    setDecisions((prev) => (prev.some((d) => d.id === decision.id) ? prev : [decision, ...prev]))
+
+  const decidedIds = new Set(decisions.map((d) => d.sourceMessageId))
   const activeChannel = channels.find((c) => c.id === activeId)
   const names = Object.fromEntries(members.map((m) => [m.userId, m.displayName]))
   const others = members.filter((m) => m.userId !== myId)
@@ -166,13 +194,20 @@ function ChatPage({ organization }) {
   return (
     <section className="chat-layout">
       <aside className="chat-channels" aria-label="채널 목록">
+        <button
+          type="button"
+          className={`chat-decision-nav ${view === 'decisions' ? 'active' : ''}`}
+          onClick={() => setView('decisions')}
+        >
+          📌 결정 로그 <span>{decisions.length}</span>
+        </button>
         <h2>채널</h2>
         <ul>
           {channels.map((channel) => (
             <li key={channel.id}>
               <button
                 type="button"
-                className={channel.id === activeId ? 'active' : ''}
+                className={view === 'channel' && channel.id === activeId ? 'active' : ''}
                 onClick={() => selectChannel(channel.id)}
               >
                 # {channel.name}
@@ -198,7 +233,7 @@ function ChatPage({ organization }) {
 
       <div className="chat-room">
         <header className="chat-room-header">
-          <h1>{activeChannel ? `# ${activeChannel.name}` : '채팅'}</h1>
+          <h1>{view === 'decisions' ? '📌 결정 로그' : activeChannel ? `# ${activeChannel.name}` : '채팅'}</h1>
           <span className={`chat-status ${status}`} role="status">
             {STATUS_LABELS[status]}
           </span>
@@ -215,6 +250,15 @@ function ChatPage({ organization }) {
           </p>
         )}
 
+        {view === 'decisions' ? (
+          <DecisionLog
+            decisions={decisions}
+            channels={channels}
+            nameOf={(id) => (id === myId ? '나' : names[id] ?? '알 수 없는 사용자')}
+            onOpenSource={openSource}
+          />
+        ) : (
+          <>
         <ol className="chat-messages" ref={listRef} aria-live="polite">
           {messages.map((message) => (
             <MessageItem
@@ -222,6 +266,9 @@ function ChatPage({ organization }) {
               message={message}
               myId={myId}
               names={names}
+              decided={decidedIds.has(message.id)}
+              focused={message.id === focusId}
+              onDecided={addDecision}
               onUpdated={(updated) => applyMessages([updated])}
               onError={setError}
             />
@@ -278,6 +325,8 @@ function ChatPage({ organization }) {
             보내기
           </button>
         </div>
+          </>
+        )}
       </div>
     </section>
   )

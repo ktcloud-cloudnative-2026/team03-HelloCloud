@@ -9,6 +9,8 @@ import { RedisModule } from '../redis/redis.module';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
+import { DecisionService } from './decision.service';
+import { Decision, DecisionSchema } from './schemas/decision.schema';
 
 import {
   Channel,
@@ -25,13 +27,14 @@ import {
     MongooseModule.forFeature([
       { name: Channel.name, schema: ChannelSchema },
       { name: Message.name, schema: MessageSchema },
+      { name: Decision.name, schema: DecisionSchema },
     ]),
     AuthModule,
     MembershipModule,
     RedisModule,
   ],
   controllers: [ChatController],
-  providers: [ChatService, ChatGateway],
+  providers: [ChatService, ChatGateway, DecisionService],
   exports: [ChatService, MongooseModule],
 })
 export class ChatModule {}

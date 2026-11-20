@@ -4,19 +4,26 @@ import { AuthService } from '../auth/auth.service';
 import { MembershipService } from '../membership/membership.service';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
+import { DecisionService } from './decision.service';
 
 describe('ChatController', () => {
   const auth = 'Bearer t';
   let controller: ChatController;
   let membershipService: { assertMember: jest.Mock; isMember: jest.Mock };
+  let decisionService: { register: jest.Mock; list: jest.Mock };
   let chatService: {
     getChannels: jest.Mock;
     getChannel: jest.Mock;
     createChannel: jest.Mock;
     createMessage: jest.Mock;
+    getMessage: jest.Mock;
   };
 
   beforeEach(() => {
+    decisionService = {
+      register: jest.fn(),
+      list: jest.fn().mockResolvedValue([]),
+    };
     membershipService = {
       assertMember: jest.fn().mockResolvedValue(undefined),
       isMember: jest.fn().mockResolvedValue(true),
@@ -26,6 +33,7 @@ describe('ChatController', () => {
       getChannel: jest.fn().mockResolvedValue({ orgId: 'org1' }),
       createChannel: jest.fn().mockResolvedValue({}),
       createMessage: jest.fn().mockResolvedValue({}),
+      getMessage: jest.fn().mockResolvedValue({ _id: 'm1', orgId: 'org1' }),
     };
 
     controller = new ChatController(
@@ -34,6 +42,7 @@ describe('ChatController', () => {
         verifyToken: jest.fn().mockResolvedValue({ userId: 'u1' }),
       } as unknown as AuthService,
       membershipService as unknown as MembershipService,
+      decisionService as unknown as DecisionService,
     );
   });
 
@@ -119,6 +128,46 @@ describe('ChatController', () => {
         'hi',
         ['u2', 'u3'],
       );
+    });
+  });
+
+  describe('결정 등록', () => {
+    const res = () => ({ status: jest.fn() });
+
+    it('처음 등록이면 201', async () => {
+      decisionService.register.mockResolvedValue({
+        decision: { id: 'd1' },
+        created: true,
+      });
+      const r = res();
+      await expect(
+        controller.registerDecision(auth, 'm1', r as never),
+      ).resolves.toEqual({ id: 'd1' });
+      expect(r.status).toHaveBeenCalledWith(201);
+    });
+
+    it('이미 등록된 메시지면 200', async () => {
+      decisionService.register.mockResolvedValue({
+        decision: { id: 'd1' },
+        created: false,
+      });
+      const r = res();
+      await controller.registerDecision(auth, 'm1', r as never);
+      expect(r.status).toHaveBeenCalledWith(200);
+    });
+
+    it('메시지 조직의 멤버가 아니면 등록하지 않는다', async () => {
+      membershipService.assertMember.mockRejectedValue(new Error('403'));
+      await expect(
+        controller.registerDecision(auth, 'm1', res() as never),
+      ).rejects.toThrow('403');
+      expect(decisionService.register).not.toHaveBeenCalled();
+    });
+
+    it('목록은 orgId가 문자열이 아니면 400', async () => {
+      await expect(
+        controller.getDecisions(auth, ['a', 'b']),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });
