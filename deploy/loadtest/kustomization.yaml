@@ -2,8 +2,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: loadtest
+# namespace와 테스트 계정 Secret은 먼저 손으로 만든다. 여기 넣으면 정리할 때 Secret까지 지워진다
 resources:
-  - namespace.yaml
   - job.yaml
 configMapGenerator:
   - name: k6-script

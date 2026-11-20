@@ -66,7 +66,10 @@ k6(가상 사용자를 만들어 요청을 계속 보내는 도구)로 user · f
   토큰 받기) 켜기, access token 수명 15분. 8분 시나리오 중에 토큰이 끊기면 401이 에러율에 섞이기 때문입니다.
   수명은 realm 전체가 아니라 이 클라이언트 설정(Advanced)에만 겁니다. 웹 클라이언트 `hellocloud-web`은
   로그인 화면을 거치므로 켜지 않습니다(dev는 꺼져 있음).
-- 테스트 계정: 조직 하나에 속하고, 그 조직에 파일이 몇 개 있어야 합니다. 조직이 없으면 k6가 시작하자마자 멈춥니다.
+- 테스트 계정: 테스트 조직에 속하고, 그 조직에 파일이 몇 개 있어야 합니다. 조직 번호는 `run.env`의 `ORG_ID`에
+  적습니다. 계정이 그 조직에 없으면 k6가 시작하자마자 멈춥니다.
+- `loadtest` namespace와 테스트 계정 Secret `k6-loadtest-credentials`(키 `username`, `password`)는 Keycloak 담당이
+  손으로 만듭니다(시크릿 생성 예외). 비밀번호는 채팅 · 문서에 쓰지 않고 Secret에만 둡니다.
 - 로그인은 가상 사용자마다 처음 한 번만 합니다. 매번 하면 user · file이 아니라 Keycloak을 재게 됩니다.
 
 ### 실행 (cp)
@@ -75,21 +78,12 @@ k6(가상 사용자를 만들어 요청을 계속 보내는 도구)로 user · f
 
 ```bash
 mkdir -p /tmp/k6-loadtest && cd /tmp/k6-loadtest
-for f in kustomization.yaml namespace.yaml job.yaml read-apis.js run.env; do
+for f in kustomization.yaml job.yaml read-apis.js run.env; do
   curl -fsSLO "https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/loadtest/$f"
 done
 
-# 1. 네임스페이스와 테스트 계정 Secret. 비밀번호가 화면과 명령 기록에 남지 않게 입력받는다
-kubectl apply -f namespace.yaml
-read -r -p 'username: ' K6_USERNAME; read -r -s -p 'password: ' K6_PASSWORD; echo
-kubectl -n loadtest create secret generic k6-test-account \
-  --from-literal=K6_USERNAME="$K6_USERNAME" --from-literal=K6_PASSWORD="$K6_PASSWORD"
-unset K6_PASSWORD
-# 클라이언트가 confidential이면 비밀값도 넣는다. public이면 건너뛴다
-read -r -s -p 'client secret: ' K6_CLIENT_SECRET; echo
-kubectl -n loadtest patch secret k6-test-account --type merge \
-  -p "{\"stringData\":{\"K6_CLIENT_SECRET\":\"$K6_CLIENT_SECRET\"}}"
-unset K6_CLIENT_SECRET
+# 1. 테스트 계정 Secret이 있는지 이름만 확인한다 (값은 출력하지 않는다)
+kubectl -n loadtest get secret k6-loadtest-credentials
 
 # 2. smoke: 1명, 30초. 토큰 · 주소 · 이미지가 맞는지만 본다 (run.env 기본값)
 kubectl apply -k .
@@ -98,7 +92,7 @@ kubectl -n loadtest logs -f job/k6-read-apis
 
 # 3. 본 실행: Job은 고칠 수 없어 지우고 다시 만든다. VUS는 10 → 30 → 50으로 올려 본다
 kubectl -n loadtest delete job k6-read-apis
-printf 'MODE=full\nVUS=30\n' > run.env
+printf 'MODE=full\nVUS=30\nORG_ID=7\n' > run.env
 kubectl apply -k .
 kubectl -n loadtest logs -f job/k6-read-apis
 ```
@@ -120,7 +114,7 @@ HPA를 켜면 user · file이 각각 최대 3개라 메모리 requests 합이 6 
 ### 정리
 
 ```bash
-cd /tmp/k6-loadtest && kubectl delete -k .   # Job, 설정, Secret, 네임스페이스까지 지운다
+cd /tmp/k6-loadtest && kubectl delete -k .   # Job과 설정(ConfigMap)만 지운다. namespace · Secret은 남는다
 cd / && rm -rf /tmp/k6-loadtest
 ```
 

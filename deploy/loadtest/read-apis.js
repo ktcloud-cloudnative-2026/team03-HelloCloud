@@ -12,6 +12,8 @@ const PASSWORD = __ENV.K6_PASSWORD;
 const CLIENT_SECRET = __ENV.K6_CLIENT_SECRET;
 const VUS = Number(__ENV.VUS || 10);
 const SMOKE = __ENV.MODE === 'smoke';
+// 테스트 조직을 정해 두면 그 조직의 파일 목록을 부른다. 비우면 계정이 속한 첫 조직을 쓴다
+const ORG_ID = __ENV.ORG_ID;
 
 const TOKEN_URL = `${BASE_URL}/realms/${REALM}/protocol/openid-connect/token`;
 
@@ -65,7 +67,10 @@ export function setup() {
   if (!items || items.length === 0) {
     fail(`테스트 계정이 속한 조직이 없습니다 (status ${res.status})`);
   }
-  return { orgId: items[0].id };
+  if (ORG_ID && !items.some((o) => String(o.id) === String(ORG_ID))) {
+    fail(`테스트 계정이 조직 ${ORG_ID}에 속해 있지 않습니다`);
+  }
+  return { orgId: ORG_ID || items[0].id };
 }
 
 // 가상 사용자(VU)마다 따로 가진다. VU 하나가 브라우저 하나라고 보면 된다.
