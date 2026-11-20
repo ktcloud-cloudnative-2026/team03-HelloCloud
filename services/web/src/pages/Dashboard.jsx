@@ -5,34 +5,35 @@ import ChatPage from './ChatPage'
 import { logout } from '../auth/keycloak'
 import BrandIcon from '../brand/BrandIcon'
 import InviteDialog from '../components/InviteDialog'
+import Icon from '../components/Icon'
 import MemberList from '../components/MemberList'
 import { relativeTime } from './dashboard/activity'
 import { useDashboardData } from './dashboard/useDashboardData'
 import './Dashboard.css'
 
 const menuItems = [
-  { id: 'dashboard', icon: '▦', label: '대시보드' },
-  { id: 'members', icon: '♙', label: '멤버' },
-  { id: 'chat', icon: '▤', label: '채팅' },
-  { id: 'files', icon: '▣', label: '파일 관리' },
-  { id: 'tasks', icon: '☑', label: '업무 관리', preview: true },
-  { id: 'calendar', icon: '▦', label: '캘린더', preview: true },
+  { id: 'dashboard', icon: 'grid', label: '대시보드' },
+  { id: 'members', icon: 'users', label: '멤버' },
+  { id: 'chat', icon: 'chat', label: '채팅' },
+  { id: 'files', icon: 'folder', label: '파일 관리' },
+  { id: 'tasks', icon: 'check', label: '업무 관리', preview: true },
+  { id: 'calendar', icon: 'calendar', label: '캘린더', preview: true },
 ]
 
 const summaryItems = [
-  { id: 'members', label: '조직 멤버', icon: '♙', tone: 'green' },
-  { id: 'unread', label: '새 메시지', icon: '✉', tone: 'purple' },
-  { id: 'files', label: '공유 파일', icon: '▣', tone: 'blue' },
-  { id: 'decisions', label: '고정 메시지', icon: '📌', tone: 'orange' },
+  { id: 'members', label: '조직 멤버', icon: 'users', tone: 'green' },
+  { id: 'unread', label: '새 메시지', icon: 'mail', tone: 'purple' },
+  { id: 'files', label: '공유 파일', icon: 'folder', tone: 'blue' },
+  { id: 'decisions', label: '고정 메시지', icon: 'pin', tone: 'orange' },
 ]
 
 const activityTones = { message: 'purple', file: 'green', decision: 'blue' }
 
 const quickLinks = [
-  { id: 'chat', icon: '✉', label: '채팅', description: '팀원들과 대화하기' },
-  { id: 'files', icon: '▣', label: '파일', description: '공유 파일 확인하기' },
-  { id: 'tasks', icon: '☑', label: '업무', description: '진행 상황 살펴보기' },
-  { id: 'calendar', icon: '▦', label: '일정', description: '팀 일정 확인하기' },
+  { id: 'chat', icon: 'chat', label: '채팅', description: '팀원들과 대화하기' },
+  { id: 'files', icon: 'folder', label: '파일', description: '공유 파일 확인하기' },
+  { id: 'tasks', icon: 'check', label: '업무', description: '진행 상황 살펴보기' },
+  { id: 'calendar', icon: 'calendar', label: '일정', description: '팀 일정 확인하기' },
 ]
 
 function Dashboard({ organization, onBack, onLeave }) {
@@ -96,7 +97,7 @@ function Dashboard({ organization, onBack, onLeave }) {
               onClick={() => handleMenuClick(item.id)}
             >
               <span className="dashboard-nav-icon" aria-hidden="true">
-                {item.icon}
+                <Icon name={item.icon} />
               </span>
               <span>{item.label}</span>
               {item.preview && (
@@ -196,7 +197,7 @@ function Dashboard({ organization, onBack, onLeave }) {
                   {summaryItems.map((item) => (
                     <article className="dashboard-summary-card" key={item.id}>
                       <div className={`dashboard-summary-icon ${item.tone}`}>
-                        {item.icon}
+                        <Icon name={item.icon} size={22} />
                       </div>
                       <p>{item.label}</p>
                       {/* 불러오지 못한 카드만 – 로 둔다 */}
@@ -262,7 +263,7 @@ function Dashboard({ organization, onBack, onLeave }) {
                         onClick={() => handleMenuClick(link.id)}
                       >
                         <span className="dashboard-quick-icon">
-                          {link.icon}
+                          <Icon name={link.icon} />
                         </span>
                         <span>
                           <strong>{link.label}</strong>
