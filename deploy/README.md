@@ -202,6 +202,10 @@ HPA(요청이 몰리면 파드를 자동으로 늘리기)는 공통 차트에 �
 (requests 합 2Gi, w1 여유 약 5Gi)를 보고 정했습니다. 켜면 Deployment의 `replicas`는 쓰지 않습니다. 파드 수는
 HPA가 정하고, 적어 두면 Argo CD가 매번 원래 수로 되돌리기 때문입니다. 확인: `kubectl get hpa -n ideaconnection-dev`
 
+user · file은 `autoscaling.behavior`로 늘리기 전 2분 동안 CPU가 계속 높은지 봅니다(`scaleUp.stabilizationWindowSeconds: 120`).
+Java가 켜질 때 잠깐 CPU를 많이 써서, 이 설정이 없으면 재배포 때마다 파드가 3개로 늘었다가 줄어듭니다(#146).
+대신 부하가 갑자기 늘면 파드가 늘기까지 2분쯤 늦어집니다. 차트 기본값은 비어 있어 다른 서비스에는 영향이 없습니다
+
 ## dev 자동 배포
 
 `argocd/services/user-service-dev.yaml`은 dev 클러스터에 설치된 Argo CD의
