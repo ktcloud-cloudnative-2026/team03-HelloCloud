@@ -1,4 +1,4 @@
 # 서버끼리 Redis로 전달되는지(US-06) dev에서도 확인하려고 2개로 둔다
 replicaCount: 2
 image:
-  tag: "39625ad"
+  tag: "fecfec2"
