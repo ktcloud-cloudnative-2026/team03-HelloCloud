@@ -36,6 +36,15 @@ singleBinary:
     - name: GOMEMLIMIT
       value: 450MiB
 
+# Monolithic만 쓴다. 차트 기본값에 SimpleScalable(backend · read · write) 파드 수가 켜져 있어
+# 그대로 두면 차트 검사(validate.yaml)가 "두 방식이 같이 켜졌다"며 그리기를 멈춘다(#172 리뷰)
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
 # 기본값이 켜져 있지만 쓰지 않는 것들. 특히 chunksCache는 기본 8GB를 잡아 워커 메모리를 넘는다
 chunksCache:
   enabled: false
