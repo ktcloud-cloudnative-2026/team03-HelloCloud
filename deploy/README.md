@@ -602,3 +602,97 @@ Cloudflare 연결 개통 후 realm 공개 설정의 issuer가 운영 HTTPS 주�
 
 서버 dry-run 통과는 실제 MySQL 스키마 초기화·Keycloak 기동·HTTPS 로그인 성공을 뜻하지 않습니다.
 이번 구성의 첫 기동은 전용 DB에 Keycloak 스키마를 생성하는 작업을 포함합니다.
+
+## 운영 저장소와 서비스 연결 준비
+
+운영 SeaweedFS는 dev와 동일한 차트 4.53.0·이미지 4.53을 사용합니다.
+`seaweedfs-prod` 앱은 **운영 클러스터**의 `seaweedfs` namespace에 설치하며,
+dev 클러스터의 Secret·PVC·파일을 복사하거나 수정하지 않습니다.
+공통 values의 local-path PVC(master 1Gi, filer 1Gi, volume 10Gi)를 새로 생성합니다.
+초기 단일 복제본과 노드 로컬 저장소이므로 노드 장애 시 자동 복구·백업을 보장하지 않습니다.
+PVC 삭제·앱 prune은 하지 않으며, 백업·복구와 다중 노드 저장 구성은 별도 검증 항목입니다.
+
+- 먼저 운영 `seaweedfs/seaweedfs-s3-auth` Secret을 준비합니다.
+  고정 차트 렌더링에서 인증 파일 키 `seaweedfs_s3_config`를 확인했습니다.
+- 파일 서비스 전용 S3 계정은 `chat-attachments` 버킷에 필요한 권한만 부여합니다.
+  dev 관리자 인증을 재사용하지 않습니다. 실제 인증값은 Git에 넣지 않습니다.
+- 운영 버킷 생성과 브라우저 업로드에 필요한 CORS 확인이 끝나기 전에는
+  저장소 준비 완료로 판단하지 않습니다.
+- 내부 S3 주소는 `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333`,
+  외부 S3 주소는 `https://ideaconnection.jpexstudio.com`입니다.
+  `/chat-attachments` 경로와 ReferenceGrant로 namespace 간 Service 참조를 허용합니다.
+
+운영 Gateway에 `/api/users`·`/api/orgs`·`/api/invitations`는 user-service,
+`/api/files`는 file-service, `/api/chat`은 chat-service로 연결합니다.
+각 운영 이미지 태그는 이 작업 시점의 dev values에 지정된 버전을 고정했습니다.
+이는 운영에서 로그인·WebSocket·파일 기능을 검증했다는 뜻은 아닙니다.
+
+서비스 앱 등록 전 `ideaconnection-prod`에 각 전용 Secret을 준비합니다.
+필수 키는 각 서비스 공통 values의 secretKeyRef와 일치해야 합니다.
+user-service의 선택 키인 INVITE_BASE_URL·REDIS_URL·REDIS_PASSWORD도 운영에서는
+설정하여 초대 링크가 localhost로 만들어지거나 멤버 제거 알림이 빠지지 않게 합니다.
+issuer는 `https://ideaconnection.jpexstudio.com/realms/hellocloud`로 통일합니다.
+
+등록 순서는 Keycloak → SeaweedFS → user-service → file-service → chat-service입니다.
+각 단계의 준비 상태·인증 연결을 확인한 뒤 다음 앱을 등록합니다.
+SeaweedFS 앱은 dev와 같이 수동 동기화로 두므로 등록 후 diff를 검토하고 동기화합니다.
+폴더 전체를 apply하지 않고 아래 파일을 운영 cp에서 하나씩 등록합니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/seaweedfs-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/user-service-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/file-service-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/chat-service-prod.yaml
+```
+
+이 명령은 선행 조건이 충족된 단계에서만 실행합니다. 현재 Secret·버킷 초기화,
+실제 서비스 기동과 외부 HTTPS 연결 검증은 진행 중입니다.
+
+운영 저장소 인증은 `deploy/cluster/scripts/prepare-prod-storage-secret.py`로 준비합니다.
+`--check`는 구조만 검사하며 서버를 바꾸지 않습니다. 실제 실행 시 운영 노드 3개의
+InternalIP를 검사하고 기존 Secret이 있으면 덮어쓰지 않고 중단합니다.
+키는 메모리에서 무작위 생성하고 kubectl 표준 입력으로만 전달합니다.
+관리 계정과 `chat-attachments` 버킷으로 권한을 제한한 파일 서비스 계정을 분리합니다.
+운영 namespace 준비와 Secret 생성은 담당자가 명령을 확인한 뒤 직접 실행합니다.
+관리용 키는 버킷 초기화·CORS 설정용이며 file-service에는 전달하지 않습니다.
+인증 형식 근거: [SeaweedFS 4.53 예제](https://github.com/seaweedfs/seaweedfs/blob/4.53/docker/compose/s3.json),
+[버킷별 권한 검사](https://github.com/seaweedfs/seaweedfs/blob/4.53/weed/s3api/auth_credentials.go).
+
+서비스 Secret 준비 스크립트는 `deploy/cluster/scripts/prepare-prod-service-secrets.py`입니다.
+`--check`로 키 구조를 검사합니다. `export-db`는 운영 DB VM의 기존 비밀번호를
+읽어 표준 출력으로 전달하므로 **단독 실행하거나 tee·파일 저장·화면 출력하지 않습니다**.
+내 PC WSL에서 아래처럼 반드시 `register` 입력으로 연결합니다.
+두 SSH 사이에서 전달되는 내용에는 비밀값이 있으므로 디버그 출력·쉘 추적을 켜지 않습니다.
+
+```bash
+scp deploy/cluster/scripts/prepare-prod-service-secrets.py t3-prod-db:/tmp/prepare-prod-service-secrets.py
+scp deploy/cluster/scripts/prepare-prod-service-secrets.py t3-prod-cp:/tmp/prepare-prod-service-secrets.py
+set -o pipefail
+ssh -T t3-prod-db 'python3 /tmp/prepare-prod-service-secrets.py export-db' \
+  | ssh -T t3-prod-cp 'python3 /tmp/prepare-prod-service-secrets.py register'
+```
+
+`register`는 운영 노드 IP를 검사하고 세 서비스 Secret이 모두 없는지 확인한 뒤 생성합니다.
+기존 Secret은 수정하지 않습니다. 생성 도중 오류가 나면 일부만 생성됐을 수 있으므로
+이름과 키 개수만 확인하고, 임의 삭제·재실행 대신 원인을 확인합니다.
+파일 서비스에는 관리용 S3 키 대신 전용 버킷 계정만 전달합니다.
+Secret 생성은 DB 로그인·Flyway·외부 issuer 접근 성공을 의미하지 않습니다.
+
+운영 SeaweedFS 동기화 후 `PostSync` Job이 관리자 키를 Secret에서 읽어
+`chat-attachments` 버킷과 CORS를 준비합니다. 기존 버킷은 삭제하지 않습니다.
+CORS는 기존 파일 서비스 스크립트와 같은 메서드·헤더를 사용하되 origin은
+`https://ideaconnection.jpexstudio.com` 하나만 허용합니다.
+Job 도구는 AWS CLI 2.32.4로 고정하며 Secret이나 임시 URL을 로그로 출력하지 않습니다.
+성공 Job은 정리하고 실패 Job은 남겨 원인을 확인합니다.
+실패 시 SeaweedFS 준비 완료로 판단하지 않고 저장소 상태와 Job 로그부터 확인합니다.
+
+### 이번 변경의 검사 기록 (2026-11-20)
+
+- user·file·chat·web의 dev/prod 총 8조합 Helm lint·template 통과
+- 운영 Gateway·Keycloak·SeaweedFS manifest와 Argo CD 앱 총 21개 리소스의
+  prod cp server dry-run 통과. 실제 적용은 하지 않음
+- Secret 준비 스크립트 구조, 서비스 필수 키 일치, 잘못된 클러스터 실행 거부와
+  기존 Secret 덮어쓰기 방지를 로컬 검사로 확인
+- 담당자가 운영 저장소 인증과 user·file·chat Secret 생성 성공 확인
+- 실제 로그인·DB 마이그레이션·S3 초기화·서비스 연결·공개 HTTPS 동작은
+  머지 후 앱을 순서대로 등록·동기화하며 확인할 항목

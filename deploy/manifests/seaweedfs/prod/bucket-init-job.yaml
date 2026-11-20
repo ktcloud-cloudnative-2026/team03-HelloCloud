@@ -1,0 +1,56 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seaweedfs-prod-bucket-init
+  namespace: seaweedfs
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: bucket-init
+          image: amazon/aws-cli:2.32.4
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              set -eu
+              export AWS_CONFIG_FILE=/tmp/aws-config
+              printf '[default]\ns3 =\n    addressing_style = path\n' > "$AWS_CONFIG_FILE"
+              endpoint=http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
+              if ! aws --endpoint-url "$endpoint" s3api head-bucket --bucket chat-attachments >/dev/null 2>&1; then
+                aws --endpoint-url "$endpoint" s3api create-bucket --bucket chat-attachments >/dev/null
+              fi
+              aws --endpoint-url "$endpoint" s3api put-bucket-cors --bucket chat-attachments --cors-configuration '{"CORSRules":[{"AllowedOrigins":["https://ideaconnection.jpexstudio.com"],"AllowedMethods":["PUT","GET","HEAD"],"AllowedHeaders":["content-type","x-amz-*"],"ExposeHeaders":["ETag","Content-Length","Content-Type"],"MaxAgeSeconds":300}]}'
+              aws --endpoint-url "$endpoint" s3api head-bucket --bucket chat-attachments
+              aws --endpoint-url "$endpoint" s3api get-bucket-cors --bucket chat-attachments --query 'CORSRules[].AllowedOrigins' --output text
+              printf 'Production bucket and CORS ready\n'
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-s3-auth
+                  key: ADMIN_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: seaweedfs-s3-auth
+                  key: ADMIN_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_EC2_METADATA_DISABLED
+              value: 'true'
+            - name: AWS_PAGER
+              value: ''
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi

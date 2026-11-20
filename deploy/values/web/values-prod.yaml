@@ -1,4 +1,3 @@
 replicaCount: 2
-
 image:
-  tag: "75583e7"
+  tag: a246510
