@@ -459,7 +459,8 @@ chat의 `chat-service-env` Secret(`ideaconnection-dev`)에는 아래 값을 씁�
 ## DB VM (prod MongoDB · Redis)
 
 2026-11-20 운영 DB VM `10.10.24.20`에 설치했습니다. dev와 비밀번호·데이터를 공유하지 않습니다.
-Docker는 위 MySQL 설치 때 준비했습니다. 실제 변경은 팀 확인 후 진행하고,
+Docker는 위 MySQL 설치 때 준비했고, 11/20 팀 확인 후 MongoDB·Redis를 설치했습니다.
+아래 명령은 설치 기록입니다. 재설치 등 실제 변경은 팀 확인 후 진행하며,
 이미 설치된 서버에서는 초기화 명령을 반복하지 않습니다.
 
 | 항목 | MongoDB | Redis |
@@ -630,8 +631,14 @@ done
 - prod cp에서 27017·6379 TCP 연결 성공 (MySQL 3306은 11/19 확인)
 - 최종 조회 시 메모리: MySQL 약 441MiB/1GiB, MongoDB 약 107MiB/1GiB, Redis 약 4MiB/384MiB
 - VM 가용 메모리 약 2.7GiB, swap 없음. 순간 조회이며 부하 상황 검증은 아닙니다
+- 운영 user의 `MEMBER_REMOVED` 알림 연동 시 `user-service-env`에도 같은 운영 Redis의
+  `REDIS_URL`·`REDIS_PASSWORD`를 넣어야 합니다. Secret 주입과 실제 이벤트 발행·수신 검증은 후속 작업입니다
+- dev·prod 사이의 실제 DB 접속 가능 여부는 아직 검사하지 않았습니다. VM 방화벽에서 DB 포트에
+  prod 노드 IP(10.10.24.21~23)만 허용하는 방안을 실제 접속 원본·필요한 관리 경로 확인 후 적용·검증합니다.
+  Docker 공개 포트는 단순 UFW 규칙만으로 차단되지 않을 수 있으므로 Docker 전달 경로에 유효한 규칙을 확인합니다.
+  내부 IP 바인딩만으로 dev·prod 접근 격리가 완료된 것은 아닙니다
 - 운영 Secret·파드 인증·서비스 API 연결, MySQL 접속 원본 제한, Redis ACL, 백업·복구와
-  운영 DB 모니터링은 후속 범위입니다. dev 설정과 비밀번호를 복사하지 않습니다
+  운영 DB 모니터링은 후속 범위입니다. dev 비밀번호를 재사용하지 않습니다
 - 실제 비밀번호 파일·전체 `docker inspect`·`--quiet` 없는 compose 설정은 출력하거나 공유하지 않습니다
 
 ## DB VM (dev exporter)
