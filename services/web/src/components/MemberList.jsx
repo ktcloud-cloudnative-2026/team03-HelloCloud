@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getMembers, removeMember } from '../api/members'
+import { deleteOrganization } from '../api/organizations'
 import { getCurrentUserId } from '../auth/keycloak'
+import { canDeleteOrganization } from './orgDelete'
 import './MemberList.css'
 
 const PAGE_SIZE = 20
@@ -16,6 +18,8 @@ function MemberList({ organization, onLeave }) {
   const [loadError, setLoadError] = useState('')
   const [actionError, setActionError] = useState('')
   const [busyId, setBusyId] = useState(null)
+  const [deleteName, setDeleteName] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     let ignore = false
@@ -85,6 +89,18 @@ function MemberList({ organization, onLeave }) {
     }
   }
 
+  const handleDeleteOrganization = async () => {
+    setDeleting(true)
+    setActionError('')
+    try {
+      await deleteOrganization(organization.id)
+      onLeave()
+    } catch (e) {
+      setActionError(`조직을 삭제하지 못했어요: ${e.message}`)
+      setDeleting(false)
+    }
+  }
+
   return (
     <section className="member-section" aria-labelledby="member-title">
       <div className="member-heading">
@@ -144,6 +160,36 @@ function MemberList({ organization, onLeave }) {
         >
           더 보기
         </button>
+      )}
+
+      {isOwner && (
+        <div className="member-danger">
+          <h2>조직 삭제</h2>
+          <p>
+            멤버 · 초대 링크가 모두 지워지고, 멤버들은 이 조직의 채팅과 파일에 더 이상 들어올 수
+            없어요. 되돌릴 수 없어요.
+          </p>
+          <label htmlFor="org-delete-name">
+            확인을 위해 조직 이름 <strong>{organization.name}</strong>을(를) 입력해 주세요
+          </label>
+          <div className="member-danger-row">
+            <input
+              id="org-delete-name"
+              value={deleteName}
+              onChange={(e) => setDeleteName(e.target.value)}
+              autoComplete="off"
+              disabled={deleting}
+            />
+            <button
+              type="button"
+              className="member-delete-org"
+              onClick={handleDeleteOrganization}
+              disabled={deleting || !canDeleteOrganization(organization.name, deleteName)}
+            >
+              {deleting ? '삭제하는 중...' : '조직 삭제'}
+            </button>
+          </div>
+        </div>
       )}
 
       {!isOwner && myId && (

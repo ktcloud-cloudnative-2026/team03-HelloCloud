@@ -17,4 +17,8 @@ interface InvitationRepository extends JpaRepository<Invitation, Long> {
       "update Invitation i set i.acceptedBy = :userId, i.acceptedAt = :now"
           + " where i.id = :id and i.acceptedAt is null and i.expiresAt > :now")
   int markAccepted(@Param("id") Long id, @Param("userId") String userId, @Param("now") Instant now);
+
+  @Modifying
+  @Query("delete from Invitation i where i.orgId = :orgId")
+  int deleteByOrgId(@Param("orgId") Long orgId);
 }

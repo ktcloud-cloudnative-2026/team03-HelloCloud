@@ -13,3 +13,7 @@ export async function createOrganization(name) {
     body: JSON.stringify({ name }),
   })
 }
+// 조직 삭제(OWNER만). 멤버 · 초대도 함께 지워지고 되돌릴 수 없다
+export async function deleteOrganization(orgId) {
+  return apiRequest(`/api/orgs/${orgId}`, { method: 'DELETE' })
+}
