@@ -9,12 +9,15 @@ import {
   Param,
   Post,
   Query,
+  Res,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 
 import { AuthService } from '../auth/auth.service';
 import { MembershipService } from '../membership/membership.service';
 import { ChatService, MAX_ACK_USERS } from './chat.service';
+import { DecisionService } from './decision.service';
 import { ChannelType } from './schemas/channel.schema';
 
 type CreateChannelBody = {
@@ -64,6 +67,7 @@ export class ChatController {
     private readonly chatService: ChatService,
     private readonly authService: AuthService,
     private readonly membershipService: MembershipService,
+    private readonly decisionService: DecisionService,
   ) {}
 
   private async authenticate(authorization?: string) {
@@ -203,7 +207,7 @@ export class ChatController {
 
     await this.membershipService.assertMember(message.orgId, userId, token);
 
-    return { userId };
+    return { userId, message };
   }
 
   @Get('messages/:id/acknowledgements')
@@ -261,5 +265,43 @@ export class ChatController {
     );
 
     await this.chatService.removeReaction(messageId, userId, emoji);
+  }
+
+  // 처음 등록이면 201, 이미 등록된 메시지면 200과 처음 기록
+  @Post('messages/:id/decision')
+  async registerDecision(
+    @Headers('authorization') authorization: string,
+    @Param('id') messageId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { userId, message } = await this.authenticateForMessage(
+      authorization,
+      messageId,
+    );
+
+    const { decision, created } = await this.decisionService.register(
+      message,
+      userId,
+    );
+
+    res.status(created ? 201 : 200);
+    return decision;
+  }
+
+  @Get('decisions')
+  async getDecisions(
+    @Headers('authorization') authorization: string,
+    @Query('orgId') rawOrgId: unknown,
+  ) {
+    const { token, userId } = await this.authenticate(authorization);
+    const orgId = optionalString(rawOrgId, 'orgId');
+
+    if (!orgId?.trim()) {
+      throw new BadRequestException('orgId가 필요합니다.');
+    }
+
+    await this.membershipService.assertMember(orgId, userId, token);
+
+    return this.decisionService.list(orgId);
   }
 }
