@@ -7,6 +7,7 @@ import {
 
 type VerifiedUser = {
   userId: string;
+  expiresAt: number;
   claims: JWTPayload;
 };
 
@@ -49,6 +50,8 @@ export class AuthService {
 
       return {
         userId: payload.sub,
+        // requiredClaims로 exp가 있음을 확인했다
+        expiresAt: (payload.exp as number) * 1000,
         claims: payload,
       };
     } catch (error) {

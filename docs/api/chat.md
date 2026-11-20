@@ -59,7 +59,15 @@
 { "type": "MESSAGE_CREATED", "orgId": "1", "channelId": "10", "data": { "id": "6721f0a3", "seq": 121, "text": "내용" }, "sentAt": "2026-11-06T09:00:00+09:00" }
 ```
 
-이모지와 확인 변경은 `MESSAGE_UPDATED`로 보냅니다. 멤버 제거를 알리는 `MEMBER_REMOVED`를 받으면 그 사용자의 연결을 끊습니다.
+이모지와 확인 변경은 `MESSAGE_UPDATED`로 보냅니다.
+
+연결이 끊기는 경우는 아래와 같습니다. 모두 코드 `1008`로 닫으며, 화면은 새 토큰으로 다시 연결합니다.
+
+| 이유(reason) | 언제 |
+|---|---|
+| `Membership revoked` | user가 `MEMBER_REMOVED`를 알렸고, 그 사용자가 그 조직 채널을 구독 중일 때(US-04) |
+| `Token expired` | 로그인 토큰이 만료됐을 때. 만료 전에 새 토큰으로 `AUTH`를 다시 보내면 연결이 이어집니다 |
+| `User mismatch` | 다시 보낸 `AUTH`가 다른 사용자의 토큰일 때 |
 
 ## 3. 만들 때 확인할 것
 

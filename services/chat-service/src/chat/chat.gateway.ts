@@ -15,7 +15,11 @@ import { ChatService } from './chat.service';
 type AuthenticatedSocket = WebSocket & {
   userId?: string;
   token?: string;
-  subscriptions?: Set<string>;
+  // 구독한 채널 ID → 그 채널의 조직 ID. 멤버 제거 알림이 오면 조직으로 찾는다
+  subscriptions?: Map<string, string>;
+  // 이 연결에서 소속이 빠진 조직. 소속 확인 중이던 SUBSCRIBE가 뒤늦게 붙지 않게 한다
+  revokedOrgs?: Set<string>;
+  tokenExpiryTimer?: ReturnType<typeof setTimeout>;
 };
 
 type ClientMessage = {
@@ -33,6 +37,24 @@ type ChatEvent = {
     [key: string]: unknown;
   };
 };
+
+type MemberEvent = {
+  type: 'MEMBER_REMOVED';
+  orgId: string;
+  userId: string;
+};
+
+function isMemberEvent(value: unknown): value is MemberEvent {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const event = value as Partial<MemberEvent>;
+
+  return (
+    event.type === 'MEMBER_REMOVED' &&
+    typeof event.orgId === 'string' &&
+    typeof event.userId === 'string'
+  );
+}
 
 function isChatEvent(value: unknown): value is ChatEvent {
   if (typeof value !== 'object' || value === null) return false;
@@ -69,6 +91,10 @@ export class ChatGateway
     await this.redisService.subscribe(
       'hellocloud-chat-events',
       (rawMessage: string) => this.relayChatEvent(rawMessage),
+    );
+    await this.redisService.subscribe(
+      'hellocloud-member-events',
+      (rawMessage: string) => this.handleMemberEvent(rawMessage),
     );
 
     this.logger.log('Redis → WebSocket 채팅 전달 준비 완료');
@@ -112,9 +138,42 @@ export class ChatGateway
     }
   }
 
+  // user-service가 멤버를 지우면 보낸다(docs/api/user.md 4절). 새 요청은 소속 확인으로
+  // 막히지만 이미 열린 연결은 계속 메시지를 받으므로, 그 조직 채널을 구독한 연결을 끊는다.
+  handleMemberEvent(rawMessage: string): void {
+    let event: MemberEvent;
+
+    try {
+      const parsed: unknown = JSON.parse(rawMessage);
+
+      if (!isMemberEvent(parsed)) {
+        this.logger.warn('잘못된 Redis 멤버 이벤트');
+        return;
+      }
+
+      event = parsed;
+    } catch {
+      this.logger.warn('잘못된 Redis 멤버 이벤트');
+      return;
+    }
+
+    for (const client of this.clients) {
+      if (client.userId !== event.userId) continue;
+
+      client.revokedOrgs?.add(event.orgId);
+
+      const subscribedOrgs = new Set(client.subscriptions?.values());
+
+      if (subscribedOrgs.has(event.orgId)) {
+        client.close(1008, 'Membership revoked');
+      }
+    }
+  }
+
   handleConnection(client: AuthenticatedSocket): void {
     this.clients.add(client);
-    client.subscriptions = new Set<string>();
+    client.subscriptions = new Map<string, string>();
+    client.revokedOrgs = new Set<string>();
 
     this.logger.log('WebSocket 클라이언트 연결');
 
@@ -149,6 +208,7 @@ export class ChatGateway
 
     client.once('close', () => {
       clearTimeout(authTimeout);
+      clearTimeout(client.tokenExpiryTimer);
       client.subscriptions?.clear();
       this.clients.delete(client);
     });
@@ -212,11 +272,6 @@ export class ChatGateway
     message: ClientMessage,
     authTimeout: ReturnType<typeof setTimeout>,
   ): Promise<void> {
-    if (client.userId) {
-      client.send(JSON.stringify({ type: 'AUTH_OK' }));
-      return;
-    }
-
     if (typeof message.token !== 'string' || !message.token) {
       client.close(1008, 'Token required');
       return;
@@ -227,15 +282,35 @@ export class ChatGateway
 
       if (client.readyState !== WebSocket.OPEN) return;
 
+      // 인증한 뒤 다시 보내는 AUTH는 새 토큰으로 연결을 연장하는 것이다. 다른 사람 토큰은 받지 않는다
+      if (client.userId && client.userId !== user.userId) {
+        client.close(1008, 'User mismatch');
+        return;
+      }
+
       client.userId = user.userId;
       client.token = message.token;
       clearTimeout(authTimeout);
+      this.scheduleTokenExpiry(client, user.expiresAt);
 
       client.send(JSON.stringify({ type: 'AUTH_OK' }));
       this.logger.log('WebSocket 사용자 인증 성공');
     } catch {
       client.close(1008, 'Invalid token');
     }
+  }
+
+  // 토큰이 만료되면 연결을 끊는다. 멤버 제거 알림을 놓쳐도(Redis 장애) 토큰 수명 안에는 끊긴다
+  private scheduleTokenExpiry(
+    client: AuthenticatedSocket,
+    expiresAt: number,
+  ): void {
+    clearTimeout(client.tokenExpiryTimer);
+
+    client.tokenExpiryTimer = setTimeout(
+      () => client.close(1008, 'Token expired'),
+      Math.max(expiresAt - Date.now(), 0),
+    );
   }
 
   private async handleSubscribe(
@@ -276,7 +351,12 @@ export class ChatGateway
 
       if (client.readyState !== WebSocket.OPEN) return;
 
-      client.subscriptions?.add(message.channelId);
+      if (client.revokedOrgs?.has(channel.orgId)) {
+        client.close(1008, 'Membership revoked');
+        return;
+      }
+
+      client.subscriptions?.set(message.channelId, channel.orgId);
 
       client.send(
         JSON.stringify({

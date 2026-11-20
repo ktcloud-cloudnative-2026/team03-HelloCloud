@@ -85,7 +85,7 @@
 ## 4. 멤버가 나갈 때
 
 1. `organization_members` 행을 지웁니다. 다른 서비스의 소속 기억은 3초 뒤 사라지므로 새 요청은 5초 안에 막힙니다.
-2. Redis로 `MEMBER_REMOVED`를 알려, chat이 그 사용자의 실시간 연결을 끊습니다.
+2. 삭제가 커밋된 뒤 Redis 채널 `hellocloud-member-events`로 `MEMBER_REMOVED`를 알려, chat이 그 사용자의 실시간 연결을 끊습니다. Redis가 멈춰 알림이 빠져도 멤버 제거는 성공합니다. 그때 열린 연결은 로그인 토큰이 만료될 때 끊깁니다.
 
 ```json
 { "type": "MEMBER_REMOVED", "orgId": "1", "userId": "3f2c8e1a-..." }

@@ -15,6 +15,13 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+  data:
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+      password: ${REDIS_PASSWORD:}
+      # Redis가 멈췄을 때 멤버 제거 요청이 오래 기다리지 않게 한다(기본 60초)
+      timeout: 1s
+      connect-timeout: 1s
   security:
     oauth2:
       resourceserver:
