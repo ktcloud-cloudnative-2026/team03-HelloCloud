@@ -356,6 +356,21 @@ export class ChatController {
     return decision;
   }
 
+  // 고정 해제. 고정과 같이 메시지 조직의 멤버면 누구나 할 수 있다
+  @Delete('messages/:id/decision')
+  @HttpCode(204)
+  async unregisterDecision(
+    @Headers('authorization') authorization: string,
+    @Param('id') messageId: string,
+  ) {
+    const { message } = await this.authenticateForMessage(
+      authorization,
+      messageId,
+    );
+
+    await this.decisionService.unregister(String(message._id));
+  }
+
   @Get('decisions')
   async getDecisions(
     @Headers('authorization') authorization: string,

@@ -71,4 +71,21 @@ describeMongo('DecisionService (MongoDB)', () => {
     expect(list[0].sourceMessageId).toBe(String(last._id));
     expect(list.every((d) => d.orgId === 'org1')).toBe(true);
   });
+
+  it('고정을 풀면 목록에서 빠지고, 다시 풀어도 오류가 없다', async () => {
+    const source = message('고정 해제');
+    await service.register(source, 'bob');
+
+    await service.unregister(String(source._id));
+    await service.unregister(String(source._id));
+
+    const list = await service.list('org1');
+    expect(list.some((d) => d.sourceMessageId === String(source._id))).toBe(
+      false,
+    );
+
+    // 풀고 나면 다시 고정할 수 있다
+    const again = await service.register(source, 'carol');
+    expect(again.created).toBe(true);
+  });
 });

@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { formatTime } from './messages'
 
 // 조직의 고정 메시지 목록(API 이름은 decisions). "원본 보기"는 그 채널로 옮겨 원본 메시지를 보여 준다(US-10)
-function DecisionLog({ decisions, channels, nameOf, onOpenSource }) {
+function DecisionLog({ decisions, channels, nameOf, onOpenSource, onUnpin }) {
+  const [busyId, setBusyId] = useState(null)
   const channelName = (id) => channels.find((c) => c.id === id)?.name ?? '삭제된 채널'
 
   if (decisions.length === 0) {
@@ -22,9 +24,23 @@ function DecisionLog({ decisions, channels, nameOf, onOpenSource }) {
               {nameOf(decision.authorId)}의 메시지 · {nameOf(decision.registeredBy)}이(가) 고정 ·{' '}
               <time dateTime={decision.registeredAt}>{formatTime(decision.registeredAt)}</time>
             </span>
-            <button type="button" className="chat-chip" onClick={() => onOpenSource(decision)}>
-              # {channelName(decision.sourceChannelId)}에서 원본 보기
-            </button>
+            <span className="chat-decision-actions">
+              <button type="button" className="chat-chip" onClick={() => onOpenSource(decision)}>
+                # {channelName(decision.sourceChannelId)}에서 원본 보기
+              </button>
+              <button
+                type="button"
+                className="chat-chip add"
+                disabled={busyId === decision.sourceMessageId}
+                onClick={async () => {
+                  setBusyId(decision.sourceMessageId)
+                  await onUnpin(decision.sourceMessageId)
+                  setBusyId(null)
+                }}
+              >
+                고정 해제
+              </button>
+            </span>
           </div>
         </li>
       ))}

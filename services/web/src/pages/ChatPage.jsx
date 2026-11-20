@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createChannel, getChannels, getDecisions, getMessages, renameChannel, sendMessage } from '../api/chat'
+import {
+  createChannel,
+  getChannels,
+  getDecisions,
+  getMessages,
+  renameChannel,
+  sendMessage,
+  unregisterDecision,
+} from '../api/chat'
 import { getMembers } from '../api/members'
 import { getAccessToken, getCurrentUserId } from '../auth/keycloak'
 import { chatSocketUrl, createChatConnection } from './chat/chatConnection'
@@ -229,6 +237,17 @@ function ChatPage({ organization }) {
   const addDecision = (decision) =>
     setDecisions((prev) => (prev.some((d) => d.id === decision.id) ? prev : [decision, ...prev]))
 
+  // 고정 해제는 메시지 도구와 고정 메시지 목록 두 곳에서 부른다
+  const unpin = async (messageId) => {
+    setError('')
+    try {
+      await unregisterDecision(messageId)
+      setDecisions((prev) => prev.filter((d) => d.sourceMessageId !== messageId))
+    } catch (e) {
+      setError(`고정을 풀지 못했어요: ${e.message}`)
+    }
+  }
+
   const decidedIds = new Set(decisions.map((d) => d.sourceMessageId))
   const activeChannel = channels.find((c) => c.id === activeId)
   const names = Object.fromEntries(members.map((m) => [m.userId, m.displayName]))
@@ -357,6 +376,7 @@ function ChatPage({ organization }) {
             channels={channels}
             nameOf={(id) => (id === myId ? '나' : names[id] ?? '알 수 없는 사용자')}
             onOpenSource={openSource}
+            onUnpin={unpin}
           />
         ) : (
           <>
@@ -370,6 +390,7 @@ function ChatPage({ organization }) {
               decided={decidedIds.has(message.id)}
               focused={message.id === focusId}
               onDecided={addDecision}
+              onUnpin={unpin}
               onUpdated={(updated) => applyMessages([updated])}
               onError={setError}
             />

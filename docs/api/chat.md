@@ -25,6 +25,7 @@
 | `GET /api/chat/channels/{id}/messages?after=&limit=` | 멤버 | 놓친 메시지 조회 | 200 | 403, 404 | US-07 |
 | `WS /api/chat/ws` | 멤버 | 새 메시지 받기 | 연결 | 401, 403 | US-06 |
 | `POST /api/chat/messages/{id}/decision` | 멤버 | 결정 로그 등록 | 201 또는 200 | 403, 404 | US-10 |
+| `DELETE /api/chat/messages/{id}/decision` | 멤버 | 결정 로그(고정) 해제 | 204 | 403, 404 | US-10 |
 | `GET /api/chat/decisions?orgId=` | 멤버 | 결정 로그 조회 | 200 | 403 | US-10 |
 | `GET /api/chat/messages/{id}/acknowledgements` | 보낸 사람 | 확인, 미확인자 조회 | 200 | 403, 404 | US-11 |
 | `POST /api/chat/messages/{id}/acknowledgements` | 지정된 사용자 | 확인 처리 | 200 | 403, 404 | US-11 |
@@ -66,7 +67,7 @@
 
 이모지는 `👍 ✅ ❤️ 😂 🎉 👀` 중 하나이고, 그 밖은 400입니다. 같은 사람이 같은 이모지를 두 번 눌러도 한 번만 셉니다. 응답은 바뀐 메시지입니다. 취소(`DELETE .../reactions/{emoji}`)는 주소의 이모지를 URL 인코딩합니다.
 
-`POST /api/chat/messages/{id}/decision`은 본문 없이 보냅니다. 처음 등록이면 201, 이미 등록된 메시지면 200과 처음 기록을 돌려줍니다. `GET /api/chat/decisions?orgId=`는 같은 모양의 목록을 최근 순으로 100개까지 줍니다.
+`POST /api/chat/messages/{id}/decision`은 본문 없이 보냅니다. 처음 등록이면 201, 이미 등록된 메시지면 200과 처음 기록을 돌려줍니다. `GET /api/chat/decisions?orgId=`는 같은 모양의 목록을 최근 순으로 100개까지 줍니다. `DELETE /api/chat/messages/{id}/decision`은 등록을 지우고 204를 돌려줍니다. 이미 없어도 204이고, 지운 뒤 다시 등록할 수 있습니다. 웹에서는 이 기능을 "고정 메시지"라고 부릅니다.
 
 ```json
 { "id": "6722a1b0", "orgId": "1", "sourceChannelId": "10", "sourceMessageId": "6721f0a3", "text": "배포는 금요일에 하지 않는다", "authorId": "메시지 작성자", "registeredBy": "등록한 사람", "registeredAt": "2026-11-23T10:00:00.000Z" }

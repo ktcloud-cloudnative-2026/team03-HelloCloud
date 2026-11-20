@@ -257,6 +257,11 @@
   cursor: pointer;
 }
 
+/* 이미 고정된 메시지의 📌는 눌러 둔 모양. 누르면 해제 */
+.chat-message-actions button.pinned {
+  background: var(--color-primary-soft);
+}
+
 .chat-message-actions button:hover,
 .chat-message-actions button[aria-expanded='true'] {
   background: var(--color-primary-soft);
@@ -544,6 +549,12 @@
   justify-content: space-between;
   color: var(--color-text-muted);
   font-size: 13px;
+}
+
+.chat-decision-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .chat-decisions-empty {
