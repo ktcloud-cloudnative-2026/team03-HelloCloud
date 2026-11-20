@@ -33,3 +33,24 @@ export function formatTime(iso, now = new Date()) {
   const sameDay = date.toDateString() === now.toDateString()
   return sameDay ? time : `${date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} ${time}`
 }
+
+// 서버(chat.service.ts ALLOWED_REACTIONS)와 같은 목록
+export const REACTIONS = ['👍', '✅', '❤️', '😂', '🎉', '👀']
+
+export function hasReacted(message, emoji, userId) {
+  return Boolean(message.reactions?.find((r) => r.emoji === emoji)?.userIds.includes(userId))
+}
+
+// 확인 요청 표시에 필요한 값. 확인 요청이 없는 메시지는 null
+export function ackState(message, userId) {
+  const required = message.acknowledgement?.requiredUserIds ?? []
+  if (required.length === 0) return null
+  const confirmed = new Set((message.acknowledgement?.confirmed ?? []).map((c) => c.userId))
+  return {
+    total: required.length,
+    confirmedCount: required.filter((id) => confirmed.has(id)).length,
+    isSender: message.senderId === userId,
+    needsMyConfirm: required.includes(userId) && !confirmed.has(userId),
+    confirmedByMe: confirmed.has(userId),
+  }
+}

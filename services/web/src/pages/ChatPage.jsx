@@ -3,7 +3,8 @@ import { createChannel, getChannels, getMessages, sendMessage } from '../api/cha
 import { getMembers } from '../api/members'
 import { getAccessToken, getCurrentUserId } from '../auth/keycloak'
 import { chatSocketUrl, createChatConnection } from './chat/chatConnection'
-import { fetchAfter, formatTime, lastSeq, mergeMessages } from './chat/messages'
+import MessageItem from './chat/MessageItem'
+import { fetchAfter, lastSeq, mergeMessages } from './chat/messages'
 import './ChatPage.css'
 
 const MAX_TEXT = 4000
@@ -21,7 +22,9 @@ function ChatPage({ organization }) {
   const [channels, setChannels] = useState([])
   const [activeId, setActiveId] = useState(null)
   const [messages, setMessages] = useState([])
-  const [names, setNames] = useState({})
+  const [members, setMembers] = useState([])
+  const [ackOpen, setAckOpen] = useState(false)
+  const [ackUserIds, setAckUserIds] = useState([])
   const [status, setStatus] = useState('connecting')
   const [revoked, setRevoked] = useState(false)
   const [error, setError] = useState('')
@@ -52,7 +55,7 @@ function ChatPage({ organization }) {
     getMembers(organization.id, 0, 100)
       .then((data) => {
         if (ignore) return
-        setNames(Object.fromEntries(data.items.map((m) => [m.userId, m.displayName])))
+        setMembers(data.items)
       })
       .catch(() => {})
     return () => {
@@ -133,9 +136,11 @@ function ChatPage({ organization }) {
     setSending(true)
     setError('')
     try {
-      const saved = await sendMessage(activeId, body)
+      const saved = await sendMessage(activeId, body, { acknowledgementUserIds: ackUserIds })
       applyMessages([saved])
       setText('')
+      setAckUserIds([])
+      setAckOpen(false)
     } catch (e) {
       setError(`보내지 못했어요: ${e.message}`)
     } finally {
@@ -152,6 +157,11 @@ function ChatPage({ organization }) {
   }
 
   const activeChannel = channels.find((c) => c.id === activeId)
+  const names = Object.fromEntries(members.map((m) => [m.userId, m.displayName]))
+  const others = members.filter((m) => m.userId !== myId)
+
+  const toggleAckUser = (userId) =>
+    setAckUserIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]))
 
   return (
     <section className="chat-layout">
@@ -206,24 +216,50 @@ function ChatPage({ organization }) {
         )}
 
         <ol className="chat-messages" ref={listRef} aria-live="polite">
-          {messages.map((message) => {
-            const mine = message.senderId === myId
-            return (
-              <li key={message.id} className={mine ? 'mine' : ''}>
-                <div className="chat-meta">
-                  <strong>{mine ? '나' : names[message.senderId] ?? '알 수 없는 사용자'}</strong>
-                  <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
-                </div>
-                <p className="chat-text">{message.text}</p>
-              </li>
-            )
-          })}
+          {messages.map((message) => (
+            <MessageItem
+              key={message.id}
+              message={message}
+              myId={myId}
+              names={names}
+              onUpdated={(updated) => applyMessages([updated])}
+              onError={setError}
+            />
+          ))}
           {activeChannel && messages.length === 0 && (
             <li className="chat-empty">첫 메시지를 남겨 보세요.</li>
           )}
         </ol>
 
+        {ackOpen && (
+          <fieldset className="chat-ack-picker">
+            <legend>확인을 요청할 사람 (최대 20명)</legend>
+            {others.length === 0 && <span className="chat-empty">다른 멤버가 없어요.</span>}
+            {others.map((member) => (
+              <label key={member.userId}>
+                <input
+                  type="checkbox"
+                  checked={ackUserIds.includes(member.userId)}
+                  disabled={!ackUserIds.includes(member.userId) && ackUserIds.length >= 20}
+                  onChange={() => toggleAckUser(member.userId)}
+                />
+                {member.displayName}
+              </label>
+            ))}
+          </fieldset>
+        )}
+
         <div className="chat-composer">
+          <button
+            type="button"
+            className={`chat-ack-toggle ${ackUserIds.length ? 'active' : ''}`}
+            aria-expanded={ackOpen}
+            onClick={() => setAckOpen((open) => !open)}
+            disabled={!activeChannel || revoked}
+            title="확인 요청"
+          >
+            @{ackUserIds.length ? ackUserIds.length : ''}
+          </button>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}

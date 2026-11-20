@@ -78,7 +78,9 @@ export function createChatConnection({
       case 'SUBSCRIBED':
         onSubscribed(message.channelId)
         break
+      // 이모지 · 확인 변경(MESSAGE_UPDATED)도 같은 id의 메시지를 바꿔 끼우면 된다
       case 'MESSAGE_CREATED':
+      case 'MESSAGE_UPDATED':
         onMessage(message.channelId, message.data)
         break
       case 'ERROR':
