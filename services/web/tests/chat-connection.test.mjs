@@ -124,3 +124,9 @@ test('채널을 바꾸면 이전 채널을 UNSUBSCRIBE한다', async () => {
     'SUBSCRIBE:c1', 'UNSUBSCRIBE:c1', 'SUBSCRIBE:c2',
   ])
 })
+
+test('MESSAGE_UPDATED도 메시지로 넘겨 화면이 바꿔 끼우게 한다', () => {
+  const { sockets, events } = setup()
+  sockets[0].server({ type: 'MESSAGE_UPDATED', channelId: 'c1', data: { id: 'm1' } })
+  assert.ok(events.includes('message:c1:m1'))
+})

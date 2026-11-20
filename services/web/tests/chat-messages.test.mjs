@@ -26,3 +26,25 @@ test('놓친 메시지는 마지막 seq 다음부터 페이지로 이어 받는�
   assert.equal(got[0].seq, 21)
   assert.deepEqual(calls, [20, 120, 220])
 })
+
+import { ackState, hasReacted } from '../src/pages/chat/messages.js'
+
+test('이모지를 내가 눌렀는지', () => {
+  const message = { reactions: [{ emoji: '👍', userIds: ['me', 'b'] }] }
+  assert.equal(hasReacted(message, '👍', 'me'), true)
+  assert.equal(hasReacted(message, '🎉', 'me'), false)
+  assert.equal(hasReacted({}, '👍', 'me'), false)
+})
+
+test('확인 요청 상태: 보낸 사람, 확인해야 하는 사람, 확인한 사람', () => {
+  const message = {
+    senderId: 'a',
+    acknowledgement: { requiredUserIds: ['b', 'c'], confirmed: [{ userId: 'b', at: 't' }] },
+  }
+  assert.deepEqual(ackState(message, 'a'), {
+    total: 2, confirmedCount: 1, isSender: true, needsMyConfirm: false, confirmedByMe: false,
+  })
+  assert.equal(ackState(message, 'c').needsMyConfirm, true)
+  assert.equal(ackState(message, 'b').confirmedByMe, true)
+  assert.equal(ackState({ acknowledgement: { requiredUserIds: [], confirmed: [] } }, 'a'), null)
+})
