@@ -1,5 +1,5 @@
 
-import { Logger, OnModuleInit } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import {
   WebSocketGateway,
   OnGatewayConnection,
@@ -20,7 +20,13 @@ type AuthenticatedSocket = WebSocket & {
   // 이 연결에서 소속이 빠진 조직. 소속 확인 중이던 SUBSCRIBE가 뒤늦게 붙지 않게 한다
   revokedOrgs?: Set<string>;
   tokenExpiryTimer?: ReturnType<typeof setTimeout>;
+  // 지난 ping 이후 pong이 왔는지
+  alive?: boolean;
 };
+
+// 아무 메시지 없는 연결도 Gateway가 끊지 않도록, 그리고 사라진 브라우저의 연결을
+// 정리하도록 주기적으로 ping을 보낸다. 브라우저는 pong을 자동으로 돌려준다.
+export const PING_INTERVAL_MS = 30_000;
 
 type ClientMessage = {
   type?: string;
@@ -75,10 +81,15 @@ function isChatEvent(value: unknown): value is ChatEvent {
   path: '/api/chat/ws',
 })
 export class ChatGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnModuleInit,
+    OnModuleDestroy
 {
   private readonly logger = new Logger(ChatGateway.name);
   private readonly clients = new Set<AuthenticatedSocket>();
+  private pingTimer?: ReturnType<typeof setInterval>;
 
   constructor(
     private readonly authService: AuthService,
@@ -97,7 +108,26 @@ export class ChatGateway
       (rawMessage: string) => this.handleMemberEvent(rawMessage),
     );
 
+    this.pingTimer = setInterval(() => this.pingClients(), PING_INTERVAL_MS);
+
     this.logger.log('Redis → WebSocket 채팅 전달 준비 완료');
+  }
+
+  onModuleDestroy(): void {
+    clearInterval(this.pingTimer);
+  }
+
+  // 한 주기 동안 pong이 없던 연결은 끊고, 나머지에는 다시 ping을 보낸다
+  pingClients(): void {
+    for (const client of this.clients) {
+      if (client.alive === false) {
+        client.terminate();
+        continue;
+      }
+
+      client.alive = false;
+      client.ping();
+    }
   }
 
   relayChatEvent(rawMessage: string): void {
@@ -174,6 +204,10 @@ export class ChatGateway
     this.clients.add(client);
     client.subscriptions = new Map<string, string>();
     client.revokedOrgs = new Set<string>();
+    client.alive = true;
+    client.on('pong', () => {
+      client.alive = true;
+    });
 
     this.logger.log('WebSocket 클라이언트 연결');
 
