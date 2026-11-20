@@ -45,3 +45,87 @@ dev에서는 Grafana의 Explore(질문을 바로 넣어 보는 화면)에서 봅
 ## 5. 코드에 처음부터 넣을 것
 - [x] `/metrics` 엔드포인트 (user, file. chat은 배포 후)
 - [ ] 요청 ID 헤더를 받아서 다음 서비스로 전달
+
+## 6. 부하 테스트 (dev, #146)
+
+k6(가상 사용자를 만들어 요청을 계속 보내는 도구)로 user · file의 읽기 API 3개
+(`GET /api/users/me`, `GET /api/orgs`, `GET /api/files?orgId=`)를 반복해서 부릅니다.
+같은 시나리오를 HPA를 끈 상태와 켠 상태로 한 번씩 돌려 비교합니다.
+
+- 합격선: 사용자 수가 일정한 5분 구간에서 p95 500ms 이하([요구사항](requirements.md)), 에러율 1% 이하.
+  워밍업 2분과 마무리 1분은 숫자가 흔들려서 판정에서 뺍니다.
+- k6는 클러스터 안 `loadtest` 네임스페이스에서 Job으로 한 번 돌고 끝납니다. 실제 사용자와 같은
+  입구(dev Gateway)를 지나고, cp와 CPU를 나눠 쓰지 않기 위해서입니다. 한 번 쓰고 지우는 도구라
+  Argo CD 밖에서 손으로 올립니다(팀장 승인). 파일은 [deploy/loadtest/](../deploy/loadtest/)에 있습니다.
+- k6 파드는 CPU를 0.5~1개로 제한하고, 테스트 대상 파드와 되도록 다른 노드에 뜹니다. 같은 노드면
+  CPU를 나눠 써서 결과가 흔들립니다. 워커가 2대라 항상 피하지는 못하니 실행 후 노드를 확인합니다.
+
+### 준비 (한 번)
+
+- dev Keycloak에 테스트 전용 클라이언트 `k6-loadtest`: Direct Access Grants(아이디 · 비밀번호로 바로
+  토큰 받기) 켜기, access token 수명 15분. 8분 시나리오 중에 토큰이 끊기면 401이 에러율에 섞이기 때문입니다.
+  수명은 realm 전체가 아니라 이 클라이언트 설정(Advanced)에만 겁니다. 웹 클라이언트 `hellocloud-web`은
+  로그인 화면을 거치므로 켜지 않습니다(dev는 꺼져 있음).
+- 테스트 계정: 조직 하나에 속하고, 그 조직에 파일이 몇 개 있어야 합니다. 조직이 없으면 k6가 시작하자마자 멈춥니다.
+- 로그인은 가상 사용자마다 처음 한 번만 합니다. 매번 하면 user · file이 아니라 Keycloak을 재게 됩니다.
+
+### 실행 (cp)
+
+팀 공용 저장소 폴더는 건드리지 않고, 파일을 임시 폴더에 내려받아 씁니다.
+
+```bash
+mkdir -p /tmp/k6-loadtest && cd /tmp/k6-loadtest
+for f in kustomization.yaml namespace.yaml job.yaml read-apis.js run.env; do
+  curl -fsSLO "https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/loadtest/$f"
+done
+
+# 1. 네임스페이스와 테스트 계정 Secret. 비밀번호가 화면과 명령 기록에 남지 않게 입력받는다
+kubectl apply -f namespace.yaml
+read -r -p 'username: ' K6_USERNAME; read -r -s -p 'password: ' K6_PASSWORD; echo
+kubectl -n loadtest create secret generic k6-test-account \
+  --from-literal=K6_USERNAME="$K6_USERNAME" --from-literal=K6_PASSWORD="$K6_PASSWORD"
+unset K6_PASSWORD
+# 클라이언트가 confidential이면 비밀값도 넣는다. public이면 건너뛴다
+read -r -s -p 'client secret: ' K6_CLIENT_SECRET; echo
+kubectl -n loadtest patch secret k6-test-account --type merge \
+  -p "{\"stringData\":{\"K6_CLIENT_SECRET\":\"$K6_CLIENT_SECRET\"}}"
+unset K6_CLIENT_SECRET
+
+# 2. smoke: 1명, 30초. 토큰 · 주소 · 이미지가 맞는지만 본다 (run.env 기본값)
+kubectl apply -k .
+kubectl -n loadtest get pods -o wide
+kubectl -n loadtest logs -f job/k6-read-apis
+
+# 3. 본 실행: Job은 고칠 수 없어 지우고 다시 만든다. VUS는 10 → 30 → 50으로 올려 본다
+kubectl -n loadtest delete job k6-read-apis
+printf 'MODE=full\nVUS=30\n' > run.env
+kubectl apply -k .
+kubectl -n loadtest logs -f job/k6-read-apis
+```
+
+- 로그 끝의 요약에서 `http_req_duration{scenario:load,type:api}`의 p(95)와
+  `http_req_failed{scenario:load,type:api}`를 봅니다. 합격선을 넘으면 ✗가 붙습니다.
+- 같은 시간대의 Grafana 화면(요청 수, 에러율, p95, CPU, 파드 수)을 캡처합니다.
+
+### HPA 끄고 켜기
+
+dev Argo 앱은 손으로 바꾼 것을 되돌리므로(`selfHeal`), 1차 · 2차 전환은 user · file의
+`deploy/values/<서비스>/values-dev.yaml`에서 `autoscaling.enabled`를 바꾸는 PR로 합니다.
+1차 PR에서 둘 다 `false`, 2차 PR에서 둘 다 `true`로 PR 하나에서 같이 바꿉니다. 파일 목록 API가 user의 소속
+확인도 부르므로 한쪽만 늘리면 비교가 맞지 않습니다. 머지 후 `kubectl -n ideaconnection-dev get hpa`로 상태를 확인하고 실행합니다.
+
+HPA를 켜면 user · file이 각각 최대 3개라 메모리 requests 합이 6 × 512Mi = 3Gi입니다. 실행 전
+`kubectl describe nodes`의 Allocated resources로 워커 여유를 봅니다(k6 파드 · chat 포함).
+
+### 정리
+
+```bash
+cd /tmp/k6-loadtest && kubectl delete -k .   # Job, 설정, Secret, 네임스페이스까지 지운다
+cd / && rm -rf /tmp/k6-loadtest
+```
+
+### 결과
+
+| 회차 | 날짜 | HPA | 가상 사용자 | p95 | 에러율 | 최대 파드 수 |
+|---|---|---|---|---|---|---|
+| | | | | | | |

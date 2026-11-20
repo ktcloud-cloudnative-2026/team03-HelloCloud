@@ -1,0 +1,18 @@
+# Argo CD 밖에서 손으로 올리는 일회용 테스트 도구다(#146, 팀장 승인). 실행 · 삭제는 docs/observability.md
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: loadtest
+resources:
+  - namespace.yaml
+  - job.yaml
+configMapGenerator:
+  - name: k6-script
+    files:
+      - read-apis.js
+  # 회차마다 내려받은 사본에서 이 파일만 바꾼다. 저장소에는 smoke 기본값을 둔다
+  - name: k6-run
+    envs:
+      - run.env
+generatorOptions:
+  # Job이 고정된 이름으로 찾도록 이름 뒤에 해시를 붙이지 않는다
+  disableNameSuffixHash: true
