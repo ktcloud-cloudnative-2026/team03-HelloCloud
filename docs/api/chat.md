@@ -47,6 +47,24 @@
 }
 ```
 
+`acknowledgementUserIds`(확인을 요청할 사람, 최대 20명)는 선택입니다. 모두 같은 조직 멤버여야 하며 아니면 400입니다. 보낸 사람 자신은 빠집니다.
+
+`GET /api/chat/messages/{id}/acknowledgements` (보낸 사람만)
+
+```json
+{ "messageId": "6721f0a3", "users": [{ "userId": "a", "confirmedAt": "2026-11-23T10:00:00.000Z" }, { "userId": "b", "confirmedAt": null }] }
+```
+
+`POST /api/chat/messages/{id}/acknowledgements`는 본문 없이 보내며, 지정된 사람만 할 수 있습니다. 이미 확인했으면 그대로 200입니다. 응답은 바뀐 메시지입니다.
+
+`POST /api/chat/messages/{id}/reactions`
+
+```json
+{ "emoji": "👍" }
+```
+
+이모지는 `👍 ✅ ❤️ 😂 🎉 👀` 중 하나이고, 그 밖은 400입니다. 같은 사람이 같은 이모지를 두 번 눌러도 한 번만 셉니다. 응답은 바뀐 메시지입니다. 취소(`DELETE .../reactions/{emoji}`)는 주소의 이모지를 URL 인코딩합니다.
+
 ### WebSocket
 
 연결 후 인증 메시지로 로그인 토큰을 보내고, 볼 채널을 구독합니다.
@@ -63,7 +81,7 @@
 { "type": "MESSAGE_CREATED", "orgId": "1", "channelId": "10", "data": { "id": "6721f0a3", "seq": 121, "text": "내용" }, "sentAt": "2026-11-06T09:00:00+09:00" }
 ```
 
-이모지와 확인 변경은 `MESSAGE_UPDATED`로 보냅니다.
+이모지와 확인 변경은 `MESSAGE_UPDATED`로 보냅니다. 모양은 `MESSAGE_CREATED`와 같고, `data`는 바뀐 뒤의 메시지 전체입니다. 화면은 같은 `id`의 메시지를 바꿔 끼웁니다.
 
 연결이 끊기는 경우는 아래와 같습니다. 모두 코드 `1008`로 닫으며, 화면은 새 토큰으로 다시 연결합니다.
 

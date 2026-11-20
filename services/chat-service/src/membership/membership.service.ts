@@ -1,4 +1,3 @@
-
 import {
   ForbiddenException,
   Injectable,
@@ -55,9 +54,7 @@ export class MembershipService {
     }
 
     if (!response.ok) {
-      throw new ServiceUnavailableException(
-        '조직 멤버십 확인에 실패했습니다.',
-      );
+      throw new ServiceUnavailableException('조직 멤버십 확인에 실패했습니다.');
     }
 
     let membership: MembershipResponse;
@@ -72,6 +69,22 @@ export class MembershipService {
 
     if (membership?.member !== true) {
       throw new ForbiddenException('해당 조직의 구성원이 아닙니다.');
+    }
+  }
+
+  // 다른 사람이 멤버인지 묻는다(확인 요청 대상 확인). 멤버가 아니면 false,
+  // 소속 확인 서비스 장애는 그대로 던진다
+  async isMember(
+    orgId: string,
+    userId: string,
+    token: string,
+  ): Promise<boolean> {
+    try {
+      await this.assertMember(orgId, userId, token);
+      return true;
+    } catch (error) {
+      if (error instanceof ForbiddenException) return false;
+      throw error;
     }
   }
 }

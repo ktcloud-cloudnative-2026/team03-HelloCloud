@@ -147,7 +147,9 @@ export class ChatGateway
       return;
     }
 
-    if (event.type !== 'MESSAGE_CREATED') return;
+    if (event.type !== 'MESSAGE_CREATED' && event.type !== 'MESSAGE_UPDATED') {
+      return;
+    }
 
     const payload = JSON.stringify({
       type: event.type,
