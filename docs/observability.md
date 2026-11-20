@@ -30,7 +30,32 @@ dev에서는 Grafana의 Explore(질문을 바로 넣어 보는 화면)에서 봅
 ## 2. 업무 지표 (서비스별) — [성공 기준](plan.md#5-성공-기준-숫자로)에서
 | 서비스 | 지표 | 왜 |
 |---|---|---|
-| | | |
+| user · file · chat | 멤버 제거 후 첫 403까지 걸린 시간 (5초 이내) | US-04 권한 회수 |
+| user · file · chat | 다른 조직 데이터 요청의 응답 코드 (모두 403) | US-05 조직 간 격리 |
+
+### 권한 측정 (dev, #173)
+
+k6 스크립트 하나로 두 가지를 잽니다. 파일은 [deploy/loadtest/access/](../deploy/loadtest/access/)에 있고, 부하 테스트처럼
+`loadtest` namespace에서 Job으로 한 번 돌고 지웁니다(AGENTS.md 예외). 계정 셋은 Keycloak 담당이 Secret으로 만듭니다:
+`k6-loadtest-credentials`(조직 7 OWNER), `k6-access-member-credentials`(조직 7 MEMBER, 제거 대상),
+`k6-access-owner-credentials`(다른 조직 OWNER).
+
+- `MODE=revoke` (권한 회수): 멤버가 실시간 연결(WebSocket)을 열고 채널을 구독한 뒤, OWNER가 멤버를 제거합니다.
+  제거 응답부터 0.5초마다 user(멤버 목록) · file(파일 목록) · chat(메시지 조회)을 불러 서비스마다 처음 403이 나온
+  시간과 WebSocket이 닫힌 시간을 적습니다. 15초까지 기다리고, 한 번 막힌 뒤 다시 열리지 않는지도 봅니다.
+  회차가 끝나면 OWNER가 초대 링크를 만들고 멤버가 수락해 다시 넣습니다(기본 3회차). 0.5초 간격이라 시간은 ±0.5초입니다
+- `MODE=isolation` (조직 간 차단): 조직 7 OWNER가 다른 조직의, 다른 조직 OWNER가 조직 7의 user 멤버 목록,
+  file 목록 · 다운로드 주소 · 미리보기 주소 · 삭제, chat 채널 목록 · 메시지 조회 · 보내기 · 결정 로그를 부르고
+  응답 코드를 한 줄씩 남깁니다. 403이 아니면 `← 403 아님`이 붙고 기준(`isolation_not_403` 0건)에 걸립니다.
+  삭제는 막히지 않으면 남의 파일이 지워지므로 맨 마지막에 부릅니다
+- 측정에 쓸 채널 · 메시지 · 파일이 없으면 시작하자마자 멈춥니다. `CREATE_MISSING=1`이면 그 조직 OWNER로 만듭니다(데이터가 바뀜)
+- 실행 · 정리는 6장의 부하 테스트와 같고 폴더만 `deploy/loadtest/access/`, Job 이름은 `k6-access-check`입니다.
+  `run.env`의 `MODE`를 `revoke`나 `isolation`으로 바꿉니다. 멤버 제거는 데이터 변경이라 실행 전에 확인받습니다
+
+| 날짜 | 측정 | user | file | chat | WebSocket 닫힘 | 판정 |
+|---|---|---|---|---|---|---|
+| | 권한 회수 (최대) | | | | | |
+| | 조직 간 차단 (403 아닌 것) | | | | - | |
 
 ## 3. 로그 형식 (모든 서비스 같게)
 ```json
