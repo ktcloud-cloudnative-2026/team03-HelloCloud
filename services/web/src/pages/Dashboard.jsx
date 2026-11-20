@@ -1,6 +1,7 @@
 
 import { useState } from 'react'
 import FileManager from './FileManager'
+import ChatPage from './ChatPage'
 import { logout } from '../auth/keycloak'
 import InviteDialog from '../components/InviteDialog'
 import MemberList from '../components/MemberList'
@@ -294,6 +295,8 @@ function Dashboard({ organization, onBack, onLeave }) {
             </>
           ) : activeMenu === 'files' ? (
             <FileManager key={organization.id} orgId={organization.id} organizationRole={organization.role} />
+          ) : activeMenu === 'chat' ? (
+            <ChatPage key={organization.id} organization={organization} />
           ) : activeMenu === 'members' ? (
             <MemberList organization={organization} onLeave={onLeave} />
           ) : (
