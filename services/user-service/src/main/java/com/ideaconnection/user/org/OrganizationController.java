@@ -47,6 +47,12 @@ class OrganizationController {
     return organizations.members(id, user.id(), PageQuery.of(page, size));
   }
 
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  void delete(CurrentUser user, @PathVariable Long id) {
+    organizations.deleteOrganization(id, user.id());
+  }
+
   @DeleteMapping("/{id}/members/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   void removeMember(CurrentUser user, @PathVariable Long id, @PathVariable String userId) {

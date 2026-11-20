@@ -5,6 +5,7 @@ import com.ideaconnection.common.security.CurrentUser;
 import com.ideaconnection.common.web.PageQuery;
 import com.ideaconnection.common.web.PageResponse;
 import com.ideaconnection.user.user.UserProfileService;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -90,6 +91,19 @@ public class OrganizationService {
     // 커밋이 끝난 뒤에 알린다. 먼저 알리면 chat이 끊은 사용자가 다시 붙을 때 아직 멤버로 보인다.
     writer.removeMember(target);
     events.memberRemoved(orgId, targetUserId);
+  }
+
+  /**
+   * OWNER가 조직을 지운다. file · chat 데이터는 지우지 않는다(소속 확인이 막으므로 아무도 못 연다, user.md 6절). 커밋 뒤 멤버마다
+   * MEMBER_REMOVED를 보내 chat의 실시간 연결을 끊는다.
+   */
+  public void deleteOrganization(Long orgId, String requesterId) {
+    OrganizationMember requester = requireMember(orgId, requesterId);
+    if (requester.getRole() != OrganizationRole.OWNER) {
+      throw new ApiException(HttpStatus.FORBIDDEN, "FORBIDDEN", "조직 소유자만 조직을 삭제할 수 있습니다.");
+    }
+    List<String> removedUserIds = writer.deleteOrganization(orgId);
+    removedUserIds.forEach(userId -> events.memberRemoved(orgId, userId));
   }
 
   /** 다른 서비스용 소속 확인. 없는 조직도 멤버가 아닌 것으로 본다. */
