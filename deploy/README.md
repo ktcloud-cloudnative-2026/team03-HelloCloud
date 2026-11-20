@@ -426,17 +426,47 @@ dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 기�
 
 - 팀 규칙대로 dev에서 확인한 이미지의 동일한 SHA 태그를 prod values에 PR로 반영합니다.
   최신 dev 태그나 CI 성공만으로 운영 검증 완료라고 판단하지 않습니다.
-- 현재 web의 `75583e7`은 이전 dev 파일 화면 검증에 사용한 후보입니다.
-  최신 로그인·권한·화면 변경을 포함할 배포 후보와 실제 dev 검증 결과를 재확인한 뒤 확정합니다.
+- 현재 web의 `75583e7`은 이전 dev에서 확인한 이미지로, 최초 Gateway IP·웹 HTTP 응답 확인에만 사용합니다.
+  최신 채팅·권한·화면 기능의 최종 운영 버전이 아닙니다. 전체 기능 배포 전 dev 검증이 끝난 최신 SHA를
+  별도 검토해 prod values에 반영하고 기능을 다시 확인합니다.
 - user·file·chat prod 이미지 태그는 아직 비어 있습니다. 검사용 `0000000`은
   명령행에서만 사용하고 prod values에 저장하거나 실제 배포하지 않습니다.
 - 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server·모니터링의 prod 도입은
   이 초안에 포함하지 않습니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
 - 앱은 기존 dev와 같은 자동 동기화·prune·selfHeal 설정입니다. 앱 최초 등록 시
   바로 배포될 수 있으므로 아래 선행 조건과 diff를 확인하고 팀 확인 후 등록합니다.
-  이미지 태그가 있는 web도 준비 완료 전 검증용으로 등록하지 않습니다.
+  web은 아래 최초 웹 응답 확인 범위가 검토·승인된 뒤에만 등록합니다. 백엔드 앱은 아직 등록하지 않습니다.
 - user·file 첫 기동은 Flyway DB 마이그레이션을 포함합니다. 백업·스키마·계정 권한과
   첫 기동 범위를 확인한 뒤 진행합니다. 이미지 롤백만으로 DB 변경이 되돌아가지는 않습니다.
+
+### Gateway 고정 IP와 최초 등록
+
+prod GatewayClass `eg-prod`는 `ideaconnection-prod/prod-proxy-config` EnvoyProxy를 참조합니다.
+EnvoyProxy가 생성할 Service에 `metallb.io/loadBalancerIPs: "10.10.24.200"`을 지정해
+강사 터널의 연결 IP를 고정합니다. EnvoyProxy는 sync wave -1로 먼저 준비합니다.
+운영 `dev-pool`의 범위가 10.10.24.200~223이고 기존 LoadBalancer Service가 없는 것을
+11/20에 읽기 전용으로 확인했습니다. 이름만 dev-pool이며 풀 이름·컨트롤러는 변경하지 않습니다.
+이 요청은 아직 IP를 할당받았다는 뜻이 아닙니다. 등록 직전 다른 Service의 할당 여부를 다시 보고,
+할당 실패 시 Service 이벤트를 확인하며 강사에게 전달할 IP는 실제 Gateway ADDRESS와 대조합니다.
+
+[Envoy Gateway 1.9 설정 방법](https://gateway.envoyproxy.io/v1.9/tasks/operations/customize-envoyproxy/)과
+[MetalLB IP 지정](https://metallb.io/usage/#requesting-specific-ips)을 따릅니다.
+현재 v1.9.3 컨트롤러는 운영 서버에 이미 설치돼 있습니다. 해당 컨트롤러의 Argo CD 관리권 이관은
+후속 작업이며, 기존 Helm values·인증서·Webhook·CRD의 소유권을 확인한 뒤 진행합니다.
+dev 이관용 설정을 복사해 컨트롤러를 재설치하거나 덮어쓰지 않습니다.
+
+다음 명령은 PR 머지와 배포 범위 확인 후 **prod cp에서** 파일별로 실행합니다.
+실제 배포를 시작하는 명령이며, `services/` 또는 `platform/` 폴더 전체를 적용하지 않습니다.
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/platform/gateway-prod.yaml
+kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team03-HelloCloud/main/deploy/argocd/services/web-prod.yaml
+```
+
+앱 등록 후 Gateway `Accepted/Programmed`, web-route `Accepted/ResolvedRefs`, 웹 파드 2개 Ready,
+Argo 동기화 Succeeded를 확인합니다. Gateway ADDRESS가 `10.10.24.200`인지 확인한 다음
+bastion에서 `curl -i http://10.10.24.200/`의 경로·상태 코드를 기록해 팀장님께 공유합니다.
+이 단계는 웹 응답 확인이며 로그인·API·파일·chat 전체 기능의 운영 완료가 아닙니다.
 
 ### 서비스별 운영 연결 준비표
 
