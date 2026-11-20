@@ -28,6 +28,8 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?}
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
+      # 로그인 화면 테마. start-dev는 테마 캐시를 꺼서 CSS를 고치면 새로고침만으로 보인다
+      - ./keycloak/themes:/opt/keycloak/themes:ro
 
 volumes:
   mysql-data:

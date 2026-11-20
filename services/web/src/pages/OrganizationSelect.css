@@ -53,8 +53,7 @@
 }
 
 .org-brand-icon {
-  font-size: 26px;
-  line-height: 1;
+  flex: none;
 }
 
 .org-step {

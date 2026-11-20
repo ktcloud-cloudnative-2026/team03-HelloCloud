@@ -1,5 +1,6 @@
 
 import { logout } from '../auth/keycloak'
+import BrandIcon from '../brand/BrandIcon'
 import './OrganizationSelect.css'
 
 const ROLE_LABELS = { OWNER: '소유자', MEMBER: '멤버' }
@@ -23,7 +24,7 @@ function OrganizationSelect({
 
         <header className="org-header">
           <div className="org-brand">
-            <span className="org-brand-icon" aria-hidden="true">☁</span>
+            <BrandIcon className="org-brand-icon" size={28} />
             <span>IdeaConnection</span>
           </div>
 

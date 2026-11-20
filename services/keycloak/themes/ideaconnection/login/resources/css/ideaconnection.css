@@ -1,0 +1,130 @@
+/* 웹 services/web/src/styles/tokens.css와 같은 값. 웹에서 바꾸면 여기도 같이 바꾼다 */
+:root {
+  --ic-primary: #2563eb;
+  --ic-primary-hover: #1d4ed8;
+  --ic-background: #f3f6f7;
+  --ic-surface: #ffffff;
+  --ic-text: #23292d;
+  --ic-text-muted: #64748b;
+  --ic-border: #dbe3ee;
+  --ic-error: #dc2626;
+  --ic-link: var(--ic-primary);
+  --ic-radius-sm: 8px;
+  --ic-radius-lg: 22px;
+  --ic-font: Arial, sans-serif;
+
+  /* Keycloak 화면(PatternFly)이 쓰는 값을 우리 값으로 바꾼다 */
+  --pf-v5-global--primary-color--100: var(--ic-primary);
+  --pf-v5-global--primary-color--200: var(--ic-primary-hover);
+  --pf-v5-global--link--Color: var(--ic-link);
+  --pf-v5-global--link--Color--hover: var(--ic-primary-hover);
+  --pf-v5-global--danger-color--100: var(--ic-error);
+  --pf-v5-global--FontFamily--text: var(--ic-font);
+  --pf-v5-global--FontFamily--heading: var(--ic-font);
+  --pf-v5-global--FontFamily--sans-serif: var(--ic-font);
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--ic-primary);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--ic-primary-hover);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--ic-primary-hover);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--ic-primary-hover);
+  --keycloak-card-top-color: transparent;
+}
+
+/* OS가 다크 모드면 keycloak.v2가 html에 pf-v5-theme-dark를 붙인다. 배경 · 글자만 어둡게 하고 파란색은 유지 */
+:root.pf-v5-theme-dark {
+  --ic-background: #111827;
+  --ic-surface: #1b2433;
+  --ic-text: #e5e9f0;
+  --ic-text-muted: #94a3b8;
+  --ic-border: #2c3a50;
+  --ic-link: #60a5fa;
+  --pf-v5-global--primary-color--100: var(--ic-primary);
+  --pf-v5-global--primary-color--200: var(--ic-primary-hover);
+  --pf-v5-global--link--Color: var(--ic-link);
+  --pf-v5-global--link--Color--hover: #93c5fd;
+}
+
+/* 버튼 색은 PatternFly가 버튼 자체에 다시 정하므로 버튼에 직접 건다(다크 모드 포함) */
+.pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--ic-primary);
+  --pf-v5-c-button--m-primary--Color: #ffffff;
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--ic-primary-hover);
+  --pf-v5-c-button--m-primary--hover--Color: #ffffff;
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--ic-primary-hover);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--ic-primary-hover);
+  font-weight: 600;
+}
+
+.login-pf body {
+  background: var(--ic-background);
+  font-family: var(--ic-font);
+}
+
+/* 머리글: Keycloak 기본(흰 대문자 글자) 대신 로고 + 서비스 이름 */
+#kc-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--ic-link) !important;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+#kc-header-wrapper::before {
+  content: "";
+  flex: none;
+  width: 34px;
+  height: 34px;
+  background: url("../img/logo.svg") no-repeat center / contain;
+}
+
+/* 카드: 웹 로그인 카드처럼 둥글고 테두리만 옅게 */
+.pf-v5-c-login__main {
+  background: var(--ic-surface);
+  border: 1px solid var(--ic-border);
+  border-radius: var(--ic-radius-lg);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.pf-v5-c-login__main-header {
+  border-top: 0;
+}
+
+.pf-v5-c-title,
+.pf-v5-c-login__main-title {
+  color: var(--ic-text);
+}
+
+.pf-v5-c-form-control,
+.pf-v5-c-button {
+  border-radius: var(--ic-radius-sm);
+}
+
+.pf-v5-c-form-control::before,
+.pf-v5-c-form-control::after,
+.pf-v5-c-button::after {
+  border-radius: inherit;
+}
+
+/* 비밀번호 칸과 보기 버튼은 한 덩어리라 바깥쪽 모서리만 둥글게 */
+.pf-v5-c-input-group > .pf-v5-c-input-group__item:first-child .pf-v5-c-form-control {
+  border-radius: var(--ic-radius-sm) 0 0 var(--ic-radius-sm);
+}
+
+.pf-v5-c-input-group > .pf-v5-c-input-group__item:last-child .pf-v5-c-button {
+  border-radius: 0 var(--ic-radius-sm) var(--ic-radius-sm) 0;
+}
+
+/* 휴대폰 폭에서는 카드가 화면 끝에 붙지 않게 양옆 16px */
+@media (max-width: 575px) {
+  .pf-v5-c-login__main {
+    margin-inline: 16px;
+  }
+}
+
+.pf-v5-c-login__main-footer-band {
+  color: var(--ic-text-muted);
+}

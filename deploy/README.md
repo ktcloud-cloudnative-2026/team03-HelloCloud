@@ -370,6 +370,23 @@ Keycloak(`/realms`)을 지금 접속한 주소로 부르므로 빌드할 때 주
 컨테이너 환경 변수만 추가한다고 이미 빌드된 화면의 설정이 바뀌지는 않습니다.
 웹과 Gateway의 HTTP 응답은 확인했습니다. 실제 사용자 로그인과 인증된 API 연결은 별도 검증이 필요합니다.
 
+### Keycloak 로그인 화면 테마
+
+로그인 · 회원가입 화면이 웹과 같은 서비스로 보이도록 `ideaconnection` 테마를 씁니다.
+Keycloak 기본 화면(`keycloak.v2`)의 배치는 그대로 두고 색, 모서리, 글꼴, 로고만 바꿉니다.
+파일은 `services/keycloak/themes/ideaconnection/login/`에 있고, 색 값은 웹 `tokens.css`와 맞춥니다.
+로고는 웹 아이콘(`services/web/src/brand/brandIcon.js`)과 같은 그림이고, 웹 테스트가 둘이 같은지 확인합니다.
+
+- 로컬: `services/compose.yaml`이 테마 폴더를 붙이고, 로컬 realm 파일이 테마 · 표시 이름 `IdeaConnection` · 기본 언어 한국어를 켭니다
+- prod: 아직 적용하지 않았습니다. 후속 PR에서 테마 파일 3개를 ConfigMap으로 만들어
+  `deploy/manifests/keycloak/prod/`의 Keycloak 파드에 `/opt/keycloak/themes/ideaconnection`으로 붙입니다
+  (ConfigMap `items.path`로 `login/...` 하위 폴더 구조를 만듭니다). keycloak-prod는 자동 동기화라
+  머지하면 Keycloak이 다시 떠서 로그인이 잠깐 끊기므로 Keycloak 담당자와 시간을 맞춥니다
+  로컬은 `keycloak:26.8.2`, prod는 `26.4.0`이라 붙이기 전에 로컬을 prod 버전으로 바꿔 화면을 다시 확인합니다
+- realm 설정(로그인 테마 `ideaconnection`, 표시 이름 `IdeaConnection`, 다국어 켜기 · 기본 언어 `ko`)은 realm 파일에 넣어도
+  처음 만들 때만 적용됩니다. 이미 있는 realm은 Keycloak 관리 화면(port-forward)의 Realm settings에서 바꿉니다
+- dev: Keycloak이 저장소 밖에서 관리되므로 적용하지 않습니다(발표는 prod 기준)
+
 ## GitHub Actions 연결
 
 서비스 코드는 PR로 검사한 뒤 main에 머지합니다. 이후 GitHub Actions가
