@@ -1,5 +1,5 @@
 replicaCount: 1
 image:
-  tag: "362d733"
+  tag: "ef82da4"
 autoscaling:
   enabled: true
