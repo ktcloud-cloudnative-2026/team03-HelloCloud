@@ -17,15 +17,27 @@ import { ChatService } from './chat.service';
 import { ChannelType } from './schemas/channel.schema';
 
 type CreateChannelBody = {
-  orgId?: string;
-  name?: string;
-  type?: ChannelType;
+  orgId?: unknown;
+  name?: unknown;
+  type?: unknown;
 };
 
 type CreateMessageBody = {
-  clientMessageId?: string;
-  text?: string;
+  clientMessageId?: unknown;
+  text?: unknown;
 };
+
+// 쿼리는 같은 키가 여러 번 오면 배열, JSON 본문은 숫자나 객체일 수 있다.
+// 문자열이 아니면 서비스의 trim()에서 500이 나므로 여기서 400으로 막는다.
+function optionalString(value: unknown, field: string): string | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  if (typeof value !== 'string') {
+    throw new BadRequestException(`${field}는 문자열이어야 합니다.`);
+  }
+
+  return value;
+}
 
 @Controller('api/chat')
 export class ChatController {
@@ -51,9 +63,10 @@ export class ChatController {
   @Get('channels')
   async getChannels(
     @Headers('authorization') authorization: string,
-    @Query('orgId') orgId: string,
+    @Query('orgId') rawOrgId: unknown,
   ) {
     const { token, userId } = await this.authenticate(authorization);
+    const orgId = optionalString(rawOrgId, 'orgId');
 
     if (!orgId?.trim()) {
       throw new BadRequestException('orgId가 필요합니다.');
@@ -71,21 +84,21 @@ export class ChatController {
   ) {
     const { token, userId } = await this.authenticate(authorization);
 
-    if (!body?.orgId?.trim()) {
+    const orgId = optionalString(body?.orgId, 'orgId');
+    const name = optionalString(body?.name, 'name');
+    const type = optionalString(body?.type, 'type') as ChannelType | undefined;
+
+    if (!orgId?.trim()) {
       throw new BadRequestException('orgId가 필요합니다.');
     }
 
-    await this.membershipService.assertMember(
-      body.orgId,
-      userId,
-      token,
-    );
+    await this.membershipService.assertMember(orgId, userId, token);
 
     return this.chatService.createChannel(
-      body.orgId,
-      body.name ?? '',
+      orgId,
+      name ?? '',
       userId,
-      body.type ?? ChannelType.NORMAL,
+      type ?? ChannelType.NORMAL,
     );
   }
 
@@ -96,6 +109,11 @@ export class ChatController {
     @Body() body: CreateMessageBody,
   ) {
     const { token, userId } = await this.authenticate(authorization);
+    const clientMessageId = optionalString(
+      body?.clientMessageId,
+      'clientMessageId',
+    );
+    const text = optionalString(body?.text, 'text');
 
     const channel = await this.chatService.getChannel(channelId);
 
@@ -108,8 +126,8 @@ export class ChatController {
     return this.chatService.createMessage(
       channelId,
       userId,
-      body?.clientMessageId ?? '',
-      body?.text ?? '',
+      clientMessageId ?? '',
+      text ?? '',
     );
   }
 

@@ -34,6 +34,21 @@ type ChatEvent = {
   };
 };
 
+function isChatEvent(value: unknown): value is ChatEvent {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const event = value as Partial<ChatEvent>;
+
+  return (
+    typeof event.type === 'string' &&
+    typeof event.channelId === 'string' &&
+    typeof event.message === 'object' &&
+    event.message !== null &&
+    typeof event.message.orgId === 'string' &&
+    typeof event.message.createdAt === 'string'
+  );
+}
+
 @WebSocketGateway({
   path: '/api/chat/ws',
 })
@@ -53,44 +68,48 @@ export class ChatGateway
   async onModuleInit(): Promise<void> {
     await this.redisService.subscribe(
       'hellocloud-chat-events',
-      (rawMessage: string) => {
-        let event: ChatEvent;
-
-        try {
-          event = JSON.parse(rawMessage) as ChatEvent;
-
-          if (
-            event.type !== 'MESSAGE_CREATED' ||
-            typeof event.channelId !== 'string'
-          ) {
-            return;
-          }
-        } catch {
-          this.logger.warn('잘못된 Redis 채팅 이벤트');
-          return;
-        }
-
-        const payload = JSON.stringify({
-          type: event.type,
-          orgId: event.message.orgId,
-          channelId: event.channelId,
-          data: event.message,
-          sentAt: event.message.createdAt,
-        });
-
-        for (const client of this.clients) {
-          if (
-            client.userId &&
-            client.readyState === WebSocket.OPEN &&
-            client.subscriptions?.has(event.channelId)
-          ) {
-            client.send(payload);
-          }
-        }
-      },
+      (rawMessage: string) => this.relayChatEvent(rawMessage),
     );
 
     this.logger.log('Redis → WebSocket 채팅 전달 준비 완료');
+  }
+
+  relayChatEvent(rawMessage: string): void {
+    let event: ChatEvent;
+
+    try {
+      const parsed: unknown = JSON.parse(rawMessage);
+
+      if (!isChatEvent(parsed)) {
+        this.logger.warn('잘못된 Redis 채팅 이벤트');
+        return;
+      }
+
+      event = parsed;
+    } catch {
+      this.logger.warn('잘못된 Redis 채팅 이벤트');
+      return;
+    }
+
+    if (event.type !== 'MESSAGE_CREATED') return;
+
+    const payload = JSON.stringify({
+      type: event.type,
+      orgId: event.message.orgId,
+      channelId: event.channelId,
+      data: event.message,
+      sentAt: event.message.createdAt,
+    });
+
+    for (const client of this.clients) {
+      if (
+        client.userId &&
+        client.readyState === WebSocket.OPEN &&
+        client.subscriptions?.has(event.channelId)
+      ) {
+        client.send(payload);
+      }
+    }
   }
 
   handleConnection(client: AuthenticatedSocket): void {
@@ -112,51 +131,20 @@ export class ChatGateway
       }
     }, 10000);
 
-    client.on('message', async (raw: RawData) => {
-      let message: ClientMessage;
+    // 메시지를 소켓마다 받은 순서대로 하나씩 처리한다. 동시에 처리하면
+    // AUTH가 끝나기 전에 SUBSCRIBE가 거절되거나, 늦게 끝난 SUBSCRIBE가
+    // 먼저 처리된 UNSUBSCRIBE를 덮어쓴다.
+    let queue: Promise<void> = Promise.resolve();
 
-      try {
-        const parsed: unknown = JSON.parse(raw.toString());
-
-        if (
-          typeof parsed !== 'object' ||
-          parsed === null ||
-          Array.isArray(parsed)
-        ) {
-          throw new Error('Invalid message');
-        }
-
-        message = parsed as ClientMessage;
-      } catch {
-        client.close(1008, 'Invalid message format');
-        return;
-      }
-
-      if (!client.userId && message.type !== 'AUTH') {
-        client.close(1008, 'Authentication required');
-        return;
-      }
-
-      switch (message.type) {
-        case 'AUTH':
-          await this.handleAuth(client, message, authTimeout);
-          break;
-
-        case 'SUBSCRIBE':
-          await this.handleSubscribe(client, message);
-          break;
-
-        case 'UNSUBSCRIBE':
-          this.handleUnsubscribe(client, message);
-          break;
-
-        default:
-          this.sendError(
-            client,
-            'UNSUPPORTED_MESSAGE',
-            '지원하지 않는 메시지 유형입니다.',
+    client.on('message', (raw: RawData) => {
+      queue = queue
+        .then(() => this.handleMessage(client, raw, authTimeout))
+        .catch((error: unknown) => {
+          this.logger.error(
+            'WebSocket 메시지 처리 실패',
+            error instanceof Error ? error.stack : String(error),
           );
-      }
+        });
     });
 
     client.once('close', () => {
@@ -164,6 +152,59 @@ export class ChatGateway
       client.subscriptions?.clear();
       this.clients.delete(client);
     });
+  }
+
+  private async handleMessage(
+    client: AuthenticatedSocket,
+    raw: RawData,
+    authTimeout: ReturnType<typeof setTimeout>,
+  ): Promise<void> {
+    if (client.readyState !== WebSocket.OPEN) return;
+
+    let message: ClientMessage;
+
+    try {
+      const parsed: unknown = JSON.parse(raw.toString());
+
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
+        throw new Error('Invalid message');
+      }
+
+      message = parsed as ClientMessage;
+    } catch {
+      client.close(1008, 'Invalid message format');
+      return;
+    }
+
+    if (!client.userId && message.type !== 'AUTH') {
+      client.close(1008, 'Authentication required');
+      return;
+    }
+
+    switch (message.type) {
+      case 'AUTH':
+        await this.handleAuth(client, message, authTimeout);
+        break;
+
+      case 'SUBSCRIBE':
+        await this.handleSubscribe(client, message);
+        break;
+
+      case 'UNSUBSCRIBE':
+        this.handleUnsubscribe(client, message);
+        break;
+
+      default:
+        this.sendError(
+          client,
+          'UNSUPPORTED_MESSAGE',
+          '지원하지 않는 메시지 유형입니다.',
+        );
+    }
   }
 
   private async handleAuth(
