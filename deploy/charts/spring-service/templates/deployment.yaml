@@ -25,6 +25,17 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- /* 같은 서비스 파드를 노드에 나눠 띄운다. 스케줄러는 실제 사용량이 아니라 requests로 자리를 봐서 한 노드에 몰릴 수 있다(#204) */}}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{- toYaml . | nindent 10 }}
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ $.Chart.Name }}
+              app.kubernetes.io/instance: {{ $.Release.Name }}
+        {{- end }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ printf "%s:%s" (required "image.repository is required" .Values.image.repository) (required "image.tag is required" .Values.image.tag) | quote }}
