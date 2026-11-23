@@ -32,5 +32,12 @@ data:
           }
         }
       ],
-      "bruteForceProtected": true
+      "bruteForceProtected": true,
+      "loginTheme": "ideaconnection",
+      "internationalizationEnabled": true,
+      "supportedLocales": [
+        "ko",
+        "en"
+      ],
+      "defaultLocale": "ko"
     }
