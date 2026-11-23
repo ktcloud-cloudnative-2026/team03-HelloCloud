@@ -405,12 +405,13 @@ Keycloak 기본 화면(`keycloak.v2`)의 배치는 그대로 두고 색, 모서�
   Deployment의 `items[].path`로 `login/theme.properties`, `login/resources/css/ideaconnection.css`,
   `login/resources/img/logo.svg`에 연결해 `/opt/keycloak/themes/ideaconnection`에 읽기 전용으로 붙입니다.
   ConfigMap을 먼저 동기화하고, Pod의 `checksum/login-theme`이 내용 변경 시 교체를 유도합니다.
-  원본 테마를 바꾸면 ConfigMap의 세 파일 내용과 checksum도 함께 갱신합니다.
+  원본 테마를 바꾸면 ConfigMap의 세 파일 내용도 함께 갱신합니다. 저장소 루트에서
+  `sha256sum deploy/manifests/keycloak/prod/login-theme-configmap.yaml`을 실행한 첫 번째 값을
+  Deployment의 `checksum/login-theme`에 넣습니다(ConfigMap 파일 전체의 SHA-256).
   keycloak-prod는 자동 동기화라 머지하면 단일 Keycloak 파드가 Recreate 방식으로 교체됩니다.
-  #198과 반영 시간을 맞춥니다. 연속 머지만으로 한 번의 재시작이 보장되지는 않으므로,
-  한 번으로 묶어야 하면 담당자와 일시 자동 동기화 중단 → 두 PR 머지 → 최종 revision 확인 →
-  동기화 및 자동 정책 복원 절차를 별도로 확인받아 진행합니다.
-  이 PR은 동기화 정책 자체를 변경하지 않습니다.
+  현재는 prod 공개 전 사용자가 없는 상태이므로, 팀과 반영 시간을 맞춰 #198 → 테마 PR을
+  연달아 머지하고 최종 배포 상태를 확인합니다. 자동 동기화는 중단하지 않습니다.
+  두 번 교체될 수 있으며, 운영 사용자 접속이 시작된 뒤에는 중단 시간을 별도로 조율합니다.
   재시작 후에는 정식 관리자로 로그인해 Realm settings에서 테마를 선택합니다.
   테마 파일이 마운트되기 전에 기존 realm의 loginTheme부터 바꾸지 않습니다.
   검증 기록: 로컬 Keycloak 26.4.0에서 ConfigMap과 동일한 파일 매핑으로 로그인·회원가입
