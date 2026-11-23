@@ -28,5 +28,5 @@ Nest's packages are ESM only. A CommonJS project loads them through `require(esm
 이 서비스는 NestJS Observe(`ObserveModule`)를 쓰지 않습니다. `src/app.module.ts`에 없고, `OBSERVE_APP_KEY` · `OBSERVE_APP_SECRET`도 쓰지 않습니다. 운영 중 동작은 아래에서 봅니다.
 
 - 로그: Nest 기본 `Logger`로 표준 출력에 씁니다(`chat.gateway.ts`, `chat.service.ts`, `redis.service.ts`). dev에서는 Alloy가 `ideaconnection-dev` 네임스페이스 파드 로그를 Loki로 보내도록 설정되어 있고(Loki 설치는 부하 테스트 뒤), Grafana에서 `app="chat-service"`로 고릅니다. 수집 설정은 `deploy/values/alloy/`
-- 지표: chat-service는 `/metrics`를 내지 않습니다. 같은 `spring-service` 차트를 써서 Prometheus의 `spring-services` ServiceMonitor(`deploy/values/monitoring/values.yaml`)에 잡히지만, 가져올 지표가 없습니다. 파드 CPU · 메모리는 클러스터 기본 지표로 봅니다
+- 지표: `GET /metrics`(`src/metrics/`, prom-client). 같은 `spring-service` 차트라 Prometheus의 `spring-services` ServiceMonitor(`deploy/values/monitoring/values.yaml`)가 30초마다 가져갑니다. HTTP 지표는 user · file(Spring)과 같은 이름 `http_server_requests_seconds{method, uri, status}`이고, `uri`는 라우트 모양(`/api/chat/channels/:id`, 없는 주소는 `UNKNOWN`)입니다. 그 밖에 Node 기본 지표(`process_*`, `nodejs_*`)와 WebSocket 연결 수 `chat_websocket_connections`
 - 상태 확인: `/health/liveness`, `/health/readiness`(`src/health/health.controller.ts`, `@nestjs/terminus`는 쓰지 않음). readiness는 MongoDB만 봅니다

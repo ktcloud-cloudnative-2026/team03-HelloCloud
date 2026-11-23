@@ -10,6 +10,7 @@ import { WebSocket, RawData } from 'ws';
 import { AuthService } from '../auth/auth.service';
 import { MembershipService } from '../membership/membership.service';
 import { RedisService } from '../redis/redis.service';
+import { MetricsService } from '../metrics/metrics.service';
 import { ChatService } from './chat.service';
 
 type AuthenticatedSocket = WebSocket & {
@@ -96,9 +97,12 @@ export class ChatGateway
     private readonly membershipService: MembershipService,
     private readonly chatService: ChatService,
     private readonly redisService: RedisService,
+    private readonly metricsService: MetricsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
+    this.metricsService.trackWebSocketConnections(() => this.clients.size);
+
     await this.redisService.subscribe(
       'hellocloud-chat-events',
       (rawMessage: string) => this.relayChatEvent(rawMessage),
