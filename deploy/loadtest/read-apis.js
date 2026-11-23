@@ -15,6 +15,11 @@ const VUS = Number(__ENV.VUS || 10);
 const MODE = __ENV.MODE || 'full';
 // 테스트 조직을 정해 두면 그 조직의 파일 목록을 부른다. 비우면 계정이 속한 첫 조직을 쓴다
 const ORG_ID = __ENV.ORG_ID;
+// 한 번 돌고 쉬는 시간(초). 사람이 화면을 보는 시간이라 기본 1초. 줄이면 같은 사람 수로 더 센 부하가 된다(#146 병목 찾기 B)
+const THINK_SECONDS = Number(__ENV.THINK_SECONDS ?? 1);
+if (!(THINK_SECONDS >= 0)) {
+  throw new Error(`THINK_SECONDS는 0 이상의 숫자입니다: ${__ENV.THINK_SECONDS}`);
+}
 
 const TOKEN_URL = `${BASE_URL}/realms/${REALM}/protocol/openid-connect/token`;
 
@@ -163,5 +168,5 @@ export default function (data) {
   check(files, { 'files 200': (r) => r.status === 200 });
 
   // 사람이 화면을 보는 시간. 없으면 실제보다 훨씬 센 부하가 된다.
-  sleep(1);
+  sleep(THINK_SECONDS);
 }
