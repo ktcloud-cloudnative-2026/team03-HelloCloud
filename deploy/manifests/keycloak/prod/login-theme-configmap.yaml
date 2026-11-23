@@ -15,6 +15,11 @@ data:
     styles=css/styles.css css/ideaconnection.css
   ideaconnection.css: |
     /* 웹 services/web/src/styles/tokens.css와 같은 값. 웹에서 바꾸면 여기도 같이 바꾼다 */
+
+    /* 웹과 같은 몽돌 서체(#195). 웹은 파일을 직접 싣지만 ConfigMap 크기 제한(1MiB) 때문에
+       여기서는 Google Fonts에서 받는다. 받지 못하면 아래 대체 서체로 보인다 */
+    @import url("https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap");
+
     :root {
       --ic-primary: #2563eb;
       --ic-primary-hover: #1d4ed8;
@@ -27,7 +32,8 @@ data:
       --ic-link: var(--ic-primary);
       --ic-radius-sm: 8px;
       --ic-radius-lg: 22px;
-      --ic-font: Arial, sans-serif;
+      --ic-font: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      --ic-font-display: "M PLUS Rounded 1c", "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
 
       /* Keycloak 화면(PatternFly)이 쓰는 값을 우리 값으로 바꾼다 */
       --pf-v5-global--primary-color--100: var(--ic-primary);
@@ -36,7 +42,7 @@ data:
       --pf-v5-global--link--Color--hover: var(--ic-primary-hover);
       --pf-v5-global--danger-color--100: var(--ic-error);
       --pf-v5-global--FontFamily--text: var(--ic-font);
-      --pf-v5-global--FontFamily--heading: var(--ic-font);
+      --pf-v5-global--FontFamily--heading: var(--ic-font-display);
       --pf-v5-global--FontFamily--sans-serif: var(--ic-font);
       --pf-v5-c-button--m-primary--BackgroundColor: var(--ic-primary);
       --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--ic-primary-hover);
@@ -82,6 +88,7 @@ data:
       justify-content: center;
       gap: 10px;
       color: var(--ic-link) !important;
+      font-family: var(--ic-font-display);
       font-size: 26px;
       font-weight: 700;
       letter-spacing: 0;
@@ -112,6 +119,7 @@ data:
     .pf-v5-c-title,
     .pf-v5-c-login__main-title {
       color: var(--ic-text);
+      font-family: var(--ic-font-display);
     }
 
     .pf-v5-c-form-control,

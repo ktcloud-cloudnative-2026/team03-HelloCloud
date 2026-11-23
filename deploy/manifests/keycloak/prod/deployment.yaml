@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/login-theme: "0923bb2659cbae545059c58a4ce7280bd953f9c4efc84f814adb9687817336a4"
+        checksum/login-theme: "f6946301cbb278d4c38a333fcc586d8c34353739e8baa675b47971f177535192"
       labels:
         app.kubernetes.io/name: keycloak
     spec:

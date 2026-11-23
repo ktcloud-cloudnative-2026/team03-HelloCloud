@@ -31,7 +31,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "서비스 (user · file)",
+      "title": "서비스 (user · file · chat)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -82,7 +82,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m]))",
+          "expr": "sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service|chat-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m]))",
           "legendFormat": "{{job}}"
         }
       ]
@@ -146,7 +146,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service\", uri!=\"/metrics\", uri!~\"/health.*\", status=~\"5..\"}[1m])) or sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m])) * 0) / sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m]))",
+          "expr": "(sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service|chat-service\", uri!=\"/metrics\", uri!~\"/health.*\", status=~\"5..\"}[1m])) or sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service|chat-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m])) * 0) / sum by (job)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service|chat-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m]))",
           "legendFormat": "{{job}}"
         }
       ]
@@ -210,7 +210,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (job, le)(rate(http_server_requests_seconds_bucket{job=~\"user-service|file-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m])))",
+          "expr": "histogram_quantile(0.95, sum by (job, le)(rate(http_server_requests_seconds_bucket{job=~\"user-service|file-service|chat-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m])))",
           "legendFormat": "{{job}}"
         }
       ]
@@ -274,7 +274,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{namespace=\"ideaconnection-dev\", container!=\"\", pod=~\"(user|file)-service-.*\"}[1m])) / sum by (pod)(kube_pod_container_resource_requests{namespace=\"ideaconnection-dev\", resource=\"cpu\", pod=~\"(user|file)-service-.*\"})",
+          "expr": "sum by (pod)(rate(container_cpu_usage_seconds_total{namespace=\"ideaconnection-dev\", container!=\"\", pod=~\"(user|file|chat)-service-.*\"}[1m])) / sum by (pod)(kube_pod_container_resource_requests{namespace=\"ideaconnection-dev\", resource=\"cpu\", pod=~\"(user|file|chat)-service-.*\"})",
           "legendFormat": "{{pod}}"
         }
       ]
@@ -323,7 +323,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "kube_deployment_status_replicas_available{namespace=\"ideaconnection-dev\", deployment=~\"user-service|file-service\"}",
+          "expr": "kube_deployment_status_replicas_available{namespace=\"ideaconnection-dev\", deployment=~\"user-service|file-service|chat-service\"}",
           "legendFormat": "{{deployment}} 실제"
         },
         {
@@ -440,7 +440,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (pod)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m]))",
+          "expr": "sum by (pod)(rate(http_server_requests_seconds_count{job=~\"user-service|file-service|chat-service\", uri!=\"/metrics\", uri!~\"/health.*\"}[1m]))",
           "legendFormat": "{{pod}}"
         }
       ]
