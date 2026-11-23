@@ -3,6 +3,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: monitoring
+resources:
+  - ideaconnection-discord.yaml
+  - ideaconnection-error-rate.yaml
 configMapGenerator:
   - name: grafana-dashboard-hellocloud-loadtest
     files:

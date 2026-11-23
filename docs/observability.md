@@ -70,7 +70,48 @@ k6 스크립트 하나로 두 가지를 잽니다. 파일은 [deploy/loadtest/ac
 ## 4. 알림 기준
 | 조건 | 받는 사람 | 대응 문서(런북) |
 |---|---|---|
-| <에러율 5%가 5분 넘음> | | |
+| HTTP 5xx 에러율 5% 초과가 5분 지속 | Discord #alertmanager-관리 | [HTTP 5xx 경보 대응](runbook.md#http-5xx-에러율-경보-대응) |
+
+### HTTP 5xx 에러율 경보 (#132)
+
+- 경보 이름: `IdeaConnectionHighErrorRate`
+- 대상: `ideaconnection-dev` 네임스페이스
+- 조건: 최근 5분간 HTTP 5xx 에러율 5% 초과
+- 지속 시간: `for: 5m`
+- 집계 단위: `namespace`, `job`
+- 제외 경로: `/metrics`, `/health/.*`
+- 경보 규칙: `deploy/manifests/monitoring/dev/ideaconnection-error-rate.yaml`
+- 알림 채널: Discord `#alertmanager-관리`
+- 알림 상태: `FIRING`, `RESOLVED`
+
+### Alertmanager → Discord 연동
+
+- 설정 파일: `deploy/manifests/monitoring/dev/ideaconnection-discord.yaml`
+- Alertmanager 네임스페이스: `monitoring`
+- 알림 대상 네임스페이스: `monitoring`, `ideaconnection-dev`
+- Discord 웹후크 이름: `IdeaConnection-Alertmanager`
+- 웹후크 Secret: `monitoring/ideaconnection-discord-webhook`
+- Secret 키: `webhook-url`
+- 경보 해제 알림: `sendResolved: true`
+- 네임스페이스 전략: `OnNamespaceExceptForAlertmanagerNamespace`
+- Helm 설정: `deploy/values/monitoring/values.yaml`
+
+Discord 웹후크 URL은 Git에 저장하지 않는다.
+새 클러스터에서는 웹후크 Secret을 별도로 생성해야 한다.
+설정 변경 후 Argo CD 동기화 및 실제 Alertmanager 라우팅을 확인한다.
+
+### 검증 결과 (2026-11-23)
+
+- 테스트 환경: `ideaconnection-dev`
+- 테스트 서비스: `ideaconnection-alert-test`
+- HTTP 500 요청을 반복 발생시켜 5xx 에러율 5% 초과
+- Prometheus에서 `IdeaConnectionHighErrorRate`의 `firing` 상태 확인
+- Discord에서 `FIRING - IdeaConnection` 수신 성공
+- 요청 중단 후 Prometheus 활성 경보 해제 확인
+- Discord에서 `RESOLVED - IdeaConnection` 수신 성공
+- 테스트용 Deployment, Service, ConfigMap 삭제 완료
+
+**결과: 경보 발생부터 해제 알림까지 전체 흐름 검증 성공.**
 
 ## 5. 코드에 처음부터 넣을 것
 - [x] `/metrics` 엔드포인트 (user, file, chat)
