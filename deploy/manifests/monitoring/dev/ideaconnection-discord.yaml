@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: ideaconnection-discord
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: ideaconnection
+spec:
+  route:
+    receiver: discord
+    matchers:
+      - name: namespace
+        matchType: "=~"
+        value: "monitoring|ideaconnection-dev"
+      - name: alertname
+        matchType: "="
+        value: IdeaConnectionHighErrorRate
+    groupBy:
+      - alertname
+    groupWait: 10s
+    groupInterval: 1m
+    repeatInterval: 4h
+
+  receivers:
+    - name: discord
+      discordConfigs:
+        - apiURL:
+            name: ideaconnection-discord-webhook
+            key: webhook-url
+          sendResolved: true
+          username: IdeaConnection-Alertmanager
+          title: '{{ .Status | toUpper }} - IdeaConnection'
+          message: '{{ range .Alerts }}{{ .Annotations.summary }}{{ "\n" }}{{ end }}'
