@@ -613,14 +613,17 @@ MySQL의 `keycloak` DB·전용 계정에만 권한을 부여했습니다. VM 안
 DB 로그인을 확인했습니다. 실제 비밀번호와 파일은 Git에 넣지 않습니다.
 접속 원본은 초기 `keycloak@%`이며 다른 운영 MySQL 계정과 함께 제한할 후속 항목입니다.
 
-현재 필요한 Secret은 `ideaconnection-prod/keycloak-db-env`의 `KC_DB_PASSWORD`,
-`keycloak-bootstrap-admin`의 `username`, `password`입니다.
-다음은 내 PC WSL에서 실행하는 최초 생성 예시로, 기존 Secret이 있으면 덮어쓰지 않습니다.
+현재 운영 Deployment에 필요한 Secret은 `ideaconnection-prod/keycloak-db-env`의
+`KC_DB_PASSWORD`입니다. `keycloak-bootstrap-admin`의 `username`, `password`는
+최초 설치의 임시 관리자 생성 때만 사용하며, 전환 완료 후에는 필요하지 않습니다.
+다음은 최초 설치 이력과 새 클러스터 준비용 생성 예시입니다. 현재 운영에서 그대로
+다시 실행하지 않으며, 기존 Secret이 있으면 덮어쓰지 않습니다.
 비밀번호를 화면·로컬 파일·명령 기록에 쓰지 않고 VM에서 cp의 kubectl로 전달합니다.
 
 ```bash
 ssh t3-prod-db 'sed "s/^KEYCLOAK_DB_PASSWORD=/KC_DB_PASSWORD=/" /opt/mysql/keycloak.env' \
   | ssh t3-prod-cp 'kubectl create secret generic keycloak-db-env -n ideaconnection-prod --from-env-file=/dev/stdin'
+# 새 클러스터 최초 설치에서 bootstrap 환경변수 참조를 준비한 경우에만 생성
 ssh t3-prod-cp 'kubectl create secret generic keycloak-bootstrap-admin -n ideaconnection-prod --from-literal=username=admin --from-literal=password="$(openssl rand -hex 24)"'
 ```
 
@@ -769,9 +772,9 @@ kubectl run oidc-check -n ideaconnection-prod --rm -i --restart=Never --image=cu
 
 ### 운영 Keycloak 관리자 전환 (2026-11-23)
 
-내부 SSH·localhost port-forward 경로에서 정식 관리자 `prod-admin`을 생성하고,
+내부 SSH·localhost port-forward 경로에서 정식 관리자를 생성하고,
 새 비밀번호 로그인과 master·hellocloud realm 관리 권한을 확인했습니다.
-해당 정식 관리자로 임시 `admin` 계정만 삭제한 뒤, 새 관리자 재로그인과 관리 권한을
+해당 정식 관리자로 임시 관리자 계정만 삭제한 뒤, 새 관리자 재로그인과 관리 권한을
 다시 확인했습니다. 사용자 realm·일반 계정·DB·파일 데이터는 삭제하지 않았습니다.
 이 확인은 외부 HTTPS의 회원가입·로그인 성공을 뜻하지 않으며, 도메인 연결과 별개입니다.
 
@@ -797,6 +800,10 @@ Secret 삭제는 별도 실제 변경이므로 담당자가 확인 후 실행하
 kubectl delete secret keycloak-bootstrap-admin -n ideaconnection-prod
 ```
 
-기존 최초 설치 절차의 bootstrap Secret 생성은 새 클러스터 초기 설치용 기록입니다.
-전환 완료된 클러스터에 임시 계정·Secret을 다시 만들지 않습니다.
+현재 manifest에는 bootstrap 환경변수 참조가 없으므로, 새 클러스터에서는 Secret만
+만들어도 최초 관리자가 생성되지 않습니다. 새 클러스터를 처음 설치할 때는 별도 검토한
+초기 설치 변경에서 `KC_BOOTSTRAP_ADMIN_USERNAME`·`KC_BOOTSTRAP_ADMIN_PASSWORD`를
+해당 Secret의 `username`·`password`에 연결한 뒤 첫 기동합니다. 정식 관리자 로그인·권한을
+확인하면 이 문서의 전환 순서대로 임시 계정·참조·Secret을 정리합니다.
+이 초기 설치 변경을 이미 전환한 현재 운영 클러스터에 적용하지 않습니다.
 정식 관리자 인증정보는 Git·공개 채널에 남기지 않고 팀의 인계 방식에 맞춰 보관합니다.
