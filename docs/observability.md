@@ -153,11 +153,13 @@ kubectl -n loadtest logs -f job/k6-read-apis
 
 dev Argo 앱은 손으로 바꾼 것을 되돌리므로(`selfHeal`), 1차 · 2차 전환은 user · file의
 `deploy/values/<서비스>/values-dev.yaml`에서 `autoscaling.enabled`를 바꾸는 PR로 합니다.
-1차 PR에서 둘 다 `false`, 2차 PR에서 둘 다 `true`로 PR 하나에서 같이 바꿉니다. 파일 목록 API가 user의 소속
-확인도 부르므로 한쪽만 늘리면 비교가 맞지 않습니다. 머지 후 `kubectl -n ideaconnection-dev get hpa`로 상태를 확인하고 실행합니다.
+2026-11-23에는 병목인 user만 바꿨습니다(1차 `false`, 2차 `true`). file까지 켜면 둘 다 바로 3개가 돼 워커가 빠듯하고,
+원인 → 조치 → 효과를 나눠 보기 어렵기 때문입니다(팀장 결정). 머지 후 `kubectl -n ideaconnection-dev get hpa`로 상태를 확인하고 실행합니다.
 
-HPA를 켜면 user · file이 각각 최대 3개라 메모리 requests 합이 6 × 512Mi = 3Gi입니다. 실행 전
-`kubectl describe nodes`의 Allocated resources로 워커 여유를 봅니다(k6 파드 · chat 포함).
+HPA는 CPU requests 대비 사용률로 늘리고, 스케줄러는 requests로 노드 자리를 봅니다. requests가 실사용보다 작으면 새 파드가
+한 노드에 몰립니다(2차-1: user requests 100m, 새 파드 2개가 file과 같은 w1에 떠 w1 CPU 100%). file도 requests가 100m라 file이 있는 노드가
+한가해 보였습니다. 그래서 dev user · file 모두 CPU requests를 실사용(파드당 약 1코어)에 맞추고, user는 노드에 나눠 띄웁니다(#204). 실행 전 `kubectl describe nodes`의 Allocated resources로
+워커 여유를 봅니다(k6 파드 · chat 포함).
 
 ### 정리
 

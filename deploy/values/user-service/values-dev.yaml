@@ -3,3 +3,13 @@ image:
   tag: "ef82da4"
 autoscaling:
   enabled: true
+# 부하 테스트 2차(#204): 파드당 실제로 약 1코어를 써서, requests 100m로는 스케줄러가
+# 새 파드를 한 노드에 몰았다(2차-1). 실사용에 맞추고 노드에 나눠 띄운다
+resources:
+  requests:
+    cpu: 1000m
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    # 자리가 모자라도 Pending으로 두지 않고 띄운다
+    whenUnsatisfiable: ScheduleAnyway
