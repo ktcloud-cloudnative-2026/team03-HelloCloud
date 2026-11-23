@@ -780,3 +780,50 @@ done
 
 - `admin.conf`, `~/.kube/config`, join 토큰, Argo CD 비밀번호, DB VM의 `.env`는 저장소·채팅에 올리지 않습니다
 - `ssh t4-...`는 내 PC(PowerShell)에서 실행합니다. 노드 안에서는 다른 노드 이름을 모릅니다
+
+## Alertmanager Discord 웹후크 Secret (dev)
+
+IdeaConnection의 HTTP 5xx 에러율 경보를 Discord
+`#alertmanager-관리` 채널로 전송하기 위한 설정입니다.
+
+### Secret 생성
+
+Discord 채널 설정에서 웹후크 URL을 발급받습니다.
+
+웹후크 URL은 비밀정보이므로 Git에 커밋하거나
+문서 및 로그에 노출하지 않습니다.
+
+dev 클러스터 control plane에서 실행합니다.
+
+```bash
+read -r -s -p "Discord Webhook URL: " WEBHOOK_URL
+echo
+
+kubectl -n monitoring create secret generic ideaconnection-discord-webhook \
+  --from-literal=webhook-url="$WEBHOOK_URL"
+
+unset WEBHOOK_URL
+```
+
+기존 Secret이 있는 경우 중복 생성하지 않습니다.
+URL 변경 시에는 기존 Secret의 교체 절차를 확인합니다.
+
+### 생성 확인
+
+```bash
+kubectl -n monitoring get secret ideaconnection-discord-webhook
+```
+
+Secret의 존재 여부만 확인하고 실제 웹후크 URL은 출력하지 않습니다.
+
+### 관련 설정
+
+- AlertmanagerConfig:
+  `deploy/manifests/monitoring/dev/ideaconnection-discord.yaml`
+- PrometheusRule:
+  `deploy/manifests/monitoring/dev/ideaconnection-error-rate.yaml`
+- Helm values:
+  `deploy/values/monitoring/values.yaml`
+
+Secret은 클러스터에 별도로 생성하며 GitOps 배포 대상에
+실제 웹후크 URL을 포함하지 않습니다.

@@ -12,6 +12,9 @@ spec:
       - name: namespace
         matchType: "=~"
         value: "monitoring|ideaconnection-dev"
+      - name: alertname
+        matchType: "="
+        value: IdeaConnectionHighErrorRate
     groupBy:
       - alertname
     groupWait: 10s
