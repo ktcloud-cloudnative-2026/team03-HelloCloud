@@ -766,3 +766,37 @@ kubectl run oidc-check -n ideaconnection-prod --rm -i --restart=Never --image=cu
 내부 JWKS 경로로 분리할 경우 chat과 Spring 서비스의 설정 지원 여부를 따로 검토합니다.
 머지 직후 Gateway 경로가 먼저 반영되므로 서비스가 준비될 때까지 로그인·API 요청이
 500/503으로 실패할 수 있습니다. 공개 완료 안내는 기능 검증 이후에 합니다.
+
+### 운영 Keycloak 관리자 전환 (2026-11-23)
+
+내부 SSH·localhost port-forward 경로에서 정식 관리자 `prod-admin`을 생성하고,
+새 비밀번호 로그인과 master·hellocloud realm 관리 권한을 확인했습니다.
+해당 정식 관리자로 임시 `admin` 계정만 삭제한 뒤, 새 관리자 재로그인과 관리 권한을
+다시 확인했습니다. 사용자 realm·일반 계정·DB·파일 데이터는 삭제하지 않았습니다.
+이 확인은 외부 HTTPS의 회원가입·로그인 성공을 뜻하지 않으며, 도메인 연결과 별개입니다.
+
+배포 설정에서 `KC_BOOTSTRAP_ADMIN_USERNAME`과 `KC_BOOTSTRAP_ADMIN_PASSWORD`
+참조를 제거합니다. 정식 관리자 정보는 MySQL에 저장되어 재기동 후에도 유지됩니다.
+DB 비밀번호 Secret(`keycloak-db-env`)과 realm 이름·공개 경로는 변경하지 않습니다.
+
+이 변경을 머지하면 keycloak-prod 자동 동기화로 단일 Keycloak 파드가 Recreate 방식으로
+교체되어 로그인이 잠시 중단됩니다. 적용 시간을 팀에 공유하고 진행합니다.
+머지 후 담당자가 prod cp에서 확인합니다(비밀값 출력 없음).
+
+```bash
+kubectl rollout status deployment/keycloak -n ideaconnection-prod --timeout=300s
+kubectl get application keycloak-prod -n argocd
+kubectl get deployment keycloak -n ideaconnection-prod -o jsonpath='{.spec.template.spec.containers[0].env[*].name}{"\n"}'
+```
+
+새 Deployment에 bootstrap 참조가 없는지, 새 파드가 Ready인지 확인하고 정식 관리자
+로그인·권한을 다시 검증한 다음에만 아래 Secret을 삭제합니다.
+Secret 삭제는 별도 실제 변경이므로 담당자가 확인 후 실행하며, 앞 단계와 한꺼번에 실행하지 않습니다.
+
+```bash
+kubectl delete secret keycloak-bootstrap-admin -n ideaconnection-prod
+```
+
+기존 최초 설치 절차의 bootstrap Secret 생성은 새 클러스터 초기 설치용 기록입니다.
+전환 완료된 클러스터에 임시 계정·Secret을 다시 만들지 않습니다.
+정식 관리자 인증정보는 Git·공개 채널에 남기지 않고 팀의 인계 방식에 맞춰 보관합니다.

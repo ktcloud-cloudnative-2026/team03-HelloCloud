@@ -36,16 +36,6 @@ spec:
                 secretKeyRef:
                   name: keycloak-db-env
                   key: KC_DB_PASSWORD
-            - name: KC_BOOTSTRAP_ADMIN_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: keycloak-bootstrap-admin
-                  key: username
-            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: keycloak-bootstrap-admin
-                  key: password
             - name: KC_HOSTNAME
               value: https://ideaconnection.jpexstudio.com
             - name: KC_HTTP_ENABLED
