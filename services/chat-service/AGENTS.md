@@ -23,11 +23,10 @@ Validation works with Zod, Valibot, ArkType or any other Standard Schema library
 
 Nest's packages are ESM only. A CommonJS project loads them through `require(esm)`, which needs Node.js 20.19+ or 22.12+, and doesn't have to convert (https://docs.nestjs.com/migration-guide.md).
 
-## Production data: NestJS Observe
+## 운영 데이터: 로그 · 지표
 
-This app reports its traces, errors, logs and metrics to [NestJS Observe](https://observe.nestjs.com) through `ObserveModule` in `src/app.module.ts`. Its key pair comes from `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in `.env`, which `npx @nestjs/observe link` writes.
+이 서비스는 NestJS Observe(`ObserveModule`)를 쓰지 않습니다. `src/app.module.ts`에 없고, `OBSERVE_APP_KEY` · `OBSERVE_APP_SECRET`도 쓰지 않습니다. 운영 중 동작은 아래에서 봅니다.
 
-When a task depends on how the app behaves in production - an error users hit, a slow endpoint, a failing job, whether a release made things worse - work from that data, not from the code alone:
-
-- The Observe MCP server answers those questions directly: errors with their traces and logs, slow operations, jobs, and what a release changed (`find_regressions`, `diff_release`). It is included on the Pro plan and above. In Claude Code: `claude mcp add observe --transport http https://observe-api.nestjs.com/mcp`, and the client opens a browser to approve. Other clients: https://www.observe.nestjs.com/documentation/mcp
-- Without it, the user can open the request or error in the Observe dashboard and click **Copy agent prompt**, which hands over that page's trace, stack and logs as text.
+- 로그: Nest 기본 `Logger`로 표준 출력에 씁니다(`chat.gateway.ts`, `chat.service.ts`, `redis.service.ts`). dev에서는 Alloy가 `ideaconnection-dev` 네임스페이스 파드 로그를 Loki로 보내도록 설정되어 있고(Loki 설치는 부하 테스트 뒤), Grafana에서 `app="chat-service"`로 고릅니다. 수집 설정은 `deploy/values/alloy/`
+- 지표: chat-service는 `/metrics`를 내지 않습니다. 같은 `spring-service` 차트를 써서 Prometheus의 `spring-services` ServiceMonitor(`deploy/values/monitoring/values.yaml`)에 잡히지만, 가져올 지표가 없습니다. 파드 CPU · 메모리는 클러스터 기본 지표로 봅니다
+- 상태 확인: `/health/liveness`, `/health/readiness`(`src/health/health.controller.ts`, `@nestjs/terminus`는 쓰지 않음). readiness는 MongoDB만 봅니다
