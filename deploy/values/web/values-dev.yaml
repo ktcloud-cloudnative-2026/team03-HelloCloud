@@ -1,3 +1,3 @@
 replicaCount: 1
 image:
-  tag: "c43314c"
+  tag: "bfe0ef6"
