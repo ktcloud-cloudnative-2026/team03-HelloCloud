@@ -48,7 +48,12 @@
   --shadow-lg:
     0 16px 48px rgba(35, 41, 45, 0.12);
 
-  /* 8. 자연스러운 애니메이션 */
+  /* 8. 서체(몽돌 디자인 시스템) */
+  --font-body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-display: "M PLUS Rounded 1c", "Gowun Dodum", "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* 9. 자연스러운 애니메이션 */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
   --transition-smooth:
