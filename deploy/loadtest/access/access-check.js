@@ -29,7 +29,7 @@ if (!['revoke', 'isolation'].includes(MODE)) {
 
 const revokeMs = new Trend('revoke_ms', true);
 const wsCloseMs = new Trend('ws_close_ms', true);
-const notBlocked = new Counter('isolation_not_403');
+const notBlocked = new Counter('isolation_not_blocked');
 
 export const options = {
   scenarios: {
@@ -42,7 +42,7 @@ export const options = {
           'revoke_ms{service:file}': ['max<5000'],
           'revoke_ms{service:chat}': ['max<5000'],
         }
-      : { isolation_not_403: ['count==0'] },
+      : { isolation_not_blocked: ['count==0'] },
   summaryTrendStats: ['min', 'avg', 'max'],
 };
 
@@ -227,6 +227,9 @@ async function revokeRound(data) {
   sleep(1);
 }
 
+// 403 · 404면 데이터가 나가지 않으므로 막힌 것으로 본다(#173). 400 · 401 · 5xx는 다른 문제라 실패로 남긴다
+const blocked = (r) => r.status === 403 || r.status === 404;
+
 function isolationSide(side) {
   const t = side.token;
   const calls = [
@@ -243,9 +246,9 @@ function isolationSide(side) {
   ];
   for (const [svc, method, path, body] of calls) {
     const res = http.request(method, `${BASE_URL}${path}`, body ? JSON.stringify(body) : null, auth(t, { tags: { name: `${method} ${path.split('?')[0]}` } }));
-    const ok = check(res, { [`${side.name} ${method} ${path.split('?')[0]} 403`]: (r) => r.status === 403 });
+    const ok = check(res, { [`${side.name} ${method} ${path.split('?')[0]} 막힘(403/404)`]: blocked });
     if (!ok) notBlocked.add(1, { service: svc });
-    console.log(`${side.name} | ${svc} | ${method} ${path} → ${res.status}${ok ? '' : '  ← 403 아님'}`);
+    console.log(`${side.name} | ${svc} | ${method} ${path} → ${res.status}${ok ? '' : '  ← 막히지 않음'}`);
   }
 }
 
