@@ -9,8 +9,8 @@
 ## 1. 공통 지표 (모든 서비스) — 골든 시그널: 지연 · 트래픽 · 에러 · 포화
 
 dev에서는 Grafana의 Explore(질문을 바로 넣어 보는 화면)에서 봅니다. 여는 법은
-[deploy/README.md](../deploy/README.md#grafana-보기)에 있습니다. 아래 식은 user, file(Spring)
-기준입니다. Prometheus가 숫자를 가져가는 `/metrics` 요청과 쿠버네티스가 몇 초마다 보내는
+[deploy/README.md](../deploy/README.md#grafana-보기)에 있습니다. 아래 식은 user, file(Spring)과
+chat(NestJS) 모두 같은 이름으로 씁니다. Prometheus가 숫자를 가져가는 `/metrics` 요청과 쿠버네티스가 몇 초마다 보내는
 건강 확인(`/health/liveness`, `/health/readiness`) 요청은 빼고 셉니다. 사용자가 없어도 숫자가 생기고,
 아주 빠른 요청이라 응답 시간이 실제보다 낮게 나와 부하 테스트 전후 비교가 흐려지기 때문입니다.
 
@@ -25,7 +25,8 @@ dev에서는 Grafana의 Explore(질문을 바로 넣어 보는 화면)에서 봅
   `application.yaml`에 `management.metrics.distribution.percentiles-histogram`을 켰습니다(#124).
   사람이 보낸 요청이 없으면 선이 비고, 파드가 새로 뜬 직후 첫 요청들은 준비 과정 때문에 느려서
   p95가 크게 나옵니다. 부하 테스트는 몇 분 워밍업한 뒤 잽니다.
-- chat(NestJS)은 배포 후 지표 이름을 따로 정합니다.
+- chat(NestJS)은 prom-client로 같은 이름(`http_server_requests_seconds`)과 구간을 직접 만듭니다(#199).
+  WebSocket 연결 수는 `chat_websocket_connections`(파드별)로 봅니다.
 
 ## 2. 업무 지표 (서비스별) — [성공 기준](plan.md#5-성공-기준-숫자로)에서
 | 서비스 | 지표 | 왜 |
@@ -47,7 +48,7 @@ dev에서는 Grafana의 Explore(질문을 바로 넣어 보는 화면)에서 봅
 | <에러율 5%가 5분 넘음> | | |
 
 ## 5. 코드에 처음부터 넣을 것
-- [x] `/metrics` 엔드포인트 (user, file. chat은 배포 후)
+- [x] `/metrics` 엔드포인트 (user, file, chat)
 - [ ] 요청 ID 헤더를 받아서 다음 서비스로 전달
 
 ## 6. 부하 테스트 (dev, #146)

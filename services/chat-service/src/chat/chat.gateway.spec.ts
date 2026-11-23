@@ -4,6 +4,7 @@ import { WebSocket } from 'ws';
 import { AuthService } from '../auth/auth.service';
 import { MembershipService } from '../membership/membership.service';
 import { RedisService } from '../redis/redis.service';
+import { MetricsService } from '../metrics/metrics.service';
 import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
 
@@ -82,6 +83,7 @@ describe('ChatGateway', () => {
       membershipService as unknown as MembershipService,
       chatService as unknown as ChatService,
       {} as RedisService,
+      {} as MetricsService,
     );
 
     socket = new FakeSocket();

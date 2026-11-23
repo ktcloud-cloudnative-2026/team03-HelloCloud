@@ -10,7 +10,7 @@
 - 메시지는 MongoDB(`chat_service` DB)에 먼저 저장하고, 저장에 성공하면 Redis 채널 `hellocloud-chat-events`로 알립니다. 파드가 여러 개여도 모든 파드가 이 채널을 구독해 자기에게 연결된 브라우저에 보냅니다. Redis가 멈춰도 메시지는 저장되고, 다시 연결하면 놓친 메시지를 HTTP로 받습니다(US-07)
 - user-service가 멤버를 내보내면 Redis 채널 `hellocloud-member-events`로 `MEMBER_REMOVED`를 받아, 그 사람의 그 조직 채널 연결을 끊습니다(US-04)
 - 로그인 토큰은 Keycloak의 공개 키로 직접 확인하고, 조직 멤버인지는 요청마다 user-service의 내부 API에 묻습니다
-- 상태 확인: `/health/liveness`, `/health/readiness`
+- 상태 확인: `/health/liveness`, `/health/readiness`. Prometheus 지표는 `/metrics`(HTTP 요청 수 · 시간, WebSocket 연결 수, Node 기본 지표)
 
 ## 로컬 실행
 

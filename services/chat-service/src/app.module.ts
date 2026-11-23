@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { MembershipModule } from './membership/membership.module';
 import { ChatModule } from './chat/chat.module';
 import { HealthController } from './health/health.controller';
+import { MetricsModule } from './metrics/metrics.module';
 
 const dbUrl = process.env.DB_URL;
 
@@ -23,6 +24,7 @@ if (!dbUrl) {
       pass: process.env.DB_PASSWORD,
       serverSelectionTimeoutMS: 5000,
     }),
+    MetricsModule,
     RedisModule,
     AuthModule,
     MembershipModule,
