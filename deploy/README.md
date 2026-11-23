@@ -201,7 +201,7 @@ HPA(요청이 몰리면 파드를 자동으로 늘리기)는 공통 차트에 �
 `values-dev.yaml`에서 켭니다(파드 1~3개, CPU가 requests의 70%를 넘으면 늘림). 최대 3개는 워커 메모리 여유
 (requests 합 2Gi, w1 여유 약 5Gi)를 보고 정했습니다. dev user · file은 부하 테스트에서 파드당 약 1코어를 써서 CPU requests를
 1000m로 올리고(file은 HPA 없이 자리 예약만), user는 `topologySpreadConstraints`로 노드에 나눠 띄웁니다(#204). requests가 실사용보다 작으면 스케줄러가
-새 파드를 한 노드에 몰아 그 노드 CPU가 바닥납니다. 공통 차트의 `topologySpreadConstraints`는 기본으로 비어 있습니다. 켜면 Deployment의 `replicas`는 쓰지 않습니다. 파드 수는
+새 파드를 한 노드에 몰아 그 노드 CPU가 바닥납니다. 공통 차트의 `topologySpreadConstraints`는 기본으로 비어 있습니다. HPA를 켜면 Deployment의 `replicas`는 쓰지 않습니다. 파드 수는
 HPA가 정하고, 적어 두면 Argo CD가 매번 원래 수로 되돌리기 때문입니다. 확인: `kubectl get hpa -n ideaconnection-dev`
 
 user · file은 `autoscaling.behavior`로 늘리기 전 2분 동안 CPU가 계속 높은지 봅니다(`scaleUp.stabilizationWindowSeconds: 120`).
