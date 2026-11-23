@@ -401,13 +401,28 @@ Keycloak 기본 화면(`keycloak.v2`)의 배치는 그대로 두고 색, 모서�
 로고는 웹 아이콘(`services/web/src/brand/brandIcon.js`)과 같은 그림이고, 웹 테스트가 둘이 같은지 확인합니다.
 
 - 로컬: `services/compose.yaml`이 테마 폴더를 붙이고, 로컬 realm 파일이 테마 · 표시 이름 `IdeaConnection` · 기본 언어 한국어를 켭니다
-- prod: 아직 적용하지 않았습니다. 후속 PR에서 테마 파일 3개를 ConfigMap으로 만들어
-  `deploy/manifests/keycloak/prod/`의 Keycloak 파드에 `/opt/keycloak/themes/ideaconnection`으로 붙입니다
-  (ConfigMap `items.path`로 `login/...` 하위 폴더 구조를 만듭니다). keycloak-prod는 자동 동기화라
-  머지하면 Keycloak이 다시 떠서 로그인이 잠깐 끊기므로 Keycloak 담당자와 시간을 맞춥니다
-  로컬은 `keycloak:26.8.2`, prod는 `26.4.0`이라 붙이기 전에 로컬을 prod 버전으로 바꿔 화면을 다시 확인합니다
-- realm 설정(로그인 테마 `ideaconnection`, 표시 이름 `IdeaConnection`, 다국어 켜기 · 기본 언어 `ko`)은 realm 파일에 넣어도
-  처음 만들 때만 적용됩니다. 이미 있는 realm은 Keycloak 관리 화면(port-forward)의 Realm settings에서 바꿉니다
+- prod: `deploy/manifests/keycloak/prod/login-theme-configmap.yaml`의 키 3개를
+  Deployment의 `items[].path`로 `login/theme.properties`, `login/resources/css/ideaconnection.css`,
+  `login/resources/img/logo.svg`에 연결해 `/opt/keycloak/themes/ideaconnection`에 읽기 전용으로 붙입니다.
+  ConfigMap을 먼저 동기화하고, Pod의 `checksum/login-theme`이 내용 변경 시 교체를 유도합니다.
+  원본 테마를 바꾸면 ConfigMap의 세 파일 내용과 checksum도 함께 갱신합니다.
+  keycloak-prod는 자동 동기화라 머지하면 단일 Keycloak 파드가 Recreate 방식으로 교체됩니다.
+  #198과 반영 시간을 맞춥니다. 연속 머지만으로 한 번의 재시작이 보장되지는 않으므로,
+  한 번으로 묶어야 하면 담당자와 일시 자동 동기화 중단 → 두 PR 머지 → 최종 revision 확인 →
+  동기화 및 자동 정책 복원 절차를 별도로 확인받아 진행합니다.
+  이 PR은 동기화 정책 자체를 변경하지 않습니다.
+  재시작 후에는 정식 관리자로 로그인해 Realm settings에서 테마를 선택합니다.
+  테마 파일이 마운트되기 전에 기존 realm의 loginTheme부터 바꾸지 않습니다.
+  검증 기록: 로컬 Keycloak 26.4.0에서 ConfigMap과 동일한 파일 매핑으로 로그인·회원가입
+  화면 표시와 한국어를 확인했고, 로그인 HTML·CSS·SVG 모두 HTTP 200을 확인했습니다.
+  이 로컬 검사는 운영 MySQL·기존 계정·외부 HTTPS 로그인 검증을 대체하지 않습니다.
+- realm JSON에 로그인 테마 `ideaconnection`, 표시 이름 `IdeaConnection`, 다국어 켜기 · 기본 언어 `ko`를 기록합니다. 이 설정은
+  처음 만들 때만 적용됩니다. 이미 있는 realm은 테마 마운트·새 파드 Ready 확인 후
+  Keycloak 관리 화면(port-forward)의 Realm settings에서 정식 관리자로 설정합니다.
+  `loginTheme=ideaconnection`, 다국어 켜기, 지원 언어 ko·en, 기본 언어 ko를 저장하고 다시 조회합니다.
+  기존 realm을 지우거나 재import하지 않습니다.
+  도메인 연결 후 HTTPS 로그인·회원가입 화면과 CSS·로고 응답, 실제 로그인까지 확인합니다.
+  문제가 있으면 먼저 기존 realm의 로그인 테마를 기본값으로 되돌리고 배포 변경을 revert합니다.
 - dev: Keycloak이 저장소 밖에서 관리되므로 적용하지 않습니다(발표는 prod 기준)
 
 ## GitHub Actions 연결

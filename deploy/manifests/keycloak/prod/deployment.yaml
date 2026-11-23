@@ -12,6 +12,8 @@ spec:
       app.kubernetes.io/name: keycloak
   template:
     metadata:
+      annotations:
+        checksum/login-theme: "ba8b9b36bd2e2a84e0b149434b84327cef68617026b9d5568d428fca70126238"
       labels:
         app.kubernetes.io/name: keycloak
     spec:
@@ -55,6 +57,9 @@ spec:
             - name: KC_HEALTH_ENABLED
               value: "true"
           volumeMounts:
+            - name: login-theme
+              mountPath: /opt/keycloak/themes/ideaconnection
+              readOnly: true
             - name: realm
               mountPath: /opt/keycloak/data/import
               readOnly: true
@@ -79,6 +84,16 @@ spec:
             limits:
               memory: 1Gi
       volumes:
+        - name: login-theme
+          configMap:
+            name: keycloak-login-theme
+            items:
+              - key: theme.properties
+                path: login/theme.properties
+              - key: ideaconnection.css
+                path: login/resources/css/ideaconnection.css
+              - key: logo.svg
+                path: login/resources/img/logo.svg
         - name: realm
           configMap:
             name: keycloak-realm
