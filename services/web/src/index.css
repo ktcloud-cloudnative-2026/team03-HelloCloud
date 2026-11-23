@@ -1,7 +1,8 @@
 
 :root {
-  font-family: Arial, sans-serif;
-  font-synthesis: none;
+  font-family: var(--font-body);
+  /* 고운돋움은 400 한 가지라, 굵은 글씨는 브라우저가 굵기를 만들어 보여 준다 */
+  font-synthesis: weight;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -16,6 +17,23 @@ body {
 }
 
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+.brand {
+  font-family: var(--font-display);
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono);
 }
