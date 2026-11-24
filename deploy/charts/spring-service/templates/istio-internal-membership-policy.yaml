@@ -17,17 +17,20 @@ spec:
               - {{ printf "%s/chat-service" .Release.Namespace | quote }}
       to:
         - operation:
+            ports: [{{ .Values.containerPort | toString | quote }}]
             paths:
               - /internal
               - /internal/*
     - to:
         - operation:
+            ports: [{{ .Values.containerPort | toString | quote }}]
             paths:
               - /internal
               - /internal/*
             notMethods: [GET]
     - to:
         - operation:
+            ports: [{{ .Values.containerPort | toString | quote }}]
             paths:
               - /internal
               - /internal/*
