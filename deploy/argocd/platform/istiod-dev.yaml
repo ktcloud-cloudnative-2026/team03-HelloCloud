@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istiod-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://blob.istio.io/istio-release/charts
+    chart: istiod
+    targetRevision: 1.32.0
+    helm:
+      releaseName: istiod
+      valuesObject:
+        env:
+          PILOT_ENABLE_GATEWAY_API_DEPLOYMENT_CONTROLLER: "false"
+        sidecarInjectorWebhook:
+          enableNamespacesByDefault: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      - FailOnSharedResource=true

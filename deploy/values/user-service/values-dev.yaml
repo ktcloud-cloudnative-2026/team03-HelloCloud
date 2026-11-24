@@ -13,3 +13,5 @@ topologySpreadConstraints:
     topologyKey: kubernetes.io/hostname
     # 자리가 모자라도 Pending으로 두지 않고 띄운다
     whenUnsatisfiable: ScheduleAnyway
+
+istioSidecarInjection: true

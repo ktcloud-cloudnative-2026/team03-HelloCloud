@@ -47,3 +47,6 @@ resources: {}
 # 비워 두면 쓰지 않는다. 항목마다 maxSkew · topologyKey · whenUnsatisfiable을 적고,
 # labelSelector는 차트가 이 서비스 파드로 채운다
 topologySpreadConstraints: []
+
+# 워크로드 단위로 사이드카를 적용한다.
+istioSidecarInjection: false
