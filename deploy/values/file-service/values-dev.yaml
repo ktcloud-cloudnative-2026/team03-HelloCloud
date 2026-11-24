@@ -6,3 +6,5 @@ image:
 resources:
   requests:
     cpu: 1000m
+
+istioSidecarInjection: true
