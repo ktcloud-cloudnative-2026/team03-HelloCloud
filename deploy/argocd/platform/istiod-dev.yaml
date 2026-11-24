@@ -19,7 +19,16 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: istio-system
+  # Istiod writes the CA and enables fail-closed after the validator is ready.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: istio-validator-istio-system
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+        - .webhooks[]?.failurePolicy
   syncPolicy:
     syncOptions:
+      - RespectIgnoreDifferences=true
       - ServerSideApply=true
       - FailOnSharedResource=true
