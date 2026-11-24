@@ -825,3 +825,16 @@ kubectl delete secret keycloak-bootstrap-admin -n ideaconnection-prod
 확인하면 이 문서의 전환 순서대로 임시 계정·참조·Secret을 정리합니다.
 이 초기 설치 변경을 이미 전환한 현재 운영 클러스터에 적용하지 않습니다.
 정식 관리자 인증정보는 Git·공개 채널에 남기지 않고 팀의 인계 방식에 맞춰 보관합니다.
+
+### dev Istio 설치 및 부하 테스트
+
+#193에서 추적합니다. #204의 2차-2 측정 완료를 확인한 뒤 진행합니다.
+Istio 1.32.0의 base와 istiod 차트를 사용합니다. 외부 요청은 기존 Envoy Gateway를 사용하며, 사이드카는 dev의 user와 file에 서비스별로 적용합니다.
+
+1. 두 워커의 CPU·메모리 사용량과 allocatable 대비 requests를 확인합니다. #204 부하에서 두 워커 CPU가 약 95%까지 올라갔으므로, 현재 유휴 사용량은 설치 전 참고값으로만 씁니다.
+2. Argo CD에 `deploy/argocd/platform/istio-base-dev.yaml`과 `istiod-dev.yaml`을 등록합니다. base의 diff를 검토하고 수동 동기화한 뒤 Istio CRD가 Established 상태인지 확인합니다. 이어서 istiod를 수동 동기화하고 `kubectl -n istio-system rollout status deployment/istiod --timeout=180s`로 준비 상태를 확인합니다.
+3. user의 `values-dev.yaml`에 `istioSidecarInjection: true`를 추가하는 변경을 머지합니다. 배포가 Ready이고 파드에 `istio-proxy` 컨테이너가 있으며 Gateway 경유 로그인과 user API가 정상인지 확인합니다. file도 별도로 같은 순서로 적용한 뒤 파일 목록과 file → user 내부 호출을 확인합니다.
+4. 스모크 테스트로 API, 상태 검사, 메트릭 수집을 확인하고, 워커 CPU 포화와 파드 Pending 여부를 보면서 부하를 올립니다. #204와 같은 `MODE=full`, `VUS=200`, `THINK_SECONDS=0.2`, user HPA 1~3(70%), user·file 앱 CPU requests 1000m 및 user topology spread를 사용합니다. 파드 단위 CPU HPA가 사이드카의 CPU 사용량과 requests도 반영하므로 복제본 변화와 프록시 CPU·메모리를 함께 기록합니다.
+5. 설치 후 비교가 끝나면 #169에 완료를 공유합니다. 엄격한 mTLS와 내부 API 허용 정책은 외부 Gateway, k6, 모니터링의 통신 경로를 확인한 뒤 별도 변경으로 적용하고 검증합니다.
+
+서비스 롤백은 주입을 켠 변경을 Git에서 되돌린 뒤 Argo CD 동기화와 새 파드의 API 동작을 확인합니다. 제어 영역까지 철회해야 하면 주입된 파드가 모두 교체된 뒤 istiod 철회를 검토하고, Istio CRD는 별도로 영향 범위를 확인합니다.
