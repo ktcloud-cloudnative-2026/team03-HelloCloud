@@ -27,3 +27,5 @@ affinity:
               app.kubernetes.io/instance: file-service
 
 istioSidecarInjection: true
+
+istioInternalMembershipPolicy: true

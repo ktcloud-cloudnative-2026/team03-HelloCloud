@@ -838,3 +838,9 @@ Istio 1.32.0의 base와 istiod 차트를 사용합니다. 외부 요청은 기�
 5. 설치 후 비교가 끝나면 #169에 완료를 공유합니다. 엄격한 mTLS와 내부 API 허용 정책은 외부 Gateway, k6, 모니터링의 통신 경로를 확인한 뒤 별도 변경으로 적용하고 검증합니다.
 
 서비스 롤백은 주입을 켠 변경을 Git에서 되돌린 뒤 Argo CD 동기화와 새 파드의 API 동작을 확인합니다. 제어 영역까지 철회해야 하면 주입된 파드가 모두 교체된 뒤 istiod 철회를 검토하고, Istio CRD는 별도로 영향 범위를 확인합니다.
+
+dev user의 내부 조직 멤버십 조회는 Istio 정책으로 보호합니다. 사이드카가 인증한
+`file-service`와 `chat-service` 서비스 계정만 `GET /internal/users/orgs/{orgId}/members/{userId}`를
+호출할 수 있습니다. 기존 사용자 토큰 검사도 적용됩니다. Gateway와 관측에서 쓰는 공개 경로는
+기존대로 연결할 수 있도록 워크로드 전체 STRICT 대신 내부 경로에서 mTLS 신원을 요구합니다.
+정책을 롤백할 때는 `istioInternalMembershipPolicy`를 켠 커밋을 먼저 되돌립니다.
