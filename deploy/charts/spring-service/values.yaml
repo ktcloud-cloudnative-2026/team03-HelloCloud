@@ -53,3 +53,8 @@ affinity: {}
 
 # 워크로드 단위로 사이드카를 적용한다.
 istioSidecarInjection: false
+
+serviceAccount:
+  create: false
+
+istioInternalMembershipPolicy: false
