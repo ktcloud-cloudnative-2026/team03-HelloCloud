@@ -1,0 +1,39 @@
+{{- if .Values.istioInternalMembershipPolicy }}
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ .Release.Name }}-internal-membership
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  action: DENY
+  rules:
+    - from:
+        - source:
+            notServiceAccounts:
+              - {{ printf "%s/file-service" .Release.Namespace | quote }}
+              - {{ printf "%s/chat-service" .Release.Namespace | quote }}
+      to:
+        - operation:
+            ports: [{{ .Values.containerPort | toString | quote }}]
+            paths:
+              - /internal
+              - /internal/*
+    - to:
+        - operation:
+            ports: [{{ .Values.containerPort | toString | quote }}]
+            paths:
+              - /internal
+              - /internal/*
+            notMethods: [GET]
+    - to:
+        - operation:
+            ports: [{{ .Values.containerPort | toString | quote }}]
+            paths:
+              - /internal
+              - /internal/*
+            notPaths:
+              - /internal/users/orgs/{*}/members/{*}
+{{- end }}

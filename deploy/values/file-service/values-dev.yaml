@@ -8,3 +8,6 @@ resources:
     cpu: 1000m
 
 istioSidecarInjection: true
+
+serviceAccount:
+  create: true

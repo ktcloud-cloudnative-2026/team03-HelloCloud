@@ -2,3 +2,8 @@
 replicaCount: 2
 image:
   tag: "6176e21"
+
+serviceAccount:
+  create: true
+
+istioSidecarInjection: true
