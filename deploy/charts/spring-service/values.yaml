@@ -48,5 +48,8 @@ resources: {}
 # labelSelector는 차트가 이 서비스 파드로 채운다
 topologySpreadConstraints: []
 
+# 파드를 둘 노드를 고르는 규칙(그대로 Deployment에 넣음). 기본은 비움
+affinity: {}
+
 # 워크로드 단위로 사이드카를 적용한다.
 istioSidecarInjection: false
