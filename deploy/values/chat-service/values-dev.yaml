@@ -1,4 +1,8 @@
 # 서버끼리 Redis로 전달되는지(US-06) dev에서도 확인하려고 2개로 둔다
 replicaCount: 2
+# k6 측정(#173)이 k6-loadtest 클라이언트 토큰으로 chat을 부른다. dev만 허용하고 prod는 기본값(hellocloud-web)만
+extraEnv:
+  - name: OIDC_ALLOWED_CLIENTS
+    value: hellocloud-web,k6-loadtest
 image:
   tag: "6176e21"
