@@ -1,4 +1,5 @@
 import Keycloak from 'keycloak-js'
+import { SIGNUP_OPTIONS } from './signup'
 
 // dev·prod는 Gateway가 같은 주소에서 /realms를 Keycloak으로 넘기므로 기본값은 현재 주소다.
 // 로컬은 .env.example처럼 환경 변수로 바꾼다.
@@ -20,8 +21,8 @@ export function login() {
   return keycloak.login()
 }
 
-export function register() {
-  return keycloak.register()
+export function signUpWithGoogle() {
+  return keycloak.login(SIGNUP_OPTIONS)
 }
 
 // Keycloak 세션까지 끝내야 다음 로그인 때 다른 계정을 고를 수 있다.
