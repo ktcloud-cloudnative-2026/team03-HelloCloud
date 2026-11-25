@@ -1,12 +1,15 @@
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import FileManager from './FileManager'
 import ChatPage from './ChatPage'
+import { getMe } from '../api/users'
 import { logout } from '../auth/keycloak'
 import BrandIcon from '../brand/BrandIcon'
 import InviteDialog from '../components/InviteDialog'
 import Icon from '../components/Icon'
 import MemberList from '../components/MemberList'
+import ProfileDialog from '../components/ProfileDialog'
+import { initial } from '../profile/name'
 import { relativeTime } from './dashboard/activity'
 import { useDashboardData } from './dashboard/useDashboardData'
 import { menuItems, menuLabel } from './dashboardMenu'
@@ -32,12 +35,24 @@ function Dashboard({ organization, onBack, onLeave }) {
   const [activeMenu, setActiveMenu] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [me, setMe] = useState(null)
+  const [profileOpen, setProfileOpen] = useState(false)
   const dashboardData = useDashboardData(organization.id, activeMenu === 'dashboard')
   const activities = dashboardData.activities ?? []
 
   const organizationName = organization?.name || 'HelloCloud 개발팀'
   const organizationInitials =
     organization?.initials || organizationName.slice(0, 2).toUpperCase()
+
+  useEffect(() => {
+    let ignore = false
+    getMe()
+      .then((profile) => !ignore && setMe(profile))
+      .catch(() => {})
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const handleMenuClick = (id) => {
     setActiveMenu(id)
@@ -109,13 +124,21 @@ function Dashboard({ organization, onBack, onLeave }) {
             다른 조직 선택
           </button>
 
-          <div className="dashboard-sidebar-user">
-            <span className="dashboard-user-avatar">U</span>
-            <div>
-              <strong>사용자</strong>
-              <span>개발용 계정</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            className="dashboard-sidebar-user"
+            disabled={!me}
+            aria-label="내 프로필 열기"
+            onClick={() => setProfileOpen(true)}
+          >
+            <span className="dashboard-user-avatar" aria-hidden="true">
+              {initial(me?.displayName)}
+            </span>
+            <span className="dashboard-sidebar-user-text">
+              <strong>{me?.displayName ?? '불러오는 중…'}</strong>
+              <span>{me?.email ?? ''}</span>
+            </span>
+          </button>
         </div>
       </aside>
 
@@ -150,7 +173,9 @@ function Dashboard({ organization, onBack, onLeave }) {
                 팀원 초대
               </button>
             )}
-            <span className="dashboard-header-avatar">U</span>
+            <span className="dashboard-header-avatar" title={me?.displayName} aria-hidden="true">
+              {initial(me?.displayName)}
+            </span>
             <button type="button" className="dashboard-logout" onClick={logout}>
               로그아웃
             </button>
@@ -273,7 +298,7 @@ function Dashboard({ organization, onBack, onLeave }) {
           ) : activeMenu === 'chat' ? (
             <ChatPage key={organization.id} organization={organization} />
           ) : activeMenu === 'members' ? (
-            <MemberList organization={organization} onLeave={onLeave} />
+            <MemberList key={me?.displayName} organization={organization} onLeave={onLeave} />
           ) : (
             <section className="dashboard-placeholder">
               <span className="dashboard-placeholder-icon" aria-hidden="true">
@@ -302,6 +327,16 @@ function Dashboard({ organization, onBack, onLeave }) {
         <InviteDialog
           orgId={organization.id}
           onClose={() => setInviteOpen(false)}
+        />
+      )}
+      {profileOpen && me && (
+        <ProfileDialog
+          me={me}
+          onClose={() => setProfileOpen(false)}
+          onSaved={(profile) => {
+            setMe(profile)
+            setProfileOpen(false)
+          }}
         />
       )}
     </div>
