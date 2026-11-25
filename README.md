@@ -54,9 +54,9 @@
 | 항목 | 링크 |
 |---|---|
 | 할 일 보드 (GitHub Projects) | [team03 보드](https://github.com/orgs/ktcloud-cloudnative-2026/projects/8) |
-| dev 주소 | <dev 주소> |
-| prod 주소 | <prod 주소> |
-| 대시보드 | <Grafana 주소> |
+| dev 주소 | `http://10.10.24.101` (내부망 · bastion 터널로만, [웹 README](services/web/README.md#로그인-keycloak)) |
+| prod 주소 | <https://ideaconnection.jpexstudio.com> (공개, 발표 · 시연용) |
+| 대시보드 | Grafana — 외부에 열지 않고 port-forward로만 봅니다([deploy/README.md](deploy/README.md)의 모니터링 dev · prod) |
 
 ## 폴더
 
