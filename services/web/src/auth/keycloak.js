@@ -21,6 +21,10 @@ export function login() {
   return keycloak.login()
 }
 
+export function register() {
+  return keycloak.register()
+}
+
 export function signUpWithGoogle() {
   return keycloak.login(SIGNUP_OPTIONS)
 }

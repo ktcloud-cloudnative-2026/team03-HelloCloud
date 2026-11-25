@@ -448,12 +448,14 @@ Keycloak 기본 화면(`keycloak.v2`)의 배치는 그대로 두고 색, 모서�
 
 ### Google 로그인 (회원가입)
 
-새 사용자는 Google 계정으로만 가입합니다(#223). 비밀번호를 따로 만들지 않아 가입 단계가 줄어듭니다.
+가입은 **이메일**(Keycloak 가입 화면)과 **Google 계정** 두 가지입니다(#223). 웹 첫 화면에 "이메일로 가입 · Google 계정으로 가입"이
+함께 있고, Google 쪽은 Keycloak 화면을 거치지 않고 Google로 바로 갑니다(`idpHint`). Google 가입은 비밀번호를 따로 만들지 않아 단계가 줄고,
+이메일 가입은 Google 계정이 없는 사람도 쓸 수 있습니다. 비밀번호 로그인도 그대로입니다.
 Keycloak이 Google 로그인을 대신 받아 주고 토큰은 지금처럼 Keycloak이 발급하므로, 서비스의 토큰 검증은 그대로입니다.
-기존 비밀번호 로그인은 남겨 둡니다(데모 계정, Google 쪽 문제 대비). 포기하는 점은 Google 계정이 없는 사람은 새로 가입할 수 없다는 것입니다.
 
 - 이름: Keycloak 기본 `name`은 '이름 성' 순서라 한국어 이름이 뒤집힙니다(준형 김). 그래서 Google이 주는 전체 이름을
-  `display_name` 클레임으로 따로 내보내고, 서비스(`services/libs/common`)는 `display_name` → `name` → `email` 순서로 읽습니다
+  `display_name` 클레임으로 따로 내보내고, 서비스(`services/libs/common`)는 `display_name` → `name` → `email` 순서로 읽습니다.
+  이메일 가입자는 `display_name`이 없어 '이름 성' 순서 그대로이므로, 앱의 프로필 수정에서 이름을 고칩니다
 - Google OAuth 클라이언트: 팀 공용 Google 계정의 Google Cloud 프로젝트에 있습니다. 리디렉션 URI는
   `https://ideaconnection.jpexstudio.com/realms/hellocloud/broker/google/endpoint`(로컬 확인용 `http://localhost:8180/...` 포함),
   동의 화면의 개인정보처리방침은 `https://ideaconnection.jpexstudio.com/privacy`(`services/web/public/privacy.html`)입니다.
@@ -475,11 +477,10 @@ prod 적용 순서:
 
    마지막 `verify:` 줄이 모두 `[ok]`여야 합니다
 3. Google Cloud 콘솔의 Google 인증 플랫폼 → 대상에서 "앱 게시"를 눌러 아무 Google 계정이나 로그인되게 합니다
-4. 확인: 로그인 화면에 Google 버튼이 있고 회원가입 링크가 없는지, 새 Google 계정으로 가입 → 조직 생성 · 초대 수락 · 채팅에서
-   Google 이름이 보이는지, 기존 비밀번호 계정 로그인이 그대로인지 봅니다
+4. 확인: 로그인 화면에 Google 버튼과 회원가입 링크가 함께 있는지, 새 Google 계정과 새 이메일 계정으로 각각 가입 → 조직 생성 ·
+   초대 수락 · 채팅에서 이름이 보이는지, 기존 비밀번호 계정 로그인이 그대로인지 봅니다
 
-되돌리기: Keycloak 관리 화면(port-forward)의 Identity providers에서 `google`을 끄고, Realm settings → Login에서
-User registration을 다시 켭니다. 서비스는 `display_name`이 없으면 예전처럼 `name`을 쓰므로 되돌릴 필요가 없습니다.
+되돌리기: Keycloak 관리 화면(port-forward)의 Identity providers에서 `google`을 끕니다. 이메일 가입은 그대로 남습니다. 서비스는 `display_name`이 없으면 예전처럼 `name`을 쓰므로 되돌릴 필요가 없습니다.
 
 검증 기록(2026-11-25): 로컬 Keycloak 26.8.2와 prod와 같은 26.4.0(prod realm ConfigMap 그대로)에서 스크립트를 두 번 실행해
 같은 결과(중복 없음)와 Google 로그인 · `display_name` 토큰을 확인했습니다.

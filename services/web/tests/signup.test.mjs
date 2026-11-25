@@ -5,10 +5,13 @@ import { SIGNUP_OPTIONS } from '../src/auth/signup.js'
 
 const webDir = new URL('..', import.meta.url).pathname
 
-// prod는 자체 회원가입을 끄고 Google로만 가입한다(#223). register()는 "등록이 허용되지 않습니다"가 된다
-test('회원가입은 Keycloak 가입 화면이 아니라 Google 로그인으로 보낸다', () => {
+// 가입은 이메일(Keycloak 가입 화면)과 Google 두 가지다(#223)
+test('Google 가입은 Keycloak 로그인 화면을 거치지 않고 Google로 보낸다', () => {
   assert.deepEqual(SIGNUP_OPTIONS, { idpHint: 'google' })
+})
+
+test('첫 화면에 이메일 가입과 Google 가입이 둘 다 있다', () => {
   const app = readFileSync(`${webDir}src/App.jsx`, 'utf8')
-  assert.doesNotMatch(app, /\bregister\(/)
-  assert.match(app, /signUpWithGoogle\(/)
+  assert.match(app, /register\(\)[\s\S]*이메일로 가입/)
+  assert.match(app, /signUpWithGoogle\(\)[\s\S]*Google 계정으로 가입/)
 })
