@@ -6,11 +6,12 @@
 
 서비스마다 파일 하나에 주소, 권한, 요청, 응답, 에러, 요구사항 ID를 표로 정리합니다. 원본은 노션의 서비스별 ERD · API 페이지입니다. 바꿀 때는 PR로 바꾸고, 그 API를 쓰는 서비스 담당자에게 알립니다.
 
-| 서비스 | 첫 경로 | 파일 |
-|---|---|---|
-| user | `/api/users`, `/api/orgs`, `/api/invitations` | [user.md](user.md) |
-| chat | `/api/chat` | [chat.md](chat.md) |
-| file | `/api/files` | [file.md](file.md) |
+| 서비스 | 첫 경로 | API 수 | 요구사항 | 파일 |
+|---|---|---|---|---|
+| user | `/api/users`, `/api/orgs`, `/api/invitations` | 9 | US-01 ~ US-05 | [user.md](user.md) |
+| chat | `/api/chat` | 13 (WebSocket 1 포함) | US-06, US-07, US-10, US-11 | [chat.md](chat.md) |
+| file | `/api/files` | 6 | US-08, US-12 | [file.md](file.md) |
+| 내부 | `/internal/users` | 1 | US-04, US-05 | 이 문서의 [서비스끼리 쓰는 내부 API](#서비스끼리-쓰는-내부-api) |
 
 ## 공통 규칙
 
@@ -47,8 +48,8 @@ API에서는 모든 ID를 문자열로 주고받습니다. 저장 방식은 서�
 ### 로그인과 소속 확인
 
 1. 브라우저는 Keycloak에서 받은 로그인 토큰(JWT)을 `Authorization: Bearer 토큰`으로 보냅니다.
-2. 입구와 각 서비스가 토큰을 확인합니다.
-3. 조직 데이터 API는 user 서비스에 소속을 확인합니다. 결과는 3초만 기억합니다.
+2. 입구(Gateway)는 경로만 나누고, 각 서비스가 토큰을 확인합니다.
+3. 조직 데이터 API는 요청마다 user 서비스에 소속을 확인합니다. 결과는 기억하지 않습니다(멤버가 나가면 다음 요청부터 바로 막힘).
 
 | 상황 | 응답 | 이유 |
 |---|---|---|
@@ -126,4 +127,4 @@ Problem Details(`application/problem+json`) 형식을 쓰고, 화면에서 오�
 | 요청 번호 | `X-Request-Id`를 이어서 넘깁니다 | 장애가 난 위치를 로그로 찾습니다 |
 | 소속 확인 제한 시간 | 1초, 다시 시도 안 함. 실패하면 503 | 일반 API 응답 목표가 0.5초이므로 오래 기다리지 않습니다 |
 
-제한 시간은 시작값입니다. 실제로 재 보고 고칩니다.
+제한 시간은 시작값입니다. 실제로 재 보고 고칩니다. file은 1초로 맞췄고, chat 코드(`membership.service.ts`)는 아직 3초라 1초로 맞춰야 합니다.
