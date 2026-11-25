@@ -17,14 +17,37 @@
 
 ## 장애별 대응
 
-### <증상 — 예: 파드가 CrashLoopBackOff>
+아래 `<env>`는 `dev` 또는 `prod`입니다.
+
+### 파드 하나가 내려감
+
 | 항목 | 내용 |
 |---|---|
-| 확인할 명령 | |
-| 흔한 원인 | |
-| 조치 | |
-| 되돌리기 | <예: Argo CD에서 이전 버전으로 Sync> |
-| 관련 이슈 | # |
+| 영향 | prod 앱(web · user · file · chat)은 두 워커에 하나씩 떠 있어 남은 파드가 요청을 받습니다. 쿠버네티스가 새 파드를 다시 띄웁니다 |
+| 확인할 명령 | `kubectl -n ideaconnection-<env> get pods -o wide` (어느 노드에서 몇 개가 Ready인지) |
+| 흔한 원인 | 메모리 상한 초과(OOMKilled), 시작 확인(`/health/readiness`) 실패, 노드 문제 |
+| 조치 | `kubectl -n ideaconnection-<env> describe pod <파드>`의 Events와 `logs --previous`로 원인을 보고, 코드 · 설정 문제면 PR로 고칩니다 |
+| 되돌리기 | 최근 배포가 원인이면 그 PR을 `git revert` → Argo CD가 이전 이미지로 맞춤 |
+
+### user 서비스가 멈춤 — 조직 API가 503
+
+| 항목 | 내용 |
+|---|---|
+| 영향 | chat · file이 요청마다 user에 소속을 확인하므로, 확인할 수 없으면 접근을 막고 503을 돌려줍니다(허용으로 넘기지 않음). 로그인 자체는 Keycloak이라 됩니다 |
+| 확인할 명령 | `kubectl -n ideaconnection-<env> get pods`, `kubectl -n ideaconnection-<env> logs deploy/user-service --tail=100` |
+| 흔한 원인 | user 파드가 모두 Ready가 아님, MySQL(DB VM) 연결 실패, dev는 Istio 허용 정책(#217) 변경 |
+| 조치 | DB VM의 MySQL이 떠 있는지 확인(bastion 경유), user 파드 상태와 로그로 원인을 찾아 고칩니다 |
+| 되돌리기 | 최근 배포가 원인이면 그 PR을 `git revert` |
+
+### Redis가 멈춤 — 새 메시지가 실시간으로 안 옴
+
+| 항목 | 내용 |
+|---|---|
+| 영향 | 메시지는 MongoDB에 먼저 저장되므로 사라지지 않습니다. 다른 파드에 붙은 사용자에게 실시간 전달과 멤버 제거 알림만 빠지고, 다시 연결하면 놓친 메시지를 받습니다(US-07) |
+| 확인할 명령 | `kubectl -n ideaconnection-<env> logs deploy/chat-service --tail=100` (Redis 연결 오류), DB VM에서 Redis 컨테이너 상태(bastion 경유) |
+| 흔한 원인 | DB VM의 Redis 컨테이너 중지, 오래 조용한 연결이 끊김(#193) |
+| 조치 | Redis 컨테이너를 다시 띄우고, chat 로그에서 다시 연결됐는지 확인합니다. 그동안 내보낸 멤버가 있으면 실시간 연결이 남아 있을 수 있어 chat 파드를 다시 시작합니다 |
+| 되돌리기 | 해당 없음 |
 
 ### HTTP 5xx 에러율 경보 대응
 
