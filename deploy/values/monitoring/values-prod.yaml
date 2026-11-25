@@ -1,0 +1,15 @@
+# local-path는 크기를 나중에 못 늘린다. 보관 기간과 용량을 함께 묶어 디스크가 꽉 차지 않게 한다(dev와 같음).
+# prod DB VM(.20)에는 아직 exporter가 없어 수집 대상에 넣지 않는다(#224 2단계)
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    retentionSize: 4GB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi

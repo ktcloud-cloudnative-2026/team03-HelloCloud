@@ -1,0 +1,28 @@
+# prod 클러스터의 Argo CD에만 등록한다(#224). 경보 · 대시보드(manifests/monitoring/dev)는 dev 전용이라 넣지 않는다
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-prod
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 92.17.1
+      helm:
+        releaseName: monitoring
+        valueFiles:
+          - $values/deploy/values/monitoring/values.yaml
+          - $values/deploy/values/monitoring/values-prod.yaml
+    - repoURL: https://github.com/ktcloud-cloudnative-2026/team03-HelloCloud.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      # CRD가 커서 일반 apply는 크기 제한(262144바이트)에 걸린다
+      - ServerSideApply=true
