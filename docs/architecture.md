@@ -12,6 +12,7 @@
 flowchart LR
   owner([조직 소유자]) -->|조직 관리, 팀원 초대| svc[ideaconnection]
   member([조직 멤버]) -->|대화, 파일 공유| svc
+  svc -->|Google 계정으로 가입·로그인| gg[Google OAuth]
   svc -->|장애 알림| dc[Discord]
 ```
 
@@ -34,6 +35,7 @@ flowchart LR
   user([브라우저]) --> gw[입구: Envoy Gateway]
   gw --> web[웹 화면]
   gw --> kc[로그인: Keycloak]
+  kc -->|외부 로그인| gg([Google OAuth])
   gw --> apps
   gw --> sw[(파일: SeaweedFS)]
   us & fs --> my
@@ -111,7 +113,7 @@ flowchart LR
 - 사용자 요청은 Envoy Gateway 하나로 들어오고 암호화된 통신만 허용합니다
 - 서비스는 내부망에만 두고, 외부에서는 bastion을 거쳐 접속합니다
 - 데모는 내부망에서 합니다
-- 로그인은 Keycloak이 처리하고, Gateway와 서비스가 로그인 토큰(JWT)을 확인합니다
+- 로그인은 Keycloak이 Google 계정 연동(OAuth)으로 처리하고, Gateway와 서비스가 로그인 토큰(JWT)을 확인합니다
 - 서비스끼리의 통신은 Istio로 암호화하고, 2번에 적은 호출만 허용합니다
 - 소속되지 않은 조직의 데이터는 볼 수 없습니다
 - 비밀번호와 키는 Git에 넣지 않고 Kubernetes Secret에 둡니다
