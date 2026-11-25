@@ -784,8 +784,12 @@ prod Prometheus가 prod DB VM(`t4-prod-db`, 10.10.24.20)의 상태를 읽게 exp
    MySQL 계정 범위 `'exporter'@'172.%'`는 exporter 컨테이너가 Docker 게이트웨이 주소로 보이기 때문입니다.
    5번 실행 뒤 `docker network inspect prod-exporters_default --format '{{(index .IPAM.Config 0).Gateway}}'`가 `172.`로 시작하는지 봅니다
 3. **Redis 전용 계정 (확인받고, 몇 초 끊김)**
-   - 기존 연결은 그대로입니다. `--requirepass`(기본 계정 비밀번호)는 바꾸지 않고 `--user`로 `exporter` 계정만 더합니다.
+   - 기존 비밀번호는 그대로입니다. `--requirepass`(기본 계정 비밀번호)는 바꾸지 않고 `--user`로 `exporter` 계정만 더합니다.
      user · chat은 재시작 뒤 같은 비밀번호로 다시 연결합니다
+   - 재시작하는 몇 초 동안 빠지는 것(prod 담당이 시간을 정할 때 봅니다). Redis는 저장이 꺼져 있지만 chat · user가 Pub/Sub으로만 써서 잃는 데이터는 없고,
+     readiness에 Redis가 없어 파드가 빠지거나 재시작되지 않습니다
+     - 멤버 제거 알림(`MEMBER_REMOVED`)이 전달되지 않습니다(user는 warn 로그만, 그 사람의 WebSocket이 바로 끊기지 않음). 그 시간에는 멤버 내보내기를 하지 않습니다
+     - 다른 파드 사용자에게 가는 실시간 전달이 빠집니다. 메시지는 MongoDB에 있어 새로고침 · 다시 연결하면 받습니다
    - 바꾸기 전에 원본을 남깁니다: `cd /opt/redis && cp compose.yaml compose.yaml.bak-$(date +%m%d)`
    - `compose.yaml`의 `exec redis-server ...` 줄 끝에 아래를 붙이고 `docker compose up -d`
      ```text
