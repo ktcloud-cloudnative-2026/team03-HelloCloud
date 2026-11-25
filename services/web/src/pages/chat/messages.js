@@ -11,6 +11,16 @@ export function lastSeq(messages) {
   return messages.length ? messages[messages.length - 1].seq : 0
 }
 
+// 멤버 목록은 조직을 고를 때 한 번 받는다. 그 뒤 초대받아 들어온 사람이 보낸 메시지는
+// 이름을 모르므로 골라내 멤버 목록을 다시 받게 한다. 같은 사람으로 여러 번 부르지 않게 asked는 뺀다
+export function unknownSenders(messages, names, myId, asked) {
+  const ids = new Set()
+  for (const { senderId } of messages) {
+    if (senderId && senderId !== myId && !(senderId in names) && !asked.has(senderId)) ids.add(senderId)
+  }
+  return [...ids]
+}
+
 const PAGE_SIZE = 100
 const MAX_PAGES = 5
 
