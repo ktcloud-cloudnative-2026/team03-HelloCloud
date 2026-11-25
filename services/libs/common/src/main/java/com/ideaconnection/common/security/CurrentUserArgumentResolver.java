@@ -30,7 +30,16 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
     return new CurrentUser(
         token.getToken().getSubject(),
         blankToNull(token.getToken().getClaimAsString("email")),
-        blankToNull(token.getToken().getClaimAsString("name")));
+        displayName(token));
+  }
+
+  // Google로 가입한 사람은 Keycloak이 Google 전체 이름(김준형)을 display_name으로 준다.
+  // name은 Keycloak이 '이름 성' 순서로 합쳐 한국어 이름이 뒤집히므로(준형 김) display_name을 먼저 쓴다
+  private static String displayName(JwtAuthenticationToken token) {
+    String displayName = blankToNull(token.getToken().getClaimAsString("display_name"));
+    return (displayName != null)
+        ? displayName
+        : blankToNull(token.getToken().getClaimAsString("name"));
   }
 
   private static String blankToNull(String value) {

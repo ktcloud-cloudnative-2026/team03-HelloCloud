@@ -147,6 +147,26 @@ class CommonWebIntegrationTest {
   }
 
   @Test
+  void currentUserPrefersDisplayNameOverName() throws Exception {
+    // Google로 가입한 사람은 Keycloak이 Google 전체 이름(예: 김준형)을 display_name으로 준다.
+    // name은 Keycloak이 '이름 성' 순서로 합쳐(준형 김) 한국어 이름 순서가 뒤집힌다
+    String bearer = TestTokens.bearer("u1", Map.of("name", "준형 김", "display_name", "김준형"));
+
+    mvc.perform(get("/api/test/me").header(HttpHeaders.AUTHORIZATION, bearer))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.name").value("김준형"));
+  }
+
+  @Test
+  void currentUserFallsBackToNameWhenDisplayNameBlank() throws Exception {
+    String bearer = TestTokens.bearer("u1", Map.of("name", "김", "display_name", " "));
+
+    mvc.perform(get("/api/test/me").header(HttpHeaders.AUTHORIZATION, bearer))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.name").value("김"));
+  }
+
+  @Test
   void currentUserTreatsBlankAsNull() throws Exception {
     String bearer = TestTokens.bearer("u1", Map.of("email", "  "));
 
