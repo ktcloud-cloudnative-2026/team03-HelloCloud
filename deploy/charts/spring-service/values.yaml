@@ -23,6 +23,9 @@ service:
   port: 80
 
 env: []
+# 환경별로 더할 변수. values-dev 등에서 env 목록 전체를 덮지 않고 몇 개만 더할 때 쓴다(기본 비움)
+# env에 이미 정의된 이름의 환경변수는 extraEnv에 중복으로 넣지 않는다.
+extraEnv: []
 envFrom: []
 
 startupProbe:
