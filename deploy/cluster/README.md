@@ -789,21 +789,27 @@ prod Prometheus가 prod DB VM(`t4-prod-db`, 10.10.24.20)의 상태를 읽게 exp
    - 바꾸기 전에 원본을 남깁니다: `cd /opt/redis && cp compose.yaml compose.yaml.bak-$(date +%m%d)`
    - `compose.yaml`의 `exec redis-server ...` 줄 끝에 아래를 붙이고 `docker compose up -d`
      ```text
-      --user "exporter on >$$REDIS_EXPORTER_PASSWORD +ping +info +config|get +slowlog|get +slowlog|len +latency|latest +latency|histogram"
+      --user exporter on ">$$REDIS_EXPORTER_PASSWORD" +ping +info "+slowlog|get" "+slowlog|len" "+latency|latest" "+latency|histogram"
      ```
-   - 권한: exporter 기본 설정이 쓰는 상태 읽기 명령만, 하위 명령까지 좁혀서 줍니다. `client`(클라이언트 목록 · 끊기)와 `memory`(키별 크기)는
-     기본 설정에서 쓰지 않아 뺍니다. 키 권한(`~*`)과 채널 권한도 없어 값을 읽거나 바꾸거나 Pub/Sub을 들을 수 없습니다
-   - exporter를 띄운 뒤 `docker compose logs redis-exporter | grep -i noperm`이 비어 있는지 봅니다. 나오면 그 명령만 하위 명령 단위로 더합니다
-   - 확인: `docker compose ps`가 `(healthy)`, `docker compose exec redis sh -c 'redis-cli --user exporter -a "$REDIS_EXPORTER_PASSWORD" --no-auth-warning info server | head -3'`가 정보를 보여 주고,
-     같은 계정으로 `set x 1`은 `NOPERM`. 기본 계정 `redis-cli -a "$REDIS_PASSWORD" ping`은 `PONG`
+   - 규칙은 **토큰마다 따로** 씁니다. 전체를 따옴표 하나로 묶으면 redis-server가 묶음 전체를 사용자 이름으로 읽어
+     `Spaces not allowed in ACL usernames`로 시작하지 못합니다. `|`가 든 토큰은 셸이 파이프로 읽지 않게 따옴표로 감쌉니다
+   - **재시작 직후 바로** `docker compose ps`가 `(healthy)`인지 봅니다. 아니면 다른 확인 전에 곧바로 되돌립니다(아래)
+   - 권한: 상태 읽기 명령만, 하위 명령까지 좁혀서 줍니다. `config`는 `config get requirepass`로 기본 계정 비밀번호를 읽을 수 있어
+     주지 않고, exporter가 CONFIG를 부르지 않게 합니다(4번). `client` · `memory`도 주지 않습니다.
+     키 권한(`~*`)과 채널 권한도 없어 값을 읽거나 바꾸거나 Pub/Sub을 들을 수 없습니다. 메모리 지표는 INFO에서 나와 그대로 모입니다
+   - 확인: `docker compose exec redis sh -c 'redis-cli --user exporter -a "$REDIS_EXPORTER_PASSWORD" --no-auth-warning info server | head -3'`가 정보를 보여 주고,
+     같은 계정으로 `set x 1`과 `config get maxmemory`는 `NOPERM`. 기본 계정 `redis-cli -a "$REDIS_PASSWORD" ping`은 `PONG`
    - 서비스 확인(prod cp): user · chat 파드 재시작 없음, chat 로그에 Redis 연결 복구, 웹에서 채팅 한 건이 바로 보임
    - **문제가 생기면 되돌리기**: `cp compose.yaml.bak-<날짜> compose.yaml && docker compose up -d`(계정만 빠지고 원래대로).
      `.env`의 `REDIS_EXPORTER_PASSWORD` 줄은 남아도 쓰이지 않습니다
 4. **compose.yaml** — dev 3번 파일에서 아래만 바꿉니다
    - `name: prod-exporters`, 모든 `10.10.24.10`을 `10.10.24.20`으로
    - redis-exporter의 `environment`를 `REDIS_ADDR: redis://10.10.24.20:6379`, `REDIS_USER: exporter`, `REDIS_PASSWORD: ${REDIS_EXPORTER_PASSWORD}`로
+   - 같은 `environment`에 `REDIS_EXPORTER_CONFIG_COMMAND: "-"`(CONFIG를 부르지 않음)와 `REDIS_EXPORTER_SET_CLIENT_NAME: "false"`를 더합니다.
+     빼면 스크랩마다 `NOPERM` 오류 로그가 남습니다(`redis_up`은 1)
    - 확인: `docker compose config --quiet`
-5. **실행 · 확인** — dev 4~5번과 같고 주소만 `10.10.24.20`, 확인은 prod cp(`t4-prod-cp`)에서 합니다
+5. **실행 · 확인** — dev 4~5번과 같고 주소만 `10.10.24.20`, 확인은 prod cp(`t4-prod-cp`)에서 합니다.
+   `docker compose logs redis-exporter | grep -i noperm`이 비어 있어야 합니다
 6. **Prometheus 연결** — `values/monitoring/values-prod.yaml`의 `additionalScrapeConfigs`(`vm=t4-prod-db`)를 머지하고 monitoring-prod를 동기화합니다(확인받고)
 
 ## SSH 접속
