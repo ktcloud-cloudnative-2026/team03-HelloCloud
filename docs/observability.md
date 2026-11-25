@@ -80,8 +80,11 @@ Envoy가 끊어(#193) 그동안의 멤버 제거 알림을 놓칠 수 있어, ch
 - dev 로그는 Loki에 모읍니다([deploy/README.md](../deploy/README.md#로그-dev)). Grafana Explore에서 Loki를 고르고
   `{namespace="ideaconnection-dev", app="user-service"} | json | request_id="<id>"`로 한 요청의 로그를 찾습니다.
 - user · file은 공통 `JsonLogFormatter`로 이 형식을 씁니다. chat(NestJS)은 아직 기본 형식입니다.
-- user · file은 시작할 때와 5xx 서버 오류가 날 때만 로그를 남기고, 평소 요청과 4xx 응답에는 남기지 않습니다. 그래서 지금은
-  5xx가 난 요청만 `request_id`로 찾을 수 있습니다(11/24 확인, #169). file이 user를 부를 때 `X-Request-Id`를 넘겨 두 서비스 로그의 ID는 같습니다.
+- user · file은 시작할 때와 5xx 서버 오류가 날 때만 로그를 남기고, 평소 요청과 4xx 응답에는 남기지 않습니다. 그래서
+  5xx가 난 요청만 `request_id`로 찾습니다(11/24 확인, #169). file이 user를 부를 때 `X-Request-Id`를 넘겨 두 서비스 로그의 ID는 같습니다.
+- 이대로 두기로 했습니다(팀 결정 11/25, #169). 장애를 찾을 때 필요한 5xx는 user → file까지 이어서 보이고, S5 측정은 k6 결과로
+  판정해서 앱 로그가 필요 없기 때문입니다. 요청마다 로그를 남기면 세 서비스 모두 코드를 고쳐야 하고, 부하 테스트(초당 약 2,000건)
+  한 번에 dev Loki(5Gi · 3일)가 찰 수 있습니다. **포기하는 점:** 403 · 404 같은 요청은 하나씩 따라갈 수 없습니다
 
 ## 4. 알림 기준
 | 조건 | 받는 사람 | 대응 문서(런북) |
