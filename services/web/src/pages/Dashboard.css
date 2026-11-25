@@ -184,8 +184,23 @@
   display: flex;
   align-items: center;
   gap: 11px;
+  width: 100%;
   padding: 16px 8px 0;
+  border: 0;
   border-top: 1px solid #e9eef5;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-sidebar-user:hover strong {
+  color: #2563eb;
+}
+
+.dashboard-sidebar-user:disabled {
+  cursor: default;
 }
 
 .dashboard-user-avatar,
@@ -201,17 +216,21 @@
   font-weight: 700;
 }
 
-.dashboard-sidebar-user > div {
+.dashboard-sidebar-user-text {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .dashboard-sidebar-user strong {
   font-size: 12px;
 }
 
-.dashboard-sidebar-user div span {
+.dashboard-sidebar-user-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #94a3b8;
   font-size: 11px;
 }

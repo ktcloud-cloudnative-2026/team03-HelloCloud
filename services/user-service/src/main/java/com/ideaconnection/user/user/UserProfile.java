@@ -35,6 +35,10 @@ public class UserProfile {
     this.displayName = displayName;
   }
 
+  void rename(String displayName) {
+    this.displayName = displayName;
+  }
+
   public String getId() {
     return id;
   }
