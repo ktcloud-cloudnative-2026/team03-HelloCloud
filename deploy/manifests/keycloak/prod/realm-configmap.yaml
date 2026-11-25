@@ -9,7 +9,7 @@ data:
       "realm": "hellocloud",
       "displayName": "IdeaConnection",
       "enabled": true,
-      "registrationAllowed": true,
+      "registrationAllowed": false,
       "sslRequired": "external",
       "clients": [
         {
