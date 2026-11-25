@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  tag: "ef82da4"
+  tag: "6b6356a"
 autoscaling:
   enabled: true
 # 부하 테스트 2차(#204): 파드당 실제로 약 1코어를 써서, requests 100m로는 스케줄러가
@@ -25,7 +25,5 @@ affinity:
           labelSelector:
             matchLabels:
               app.kubernetes.io/instance: file-service
-
 istioSidecarInjection: true
-
 istioInternalMembershipPolicy: true

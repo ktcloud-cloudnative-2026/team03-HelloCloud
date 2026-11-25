@@ -1,13 +1,11 @@
 replicaCount: 1
 image:
-  tag: "1dc5f44"
+  tag: "6b6356a"
 # 부하 테스트 2차(#204): 부하 때 실제로 약 1.35코어를 쓰는데 requests 100m라, 스케줄러가 file이 있는
 # 노드를 한가하다고 보고 user 파드를 몰았다(2차-1). HPA는 켜지 않고 자리 예약만 실사용에 맞춘다
 resources:
   requests:
     cpu: 1000m
-
 istioSidecarInjection: true
-
 serviceAccount:
   create: true
