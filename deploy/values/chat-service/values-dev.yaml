@@ -5,7 +5,7 @@ extraEnv:
   - name: OIDC_ALLOWED_CLIENTS
     value: hellocloud-web,k6-loadtest
 image:
-  tag: "37db219"
+  tag: "d48ca96"
 serviceAccount:
   create: true
 istioSidecarInjection: true
