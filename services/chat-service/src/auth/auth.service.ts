@@ -11,10 +11,26 @@ type VerifiedUser = {
   claims: JWTPayload;
 };
 
+const DEFAULT_ALLOWED_CLIENTS = ['hellocloud-web'];
+
+/**
+ * 토큰을 받아 줄 Keycloak 클라이언트(azp) 목록.
+ * OIDC_ALLOWED_CLIENTS(쉼표로 구분)가 없거나 비면 웹 클라이언트만 허용한다.
+ */
+export function parseAllowedClients(raw: string | undefined): Set<string> {
+  const clients = (raw ?? '')
+    .split(',')
+    .map((client) => client.trim())
+    .filter((client) => client.length > 0);
+
+  return new Set(clients.length > 0 ? clients : DEFAULT_ALLOWED_CLIENTS);
+}
+
 @Injectable()
 export class AuthService {
   private readonly issuer: string;
   private readonly jwks: ReturnType<typeof createRemoteJWKSet>;
+  private readonly allowedClients: ReadonlySet<string>;
 
   constructor() {
     const issuer = process.env.OIDC_ISSUER_URI;
@@ -30,6 +46,7 @@ export class AuthService {
         `${this.issuer}/protocol/openid-connect/certs`;
 
     this.jwks = createRemoteJWKSet(new URL(jwksUri));
+    this.allowedClients = parseAllowedClients(process.env.OIDC_ALLOWED_CLIENTS);
   }
 
   async verifyToken(token: string): Promise<VerifiedUser> {
@@ -40,7 +57,10 @@ export class AuthService {
         requiredClaims: ['sub', 'exp', 'iat', 'azp'],
       });
 
-      if (payload.azp !== 'hellocloud-web') {
+      if (
+        typeof payload.azp !== 'string' ||
+        !this.allowedClients.has(payload.azp)
+      ) {
         throw new Error('허용되지 않은 Keycloak 클라이언트입니다.');
       }
 

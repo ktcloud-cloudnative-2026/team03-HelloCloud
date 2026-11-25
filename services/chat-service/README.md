@@ -45,6 +45,7 @@
 | `REDIS_PASSWORD` | 서버만 | Redis 비밀번호. 없으면 넣지 않습니다 |
 | `OIDC_ISSUER_URI` | 예 | 토큰 발급자. 로컬 `http://localhost:8180/realms/hellocloud` |
 | `OIDC_JWKS_URI` | 아니요 | 공개 키 주소를 따로 줄 때. 없으면 `<issuer>/protocol/openid-connect/certs` |
+| `OIDC_ALLOWED_CLIENTS` | 아니요 | 토큰을 받아 줄 Keycloak 클라이언트(`azp`), 쉼표로 구분. 없으면 `hellocloud-web`만. dev는 측정용으로 `hellocloud-web,k6-loadtest`(values-dev의 `extraEnv`) |
 | `USER_SERVICE_URL` | 아니요 | 소속 확인을 물을 주소. 로컬 `http://localhost:8081`, 클러스터 `http://user-service` |
 | `PORT` | 아니요 | 기본 3000 |
 

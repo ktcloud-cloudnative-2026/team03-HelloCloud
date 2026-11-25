@@ -5,7 +5,7 @@ import OrganizationCreate from './pages/OrganizationCreate'
 import Dashboard from './pages/Dashboard'
 import InviteAccept from './pages/InviteAccept'
 import { getOrganizations, createOrganization } from './api/organizations'
-import { login, register } from './auth/keycloak'
+import { login, register, signUpWithGoogle } from './auth/keycloak'
 import BrandIcon from './brand/BrandIcon'
 import './App.css'
 
@@ -158,7 +158,17 @@ function App({ authenticated, authError }) {
               register()
             }}
           >
-            회원가입
+            이메일로 가입
+          </a>
+          {' · '}
+          <a
+            href="#signup-google"
+            onClick={(e) => {
+              e.preventDefault()
+              signUpWithGoogle()
+            }}
+          >
+            Google 계정으로 가입
           </a>
         </p>
       </div>

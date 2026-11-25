@@ -327,6 +327,21 @@ kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team
 
 확인: `kubectl top nodes`, `kubectl top pods -n ideaconnection-dev`
 
+## 모니터링 (prod)
+
+`argocd/platform/monitoring-prod.yaml`이 dev와 같은 차트 · 공통 values로 **prod 클러스터**의 `monitoring` namespace에 설치합니다(#224).
+prod 클러스터의 Argo CD에만 등록하고, 자동 동기화는 켜지 않습니다.
+
+- 공통 values의 수집 설정이 `ideaconnection-prod`의 user · file · chat도 그대로 모읍니다
+- `values/monitoring/values-prod.yaml`: Prometheus `local-path` 5Gi, 보관 3일 · 4GB. prod DB VM(.20)에는 아직 exporter가 없어
+  수집 대상에 넣지 않습니다. exporter · 5xx 경보 · Discord 알림은 2단계에서 따로 합니다
+- 11/25 확인: 워커 메모리 약 16Gi에 예약 12~14%라 자리는 충분합니다. metrics-server가 없어 `kubectl top`은 안 됩니다
+- 경보: 차트 기본 규칙(약 30개)이 같이 설치되지만 받는 곳(receiver)이 없어 아무 데도 가지 않습니다.
+  Grafana · Alertmanager 화면에서만 확인합니다. Discord 알림은 2단계에서 따로 합니다
+- 설치 순서는 dev의 "처음 설치 순서"와 같고, prod cp(`t4-prod-cp`)에서 `monitoring-prod`로 바꿔 실행합니다.
+  **Grafana 관리자 Secret(`grafana-admin`)을 먼저 만들고 동기화합니다.** 순서가 바뀌면 Grafana 파드가 뜨지 않습니다.
+  Grafana는 dev처럼 port-forward로만 봅니다
+
 ## 로그 (dev)
 
 `argocd/platform/loki-dev.yaml`과 `alloy-dev.yaml`이 `logging` namespace에 로그 도구 두 개를 설치합니다(#169).
@@ -340,7 +355,10 @@ Loki(로그 보관소)는 공개 차트 grafana-community/loki(21.4.1), Alloy(�
   않아 노드마다 띄우지 않습니다. 대신 로그가 API 서버를 거칩니다. 우리 서비스 로그 양에서는 부담이 작습니다
 - 메모리 상한: Loki 512Mi, Alloy 256Mi + 설정 갱신 도우미 32Mi
 - Grafana: `values/monitoring/values-dev.yaml`에 Loki 데이터 소스를 추가합니다. Explore에서 Loki를 고르고
-  `{namespace="ideaconnection-dev", app="user-service"} | json`처럼 찾습니다
+  `{namespace="ideaconnection-dev", app="user-service", container="spring-service"} | json`처럼 찾습니다.
+  이름표는 `namespace` · `app` · `pod` · `container`입니다. 앱 컨테이너 이름은 공통 차트라 user · file · chat 모두
+  `spring-service`이고, 사이드카(`istio-proxy`) 로그는 JSON이 아니라 `| json`에서 파싱 오류로 표시됩니다
+- 설치 결과(11/24): loki-0 · alloy 모두 w1, 실측 메모리 Loki 55Mi · Alloy 51Mi. 시작 전에 파드에 남아 있던 로그도 읽어 옵니다
 
 ### 설치 순서
 
@@ -428,6 +446,45 @@ Keycloak 기본 화면(`keycloak.v2`)의 배치는 그대로 두고 색, 모서�
   문제가 있으면 먼저 기존 realm의 로그인 테마를 기본값으로 되돌리고 배포 변경을 revert합니다.
 - dev: Keycloak이 저장소 밖에서 관리되므로 적용하지 않습니다(발표는 prod 기준)
 
+### Google 로그인 (회원가입)
+
+가입은 **이메일**(Keycloak 가입 화면)과 **Google 계정** 두 가지입니다(#223). 웹 첫 화면에 "이메일로 가입 · Google 계정으로 가입"이
+함께 있고, Google 쪽은 Keycloak 화면을 거치지 않고 Google로 바로 갑니다(`idpHint`). Google 가입은 비밀번호를 따로 만들지 않아 단계가 줄고,
+이메일 가입은 Google 계정이 없는 사람도 쓸 수 있습니다. 비밀번호 로그인도 그대로입니다.
+Keycloak이 Google 로그인을 대신 받아 주고 토큰은 지금처럼 Keycloak이 발급하므로, 서비스의 토큰 검증은 그대로입니다.
+
+- 이름: Keycloak 기본 `name`은 '이름 성' 순서라 한국어 이름이 뒤집힙니다(준형 김). 그래서 Google이 주는 전체 이름을
+  `display_name` 클레임으로 따로 내보내고, 서비스(`services/libs/common`)는 `display_name` → `name` → `email` 순서로 읽습니다.
+  이메일 가입자는 `display_name`이 없어 '이름 성' 순서 그대로이므로, 앱의 프로필 수정에서 이름을 고칩니다
+- Google OAuth 클라이언트: 팀 공용 Google 계정의 Google Cloud 프로젝트에 있습니다. 리디렉션 URI는
+  `https://ideaconnection.jpexstudio.com/realms/hellocloud/broker/google/endpoint`(로컬 확인용 `http://localhost:8180/...` 포함),
+  동의 화면의 개인정보처리방침은 `https://ideaconnection.jpexstudio.com/privacy`(`services/web/public/privacy.html`)입니다.
+  클라이언트 JSON(Secret 포함)은 Git에 넣지 않습니다
+- dev: Google은 `http://10.10.24.101` 같은 내부 IP를 리디렉션 주소로 받지 않아 적용하지 않습니다. 로컬 Keycloak과 prod에서 확인합니다
+- 이미 있는 realm에는 ConfigMap이 반영되지 않으므로 `deploy/cluster/scripts/keycloak-google-login.py`로 설정합니다.
+  다시 실행해도 같은 결과이고, Secret과 관리자 비밀번호는 표준입력으로만 넘겨 화면 · 명령 기록 · 파일에 남지 않습니다
+
+prod 적용 순서:
+
+1. user · file · web이 #226(`display_name` 읽기) · #227(`/privacy`)이 들어간 태그로 배포됐는지 확인합니다.
+   user-service는 처음 로그인할 때 이름을 한 번 저장하므로, 이 순서를 지켜야 Google 가입자 이름이 바로 맞게 저장됩니다
+2. 본인 PC에서 master realm 관리자 비밀번호를 입력해 실행합니다. Keycloak 재시작은 없습니다
+
+   ```bash
+   python3 deploy/cluster/scripts/keycloak-google-login.py \
+     --google-json <다운로드한 client_secret_*.json> --ssh t4-prod-cp
+   ```
+
+   마지막 `verify:` 줄이 모두 `[ok]`여야 합니다
+3. Google Cloud 콘솔의 Google 인증 플랫폼 → 대상에서 "앱 게시"를 눌러 아무 Google 계정이나 로그인되게 합니다
+4. 확인: 로그인 화면에 Google 버튼과 회원가입 링크가 함께 있는지, 새 Google 계정과 새 이메일 계정으로 각각 가입 → 조직 생성 ·
+   초대 수락 · 채팅에서 이름이 보이는지, 기존 비밀번호 계정 로그인이 그대로인지 봅니다
+
+되돌리기: Keycloak 관리 화면(port-forward)의 Identity providers에서 `google`을 끕니다. 이메일 가입은 그대로 남습니다. 서비스는 `display_name`이 없으면 예전처럼 `name`을 쓰므로 되돌릴 필요가 없습니다.
+
+검증 기록(2026-11-25): 로컬 Keycloak 26.8.2와 prod와 같은 26.4.0(prod realm ConfigMap 그대로)에서 스크립트를 두 번 실행해
+같은 결과(중복 없음)와 Google 로그인 · `display_name` 토큰을 확인했습니다.
+
 ## GitHub Actions 연결
 
 서비스 코드는 PR로 검사한 뒤 main에 머지합니다. 이후 GitHub Actions가
@@ -495,10 +552,8 @@ dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 기�
 - 현재 web의 `75583e7`은 이전 dev에서 확인한 이미지로, 최초 Gateway IP·웹 HTTP 응답 확인에만 사용합니다.
   최신 채팅·권한·화면 기능의 최종 운영 버전이 아닙니다. 전체 기능 배포 전 dev 검증이 끝난 최신 SHA를
   별도 검토해 prod values에 반영하고 기능을 다시 확인합니다.
-- user·file·chat prod 이미지 태그는 아직 비어 있습니다. 검사용 `0000000`은
-  명령행에서만 사용하고 prod values에 저장하거나 실제 배포하지 않습니다.
-- 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server·모니터링의 prod 도입은
-  이 초안에 포함하지 않습니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
+- 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server의 prod 도입은
+  이 초안에 포함하지 않습니다. 모니터링은 "모니터링 (prod)"(#224)를 따릅니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
 - 앱은 기존 dev와 같은 자동 동기화·prune·selfHeal 설정입니다. 앱 최초 등록 시
   바로 배포될 수 있으므로 아래 선행 조건과 diff를 확인하고 팀 확인 후 등록합니다.
   web은 아래 최초 웹 응답 확인 범위가 검토·승인된 뒤에만 등록합니다. 백엔드 앱은 아직 등록하지 않습니다.

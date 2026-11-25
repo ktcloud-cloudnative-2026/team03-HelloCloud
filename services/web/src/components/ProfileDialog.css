@@ -1,0 +1,11 @@
+.profile-dialog { width: min(420px, calc(100vw - 40px)); padding: 28px; box-sizing: border-box; border: 1px solid #e5ebf4; border-radius: 18px; color: #17243c; box-shadow: 0 24px 70px #17243c30; }
+.profile-dialog::backdrop { background: #17243c66; }
+.profile-dialog h2 { font-size: 20px; margin: 0 0 18px; }
+.profile-dialog-account { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; color: #718099; font-size: 13px; overflow-wrap: anywhere; }
+.profile-dialog-avatar { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 50%; background: #dbeafe; color: #2563eb; font-size: 18px; font-weight: 700; }
+.profile-dialog label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 650; }
+.profile-dialog input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #dce4f0; border-radius: 9px; font: inherit; font-size: 14px; }
+.profile-dialog input:focus { outline: 2px solid #2563eb33; border-color: #2563eb; }
+.profile-dialog-help { margin: 8px 0 0; color: #718099; font-size: 12px; }
+.profile-dialog-error { margin: 8px 0 0; color: #dc2626; font-size: 12px; }
+.profile-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }

@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  tag: "6b6356a"
+  tag: "68db108"
 autoscaling:
   enabled: true
 # 부하 테스트 2차(#204): 파드당 실제로 약 1코어를 써서, requests 100m로는 스케줄러가
