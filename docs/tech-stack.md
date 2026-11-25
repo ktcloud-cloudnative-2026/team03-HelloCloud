@@ -15,7 +15,7 @@
 | chat | Node.js(NestJS) + MongoDB | 실시간 대화와 메시지 복구를 처리합니다 |
 | file | Spring Boot + MySQL | 파일 정보를 관리합니다 |
 | 프론트 | React + JavaScript | 웹 화면을 만듭니다 |
-| 로그인 | Keycloak + Google OAuth | 가입과 로그인을 대신 처리합니다. Google OAuth를 연결해 Google 계정으로 가입 · 로그인합니다 |
+| 로그인 | Keycloak + Google OAuth | 가입과 로그인을 대신 처리합니다. 이메일로 가입하거나, Google OAuth를 연결해 Google 계정으로 가입 · 로그인합니다 |
 | 실시간 전달 | Redis | 채팅 같은 변경 사항을 서버끼리 바로 전달합니다 |
 | 파일 저장소 | SeaweedFS | 업로드한 파일을 보관합니다 |
 | 입구 | Envoy Gateway | 외부 요청을 받아 알맞은 서비스로 보냅니다 |
