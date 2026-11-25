@@ -8,7 +8,7 @@
 
 | 대상 | 도구 | 모으는 것 | 적용 |
 |---|---|---|---|
-| 지표 | Prometheus | 서비스의 `/metrics`, 쿠버네티스 상태(kube-state-metrics), 노드(node-exporter), DB VM exporter(9100 · 9104 · 9216 · 9121) | dev · prod (prod DB 지표는 준비 중, #235) |
+| 지표 | Prometheus | 서비스의 `/metrics`, 쿠버네티스 상태(kube-state-metrics), 노드(node-exporter), DB VM exporter(9100 · 9104 · 9216 · 9121) | dev · prod (prod DB 지표는 11/25 설치, #235) |
 | 화면 | Grafana | 위 지표와 로그를 한 화면에서 조회. port-forward로 접속 | dev · prod |
 | 로그 | Loki + Alloy | 모든 파드의 로그 | dev |
 | 알림 | AlertManager → Discord | 경보 규칙에 걸린 상태 | dev |
