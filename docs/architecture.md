@@ -111,8 +111,8 @@ flowchart LR
 ## 5. 네트워크 · 보안
 
 - 사용자 요청은 Envoy Gateway 하나로 들어오고 암호화된 통신만 허용합니다
-- 서비스는 내부망에만 두고, 외부에서는 bastion을 거쳐 접속합니다
-- 데모는 내부망에서 합니다
+- 서버는 내부망에만 두고, 팀원이 서버를 관리할 때는 bastion(중계 서버)을 거쳐 접속합니다
+- prod는 공개 주소 `https://ideaconnection.jpexstudio.com`으로 엽니다. 공인 IP 없이 Cloudflare가 HTTPS 접속을 받아 Gateway로 넘겨 주고, 데모도 이 주소로 합니다. dev는 내부망에서만 씁니다
 - 로그인은 Keycloak이 처리합니다. 가입은 이메일 또는 Google 계정(OAuth 연동) 중 고르고, Gateway와 서비스가 Keycloak이 발급한 로그인 토큰(JWT)을 확인합니다
 - 서비스끼리의 통신은 Istio로 암호화하고, 2번에 적은 호출만 허용합니다
 - 소속되지 않은 조직의 데이터는 볼 수 없습니다
