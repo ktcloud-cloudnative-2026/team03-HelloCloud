@@ -1,0 +1,142 @@
+<!doctype html>
+<!-- Google 로그인 동의 화면에 거는 개인정보처리방침(#223). 로그인 없이 열리도록 웹 앱과 따로 둔 정적 페이지다 -->
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>개인정보처리방침 · IdeaConnection</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f3f6f7;
+        color: #23292d;
+        font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+        line-height: 1.7;
+      }
+      main {
+        max-width: 720px;
+        margin: 48px auto;
+        padding: 40px 48px;
+        background: #ffffff;
+        border: 1px solid #dbe3ee;
+        border-radius: 16px;
+      }
+      header a {
+        color: #2563eb;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      h1 {
+        margin: 8px 0 4px;
+        font-size: 1.75rem;
+      }
+      h2 {
+        margin-top: 32px;
+        font-size: 1.15rem;
+      }
+      .muted {
+        color: #64748b;
+      }
+      a {
+        color: #2563eb;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 8px 10px;
+        border: 1px solid #dbe3ee;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f1f5f9;
+      }
+      @media (max-width: 600px) {
+        main {
+          margin: 0;
+          padding: 28px 20px;
+          border-radius: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><a href="/">IdeaConnection</a></header>
+      <h1>개인정보처리방침</h1>
+      <p class="muted">시행일: 2026년 11월 25일</p>
+
+      <p>
+        IdeaConnection은 kt cloud TECH UP 클라우드 네이티브 과정의 팀 프로젝트(HelloCloud 팀)로 만든 팀 협업
+        서비스입니다. 이 문서는 서비스가 어떤 정보를 왜 받고, 어떻게 보관하고 지우는지 설명합니다.
+      </p>
+
+      <h2>1. 받는 정보</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>정보</th>
+            <th>받는 때</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>이름, 이메일 주소, Google 계정 식별자</td>
+            <td>Google 계정으로 로그인할 때 Google에서 받습니다(범위: openid, email, profile).</td>
+          </tr>
+          <tr>
+            <td>조직 · 채널 이름, 채팅 메시지, 올린 파일, 고정 메시지</td>
+            <td>서비스를 쓰면서 직접 입력하거나 올릴 때</td>
+          </tr>
+          <tr>
+            <td>접속 기록(요청 시각, 요청 주소, 오류 정보)</td>
+            <td>서비스 상태를 확인하고 장애를 고치기 위해 서버가 남깁니다.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Google 계정의 비밀번호, 연락처, 드라이브 등 다른 정보는 받지 않습니다.</p>
+
+      <h2>2. 쓰는 목적</h2>
+      <ul>
+        <li>로그인과 본인 확인</li>
+        <li>같은 조직 팀원에게 내 이름을 보여 주기(채팅 보낸 사람, 멤버 목록, 확인 요청)</li>
+        <li>초대 · 권한 관리, 서비스 장애 확인</li>
+      </ul>
+      <p>광고나 마케팅에 쓰지 않고, 다른 곳에 팔거나 넘기지 않습니다.</p>
+
+      <h2>3. 처리를 맡기는 곳</h2>
+      <ul>
+        <li>Google: 로그인(Google 계정 인증)</li>
+        <li>Cloudflare: 서비스 주소로 들어오는 접속 전달과 HTTPS</li>
+      </ul>
+      <p>서비스의 서버와 데이터베이스는 교육 과정에서 받은 클라우드 서버에서 팀이 직접 운영합니다.</p>
+
+      <h2>4. 보관과 삭제</h2>
+      <ul>
+        <li>계정 정보는 서비스를 쓰는 동안 보관합니다.</li>
+        <li>조직을 나가거나 조직이 삭제되면 그 조직에서 볼 수 있는 권한이 바로 사라집니다.</li>
+        <li>계정과 내가 남긴 정보를 모두 지우고 싶으면 아래 문의처로 요청해 주세요. 확인 뒤 삭제합니다.</li>
+        <li>프로젝트 운영을 마치면 저장한 정보를 함께 삭제합니다.</li>
+      </ul>
+      <p>
+        Google 쪽 연결은 언제든
+        <a href="https://myaccount.google.com/connections" rel="noopener">Google 계정의 서드 파티 연결 관리</a>에서
+        끊을 수 있습니다.
+      </p>
+
+      <h2>5. 문의</h2>
+      <p>
+        개인정보 관련 요청과 문의는 팀 이메일
+        <a href="mailto:k67091233@gmail.com">k67091233@gmail.com</a>으로 보내 주세요. 계정 삭제를 요청할 때는
+        로그인에 쓴 이메일 주소를 함께 적어 주세요.
+      </p>
+
+      <h2>6. 바뀔 때</h2>
+      <p>이 문서를 바꾸면 이 페이지에 바뀐 내용과 시행일을 함께 올립니다.</p>
+    </main>
+  </body>
+</html>
