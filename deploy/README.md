@@ -327,6 +327,18 @@ kubectl apply -f https://raw.githubusercontent.com/ktcloud-cloudnative-2026/team
 
 확인: `kubectl top nodes`, `kubectl top pods -n ideaconnection-dev`
 
+## 모니터링 (prod)
+
+`argocd/platform/monitoring-prod.yaml`이 dev와 같은 차트 · 공통 values로 **prod 클러스터**의 `monitoring` namespace에 설치합니다(#224).
+prod 클러스터의 Argo CD에만 등록하고, 자동 동기화는 켜지 않습니다.
+
+- 공통 values의 수집 설정이 `ideaconnection-prod`의 user · file · chat도 그대로 모읍니다
+- `values/monitoring/values-prod.yaml`: Prometheus `local-path` 5Gi, 보관 3일 · 4GB. prod DB VM(.20)에는 아직 exporter가 없어
+  수집 대상에 넣지 않습니다. exporter · 5xx 경보 · Discord 알림은 2단계에서 따로 합니다
+- 11/25 확인: 워커 메모리 약 16Gi에 예약 12~14%라 자리는 충분합니다. metrics-server가 없어 `kubectl top`은 안 됩니다
+- 설치 순서는 dev의 "처음 설치 순서"와 같고, prod cp(`t4-prod-cp`)에서 `monitoring-prod`로 바꿔 실행합니다.
+  Grafana 관리자 Secret도 prod에서 따로 만듭니다. Grafana는 dev처럼 port-forward로만 봅니다
+
 ## 로그 (dev)
 
 `argocd/platform/loki-dev.yaml`과 `alloy-dev.yaml`이 `logging` namespace에 로그 도구 두 개를 설치합니다(#169).
@@ -497,8 +509,8 @@ dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 기�
   별도 검토해 prod values에 반영하고 기능을 다시 확인합니다.
 - user·file·chat prod 이미지 태그는 아직 비어 있습니다. 검사용 `0000000`은
   명령행에서만 사용하고 prod values에 저장하거나 실제 배포하지 않습니다.
-- 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server·모니터링의 prod 도입은
-  이 초안에 포함하지 않습니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
+- 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server의 prod 도입은
+  이 초안에 포함하지 않습니다. 모니터링은 "모니터링 (prod)"(#224)를 따릅니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
 - 앱은 기존 dev와 같은 자동 동기화·prune·selfHeal 설정입니다. 앱 최초 등록 시
   바로 배포될 수 있으므로 아래 선행 조건과 diff를 확인하고 팀 확인 후 등록합니다.
   web은 아래 최초 웹 응답 확인 범위가 검토·승인된 뒤에만 등록합니다. 백엔드 앱은 아직 등록하지 않습니다.
