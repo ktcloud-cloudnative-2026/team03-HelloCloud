@@ -753,6 +753,69 @@ done
    ```
 6. **Prometheus 연결** — `deploy/values/monitoring/values-dev.yaml`의 `additionalScrapeConfigs` PR을 머지하고 monitoring-dev를 동기화합니다(확인받고). Prometheus 화면 Status → Targets에서 `db-vm-*` 4개가 UP
 
+## DB VM (prod exporter)
+
+prod Prometheus가 prod DB VM(`t4-prod-db`, 10.10.24.20)의 상태를 읽게 exporter 4개를 띄웁니다(#224 2단계).
+이미지 · 메모리 상한 · 계정 권한은 위 "DB VM (dev exporter)"와 같고, 아래만 다릅니다.
+
+| 항목 | dev | prod |
+| --- | --- | --- |
+| 주소 | 10.10.24.10 | 10.10.24.20 |
+| compose 이름 | `dev-exporters` | `prod-exporters` |
+| 꼬리표 | `vm=t4-db` | `vm=t4-prod-db` |
+| Redis 계정 | 기존 비밀번호 | **전용 계정 `exporter`**(상태 읽기 명령만). 비밀번호를 exporter가 알아도 데이터를 바꿀 수 없게 합니다 |
+
+**Redis 전용 계정을 위해 prod Redis를 한 번 다시 띄웁니다.** prod Redis는 설정 파일 없이 명령줄로만 설정해서,
+`ACL SETUSER`로 만든 계정은 재시작하면 사라집니다. 그래서 `/opt/redis/compose.yaml`의 명령줄에 `--user`를 넣습니다.
+재시작하는 몇 초 동안 chat 실시간 전달이 멈추므로 prod 담당과 시간을 맞춥니다(확인받고).
+
+1. **비밀번호 파일 (prod DB VM에서)** — dev 1번과 같고, Redis 줄만 바꿉니다
+   ```bash
+   sudo mkdir -p /opt/exporters && sudo chown lab:lab /opt/exporters && cd /opt/exporters
+   (
+     umask 077
+     set -o noclobber
+     printf 'MYSQLD_EXPORTER_PASSWORD=%s\nMONGO_EXPORTER_PASSWORD=%s\nREDIS_EXPORTER_PASSWORD=%s\n' "$(openssl rand -base64 24 | tr -d '/+=')" "$(openssl rand -base64 24 | tr -d '/+=')" "$(openssl rand -hex 24)" > .env
+   ) && { grep -q '^REDIS_EXPORTER_PASSWORD=' /opt/redis/.env || grep '^REDIS_EXPORTER_PASSWORD=' .env >> /opt/redis/.env; }
+   ```
+   - `set -o noclobber`라 `.env`가 이미 있으면 덮어쓰지 않고 멈춥니다(기존 비밀번호 보호). `/opt/redis/.env`에는 같은 줄이 없을 때만 한 번 더합니다
+   - 확인: `stat -c '%a %U %n' .env /opt/redis/.env`가 `600 lab`, `cut -d= -f1 /opt/exporters/.env`가 이름 3개, `cut -d= -f1 /opt/redis/.env`가 `REDIS_PASSWORD`, `REDIS_EXPORTER_PASSWORD`
+2. **MySQL · MongoDB 계정** — dev 2번 명령을 그대로 씁니다. 확인 명령의 주소만 `10.10.24.20`으로 바꿉니다.
+   MySQL 계정 범위 `'exporter'@'172.%'`는 exporter 컨테이너가 Docker 게이트웨이 주소로 보이기 때문입니다.
+   5번 실행 뒤 `docker network inspect prod-exporters_default --format '{{(index .IPAM.Config 0).Gateway}}'`가 `172.`로 시작하는지 봅니다
+3. **Redis 전용 계정 (확인받고, 몇 초 끊김)**
+   - 기존 비밀번호는 그대로입니다. `--requirepass`(기본 계정 비밀번호)는 바꾸지 않고 `--user`로 `exporter` 계정만 더합니다.
+     user · chat은 재시작 뒤 같은 비밀번호로 다시 연결합니다
+   - 재시작하는 몇 초 동안 빠지는 것(prod 담당이 시간을 정할 때 봅니다). Redis는 저장이 꺼져 있지만 chat · user가 Pub/Sub으로만 써서 잃는 데이터는 없고,
+     readiness에 Redis가 없어 파드가 빠지거나 재시작되지 않습니다
+     - 멤버 제거 알림(`MEMBER_REMOVED`)이 전달되지 않습니다(user는 warn 로그만, 그 사람의 WebSocket이 바로 끊기지 않음). 그 시간에는 멤버 내보내기를 하지 않습니다
+     - 다른 파드 사용자에게 가는 실시간 전달이 빠집니다. 메시지는 MongoDB에 있어 새로고침 · 다시 연결하면 받습니다
+   - 바꾸기 전에 원본을 남깁니다: `cd /opt/redis && cp compose.yaml compose.yaml.bak-$(date +%m%d)`
+   - `compose.yaml`의 `exec redis-server ...` 줄 끝에 아래를 붙이고 `docker compose up -d`
+     ```text
+      --user exporter on ">$$REDIS_EXPORTER_PASSWORD" +ping +info "+slowlog|get" "+slowlog|len" "+latency|latest" "+latency|histogram"
+     ```
+   - 규칙은 **토큰마다 따로** 씁니다. 전체를 따옴표 하나로 묶으면 redis-server가 묶음 전체를 사용자 이름으로 읽어
+     `Spaces not allowed in ACL usernames`로 시작하지 못합니다. `|`가 든 토큰은 셸이 파이프로 읽지 않게 따옴표로 감쌉니다
+   - **재시작 직후 바로** `docker compose ps`가 `(healthy)`인지 봅니다. 아니면 다른 확인 전에 곧바로 되돌립니다(아래)
+   - 권한: 상태 읽기 명령만, 하위 명령까지 좁혀서 줍니다. `config`는 `config get requirepass`로 기본 계정 비밀번호를 읽을 수 있어
+     주지 않고, exporter가 CONFIG를 부르지 않게 합니다(4번). `client` · `memory`도 주지 않습니다.
+     키 권한(`~*`)과 채널 권한도 없어 값을 읽거나 바꾸거나 Pub/Sub을 들을 수 없습니다. 메모리 지표는 INFO에서 나와 그대로 모입니다
+   - 확인: `docker compose exec redis sh -c 'redis-cli --user exporter -a "$REDIS_EXPORTER_PASSWORD" --no-auth-warning info server | head -3'`가 정보를 보여 주고,
+     같은 계정으로 `set x 1`과 `config get maxmemory`는 `NOPERM`. 기본 계정 `redis-cli -a "$REDIS_PASSWORD" ping`은 `PONG`
+   - 서비스 확인(prod cp): user · chat 파드 재시작 없음, chat 로그에 Redis 연결 복구, 웹에서 채팅 한 건이 바로 보임
+   - **문제가 생기면 되돌리기**: `cp compose.yaml.bak-<날짜> compose.yaml && docker compose up -d`(계정만 빠지고 원래대로).
+     `.env`의 `REDIS_EXPORTER_PASSWORD` 줄은 남아도 쓰이지 않습니다
+4. **compose.yaml** — dev 3번 파일에서 아래만 바꿉니다
+   - `name: prod-exporters`, 모든 `10.10.24.10`을 `10.10.24.20`으로
+   - redis-exporter의 `environment`를 `REDIS_ADDR: redis://10.10.24.20:6379`, `REDIS_USER: exporter`, `REDIS_PASSWORD: ${REDIS_EXPORTER_PASSWORD}`로
+   - 같은 `environment`에 `REDIS_EXPORTER_CONFIG_COMMAND: "-"`(CONFIG를 부르지 않음)와 `REDIS_EXPORTER_SET_CLIENT_NAME: "false"`를 더합니다.
+     빼면 스크랩마다 `NOPERM` 오류 로그가 남습니다(`redis_up`은 1)
+   - 확인: `docker compose config --quiet`
+5. **실행 · 확인** — dev 4~5번과 같고 주소만 `10.10.24.20`, 확인은 prod cp(`t4-prod-cp`)에서 합니다.
+   `docker compose logs redis-exporter | grep -i noperm`이 비어 있어야 합니다
+6. **Prometheus 연결** — `values/monitoring/values-prod.yaml`의 `additionalScrapeConfigs`(`vm=t4-prod-db`)를 머지하고 monitoring-prod를 동기화합니다(확인받고)
+
 ## SSH 접속
 
 내 PC에서 bastion을 거쳐 각 VM에 접속합니다. 설정은 [ssh_config.example](ssh_config.example)을 `~/.ssh/config`에 붙여 넣고 `<...>`를 채웁니다. bastion 주소·포트는 팀 채널에서 받습니다.
