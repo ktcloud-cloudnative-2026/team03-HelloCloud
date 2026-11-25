@@ -10,7 +10,17 @@
 |---|---|---|
 | user | MySQL | [user.md](user.md) |
 | chat | MongoDB | [chat.md](chat.md) |
-| file | MySQL | [file.md](file.md) |
+| file | MySQL (파일 내용은 SeaweedFS) | [file.md](file.md) |
+
+저장소 한눈에 보기입니다. DB는 클러스터 밖 DB 전용 VM(dev .10, prod .20)에 Docker로 있어 클러스터를 다시 만들어도 남습니다.
+
+| 저장소 | 쓰는 곳 | 저장하는 것 |
+|---|---|---|
+| MySQL 8.4 | user, file | 사용자 프로필 · 조직 · 멤버 · 초대(user), 파일 정보(file). 서비스마다 DB 계정과 권한을 나눕니다 |
+| MongoDB 8.0 | chat | 채널, 메시지, 결정 로그 |
+| SeaweedFS (S3 방식) | file | 파일 내용. 클러스터 안에서 돕니다 |
+| Redis 8.10 | chat, user | 저장하지 않고 새 메시지 · 멤버 제거 알림만 서버끼리 전달합니다(Pub/Sub) |
+| Keycloak 전용 DB | Keycloak | 계정, 비밀번호, Google 연동 정보. dev는 자체 Postgres, prod는 DB VM의 MySQL |
 
 - MySQL은 Mermaid 그림으로, MongoDB는 문서 구조 예시로 씁니다. GitHub에서 바로 그림으로 보입니다
 - 원본은 노션의 서비스별 ERD · API 페이지입니다. 바꿀 때는 노션과 이 폴더를 함께 고칩니다
