@@ -336,8 +336,11 @@ prod 클러스터의 Argo CD에만 등록하고, 자동 동기화는 켜지 않�
 - `values/monitoring/values-prod.yaml`: Prometheus `local-path` 5Gi, 보관 3일 · 4GB. prod DB VM(.20)에는 아직 exporter가 없어
   수집 대상에 넣지 않습니다. exporter · 5xx 경보 · Discord 알림은 2단계에서 따로 합니다
 - 11/25 확인: 워커 메모리 약 16Gi에 예약 12~14%라 자리는 충분합니다. metrics-server가 없어 `kubectl top`은 안 됩니다
+- 경보: 차트 기본 규칙(약 30개)이 같이 설치되지만 받는 곳(receiver)이 없어 아무 데도 가지 않습니다.
+  Grafana · Alertmanager 화면에서만 확인합니다. Discord 알림은 2단계에서 따로 합니다
 - 설치 순서는 dev의 "처음 설치 순서"와 같고, prod cp(`t4-prod-cp`)에서 `monitoring-prod`로 바꿔 실행합니다.
-  Grafana 관리자 Secret도 prod에서 따로 만듭니다. Grafana는 dev처럼 port-forward로만 봅니다
+  **Grafana 관리자 Secret(`grafana-admin`)을 먼저 만들고 동기화합니다.** 순서가 바뀌면 Grafana 파드가 뜨지 않습니다.
+  Grafana는 dev처럼 port-forward로만 봅니다
 
 ## 로그 (dev)
 
@@ -507,8 +510,6 @@ dev 이미지 태그는 채워져 있고 GHCR 이미지는 공개입니다. 기�
 - 현재 web의 `75583e7`은 이전 dev에서 확인한 이미지로, 최초 Gateway IP·웹 HTTP 응답 확인에만 사용합니다.
   최신 채팅·권한·화면 기능의 최종 운영 버전이 아닙니다. 전체 기능 배포 전 dev 검증이 끝난 최신 SHA를
   별도 검토해 prod values에 반영하고 기능을 다시 확인합니다.
-- user·file·chat prod 이미지 태그는 아직 비어 있습니다. 검사용 `0000000`은
-  명령행에서만 사용하고 prod values에 저장하거나 실제 배포하지 않습니다.
 - 네 앱 모두 prod 파드 2개로 렌더링합니다. HPA·metrics-server의 prod 도입은
   이 초안에 포함하지 않습니다. 모니터링은 "모니터링 (prod)"(#224)를 따릅니다. dev의 HPA·부하 테스트 설정은 변경하지 않습니다.
 - 앱은 기존 dev와 같은 자동 동기화·prune·selfHeal 설정입니다. 앱 최초 등록 시
