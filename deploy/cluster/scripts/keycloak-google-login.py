@@ -9,7 +9,7 @@ Keycloak pod over stdin only, never as arguments, output, or files.
   local: python3 keycloak-google-login.py --google-json client_secret.json --docker <container>
 
 What it sets (realm hellocloud):
-  - self registration off (sign-up only through Google); password login stays
+  - sign-up by email (Keycloak form) or Google; password login stays
   - identity provider "google" (trust email, scopes openid email profile)
   - Google "name" claim -> user attribute displayName (refreshed every login), admin-only attribute
   - hellocloud-web mapper: displayName -> token claim display_name (services read it before name)
@@ -69,8 +69,8 @@ def google_client(path):
 
 
 def apply(kc, client_id, client_secret):
-    kc.kc('update', f'realms/{REALM}', '-s', 'registrationAllowed=false')
-    print('- self registration: off')
+    kc.kc('update', f'realms/{REALM}', '-s', 'registrationAllowed=true')
+    print('- email sign-up: on (with Google sign-up)')
 
     profile = kc.get('users/profile')
     if not any(a['name'] == 'displayName' for a in profile['attributes']):
@@ -133,7 +133,7 @@ def verify(kc):
     review = kc.get(f'authentication/config/{review_id}')['config']
     web_id = json.loads(kc.kc('get', 'clients', '-r', REALM, '-q', f'clientId={WEB_CLIENT}'))[0]['id']
     checks = {
-        'registrationAllowed is false': realm.get('registrationAllowed') is False,
+        'registrationAllowed is true': realm.get('registrationAllowed') is True,
         'google enabled, trustEmail': idp.get('enabled') and idp.get('trustEmail'),
         'google client secret set': bool(idp['config'].get('clientSecret')),
         'review profile off': review.get('update.profile.on.first.login') == 'off',
