@@ -43,6 +43,7 @@
 | `DB_USERNAME`, `DB_PASSWORD` | 서버만 | MongoDB 계정. 로컬은 비워 둡니다 |
 | `REDIS_URL` | 예 | Redis 주소. 비밀번호는 URL에 넣지 않습니다 |
 | `REDIS_PASSWORD` | 서버만 | Redis 비밀번호. 없으면 넣지 않습니다 |
+| `REDIS_PING_INTERVAL_MS` | 아니요 | Redis Publisher·Subscriber의 PING 주기(ms). 기본 30000(30초). 유휴 연결 종료 방지용이며 양의 정수를 사용합니다 |
 | `OIDC_ISSUER_URI` | 예 | 토큰 발급자. 로컬 `http://localhost:8180/realms/hellocloud` |
 | `OIDC_JWKS_URI` | 아니요 | 공개 키 주소를 따로 줄 때. 없으면 `<issuer>/protocol/openid-connect/certs` |
 | `OIDC_ALLOWED_CLIENTS` | 아니요 | 토큰을 받아 줄 Keycloak 클라이언트(`azp`), 쉼표로 구분. 없으면 `hellocloud-web`만. dev는 측정용으로 `hellocloud-web,k6-loadtest`(values-dev의 `extraEnv`) |

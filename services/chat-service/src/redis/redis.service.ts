@@ -25,14 +25,27 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
     const redisUrl = process.env.REDIS_URL;
     const redisPassword = process.env.REDIS_PASSWORD;
+    const redisPingInterval = Number(
+      process.env.REDIS_PING_INTERVAL_MS ?? '30000',
+    );
 
     if (!redisUrl) {
       throw new Error('REDIS_URL 환경변수가 설정되지 않았습니다.');
     }
 
+    if (
+      !Number.isInteger(redisPingInterval) ||
+      redisPingInterval <= 0 ||
+      redisPingInterval > 2_147_483_647
+    ) {
+      throw new Error('REDIS_PING_INTERVAL_MS는 유효한 양의 정수여야 합니다.');
+    }
+
     const options = {
       url: redisUrl,
       ...(redisPassword ? { password: redisPassword } : {}),
+      // 네트워크 프록시의 유휴 연결 종료를 방지합니다.
+      pingInterval: redisPingInterval,
       socket: {
         reconnectStrategy: (retries: number) => Math.min(retries * 100, 3000),
       },
