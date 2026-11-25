@@ -340,7 +340,10 @@ Loki(로그 보관소)는 공개 차트 grafana-community/loki(21.4.1), Alloy(�
   않아 노드마다 띄우지 않습니다. 대신 로그가 API 서버를 거칩니다. 우리 서비스 로그 양에서는 부담이 작습니다
 - 메모리 상한: Loki 512Mi, Alloy 256Mi + 설정 갱신 도우미 32Mi
 - Grafana: `values/monitoring/values-dev.yaml`에 Loki 데이터 소스를 추가합니다. Explore에서 Loki를 고르고
-  `{namespace="ideaconnection-dev", app="user-service"} | json`처럼 찾습니다
+  `{namespace="ideaconnection-dev", app="user-service", container="spring-service"} | json`처럼 찾습니다.
+  이름표는 `namespace` · `app` · `pod` · `container`입니다. 앱 컨테이너 이름은 공통 차트라 user · file · chat 모두
+  `spring-service`이고, 사이드카(`istio-proxy`) 로그는 JSON이 아니라 `| json`에서 파싱 오류로 표시됩니다
+- 설치 결과(11/24): loki-0 · alloy 모두 w1, 실측 메모리 Loki 55Mi · Alloy 51Mi. 시작 전에 파드에 남아 있던 로그도 읽어 옵니다
 
 ### 설치 순서
 

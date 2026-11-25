@@ -66,6 +66,8 @@ k6 스크립트 하나로 두 가지를 잽니다. 파일은 [deploy/loadtest/ac
 - dev 로그는 Loki에 모읍니다([deploy/README.md](../deploy/README.md#로그-dev)). Grafana Explore에서 Loki를 고르고
   `{namespace="ideaconnection-dev", app="user-service"} | json | request_id="<id>"`로 한 요청의 로그를 찾습니다.
 - user · file은 공통 `JsonLogFormatter`로 이 형식을 씁니다. chat(NestJS)은 아직 기본 형식입니다.
+- user · file은 시작할 때와 에러가 날 때만 로그를 남기고 평소 요청에는 남기지 않습니다. 그래서 지금은 에러가 난 요청만
+  `request_id`로 찾을 수 있습니다(11/24 확인, #169). file이 user를 부를 때 `X-Request-Id`를 넘겨 두 서비스 로그의 ID는 같습니다.
 
 ## 4. 알림 기준
 | 조건 | 받는 사람 | 대응 문서(런북) |
