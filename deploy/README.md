@@ -334,12 +334,15 @@ prod 클러스터의 Argo CD에만 등록하고, 자동 동기화는 켜지 않�
 
 - 공통 values의 수집 설정이 `ideaconnection-prod`의 user · file · chat도 그대로 모읍니다
 - `values/monitoring/values-prod.yaml`: Prometheus `local-path` 5Gi, 보관 3일 · 4GB. prod DB VM(.20) exporter 4개
-  (`vm=t4-prod-db`)를 모읍니다. 설치는 `cluster/README.md`의 "DB VM (prod exporter)". 5xx 경보 · Discord 알림은 따로 합니다
+  (`vm=t4-prod-db`)를 모읍니다. 설치는 `cluster/README.md`의 "DB VM (prod exporter)"(11/25 설치, db-vm 4개 up)
+- `manifests/monitoring/prod`: dev와 같은 5xx 에러율 경보(5분간 5% 초과)를 `ideaconnection-prod`에 걸고, **prod 전용 Discord 채널**로 보냅니다.
+  dev 채널(`#alertmanager-관리`)과 섞이지 않게 나눴습니다. 웹후크 Secret(`ideaconnection-discord-webhook`)을 prod cp에 **먼저** 만들고 동기화합니다.
+  Secret이 없으면 Alertmanager가 이 설정을 건너뜁니다
 - 11/25 확인: 워커 메모리 약 16Gi에 예약 12~14%라 자리는 충분합니다. metrics-server가 없어 `kubectl top`은 안 됩니다
 - 설치 결과(11/25): monitoring-prod Synced · Healthy, Prometheus PVC 5Gi Bound. 수집 대상 모두 up(prod user · file · chat 각 2,
   node-exporter 3, kubelet · apiserver · coredns · kube-state-metrics)
-- 경보: 차트 기본 규칙(약 30개)이 같이 설치되지만 받는 곳(receiver)이 없어 아무 데도 가지 않습니다.
-  Grafana · Alertmanager 화면에서만 확인합니다. Discord 알림은 2단계에서 따로 합니다
+- 경보: 차트 기본 규칙(약 30개)은 받는 곳(receiver)이 없어 Grafana · Alertmanager 화면에서만 보입니다.
+  Discord로 가는 것은 위 5xx 경보 하나입니다
 - 설치 순서는 dev의 "처음 설치 순서"와 같고, prod cp(`t4-prod-cp`)에서 `monitoring-prod`로 바꿔 실행합니다.
   **Grafana 관리자 Secret(`grafana-admin`)을 먼저 만들고 동기화합니다.** 순서가 바뀌면 Grafana 파드가 뜨지 않습니다.
   Grafana는 dev처럼 port-forward로만 봅니다

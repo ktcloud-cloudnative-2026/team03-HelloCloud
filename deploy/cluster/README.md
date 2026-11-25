@@ -856,7 +856,7 @@ Discord 채널 설정에서 웹후크 URL을 발급받습니다.
 웹후크 URL은 비밀정보이므로 Git에 커밋하거나
 문서 및 로그에 노출하지 않습니다.
 
-dev 클러스터 control plane에서 실행합니다.
+dev 클러스터 control plane에서 실행합니다. prod는 prod용 Discord 채널의 웹후크로 prod cp에서 같은 이름 · 키로 만듭니다(#224).
 
 ```bash
 read -r -s -p "Discord Webhook URL: " WEBHOOK_URL

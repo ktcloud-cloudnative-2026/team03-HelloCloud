@@ -1,0 +1,8 @@
+# prod 경보 두 개(#224). dev와 같은 규칙이고 namespace와 받는 Discord 채널만 다르다.
+# 대시보드(부하 테스트)는 dev 전용이라 넣지 않는다
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+resources:
+  - ideaconnection-discord.yaml
+  - ideaconnection-error-rate.yaml
