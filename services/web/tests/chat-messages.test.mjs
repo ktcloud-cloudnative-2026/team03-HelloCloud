@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fetchAfter, lastSeq, mergeMessages } from '../src/pages/chat/messages.js'
+import { fetchAfter, lastSeq, mergeMessages, unknownSenders } from '../src/pages/chat/messages.js'
 
 const m = (id, seq) => ({ id, seq, text: id })
 
@@ -47,4 +47,18 @@ test('확인 요청 상태: 보낸 사람, 확인해야 하는 사람, 확인한
   assert.equal(ackState(message, 'c').needsMyConfirm, true)
   assert.equal(ackState(message, 'b').confirmedByMe, true)
   assert.equal(ackState({ acknowledgement: { requiredUserIds: [], confirmed: [] } }, 'a'), null)
+})
+
+test('이름을 모르는 보낸 사람은 한 번씩만 골라낸다(나 · 아는 사람 · 이미 물어본 사람 제외)', () => {
+  const messages = [
+    { id: 'a', seq: 1, senderId: 'me' },
+    { id: 'b', seq: 2, senderId: 'known' },
+    { id: 'c', seq: 3, senderId: 'new' },
+    { id: 'd', seq: 4, senderId: 'new' },
+    { id: 'e', seq: 5, senderId: 'asked' },
+    { id: 'f', seq: 6, senderId: null },
+  ]
+  const names = { known: '아는 사람' }
+  assert.deepEqual(unknownSenders(messages, names, 'me', new Set(['asked'])), ['new'])
+  assert.deepEqual(unknownSenders(messages, { ...names, new: '새 멤버' }, 'me', new Set(['asked'])), [])
 })

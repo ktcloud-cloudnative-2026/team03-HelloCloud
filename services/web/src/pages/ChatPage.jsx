@@ -14,7 +14,7 @@ import { chatSocketUrl, createChatConnection } from './chat/chatConnection'
 import AttachPicker from './chat/AttachPicker'
 import DecisionLog from './chat/DecisionLog'
 import MessageItem from './chat/MessageItem'
-import { fetchAfter, lastSeq, mergeMessages } from './chat/messages'
+import { fetchAfter, lastSeq, mergeMessages, unknownSenders } from './chat/messages'
 import { browserStorage, markSeen } from './dashboard/unread'
 import './ChatPage.css'
 
@@ -34,6 +34,8 @@ function ChatPage({ organization }) {
   const [activeId, setActiveId] = useState(null)
   const [messages, setMessages] = useState([])
   const [members, setMembers] = useState([])
+  // 멤버 목록을 받은 조직. 지금 조직 것을 받기 전에는 모르는 보낸 사람을 따로 찾지 않는다
+  const [membersOrgId, setMembersOrgId] = useState(null)
   // 'channel'이면 채널 대화, 'decisions'이면 고정 메시지 목록
   const [view, setView] = useState('channel')
   const [decisions, setDecisions] = useState([])
@@ -58,6 +60,9 @@ function ChatPage({ organization }) {
   const connectionRef = useRef(null)
   const activeIdRef = useRef(null)
   const messagesRef = useRef([])
+  const orgIdRef = useRef(organization.id)
+  // 이름을 몰라 멤버 목록을 다시 받은 사람. 다시 받아도 없으면(나간 멤버 등) 더 부르지 않는다
+  const askedRef = useRef(new Set())
   const listRef = useRef(null)
 
   const applyMessages = useCallback((incoming) => {
@@ -68,6 +73,8 @@ function ChatPage({ organization }) {
   // 채널 목록과 보낸 사람 이름(멤버 목록)을 불러온다
   useEffect(() => {
     let ignore = false
+    orgIdRef.current = organization.id
+    askedRef.current = new Set()
     getChannels(organization.id)
       .then((data) => {
         if (ignore) return
@@ -79,6 +86,7 @@ function ChatPage({ organization }) {
       .then((data) => {
         if (ignore) return
         setMembers(data.items)
+        setMembersOrgId(organization.id)
       })
       .catch(() => {})
     getDecisions(organization.id)
@@ -88,6 +96,21 @@ function ChatPage({ organization }) {
       ignore = true
     }
   }, [organization.id])
+
+  // 초대받아 막 들어온 사람의 메시지가 오면 새로고침 없이 이름이 보이도록 멤버 목록을 다시 받는다
+  useEffect(() => {
+    if (membersOrgId !== organization.id) return
+    const names = Object.fromEntries(members.map((m) => [m.userId, m.displayName]))
+    const missing = unknownSenders(messages, names, myId, askedRef.current)
+    if (!missing.length) return
+    missing.forEach((id) => askedRef.current.add(id))
+    const orgId = organization.id
+    getMembers(orgId, 0, 100)
+      .then((data) => {
+        if (orgId === orgIdRef.current) setMembers(data.items)
+      })
+      .catch(() => {})
+  }, [messages, members, membersOrgId, myId, organization.id])
 
   // WebSocket은 조직 화면에 있는 동안 하나만 연다
   useEffect(() => {
