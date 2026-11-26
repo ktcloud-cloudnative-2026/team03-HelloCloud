@@ -34,3 +34,12 @@ prometheus:
           resources:
             requests:
               storage: 5Gi
+
+grafana:
+  # 로그 검색(Explore)용. Loki는 logging namespace에 있다(argocd/platform/loki-prod.yaml)
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.logging.svc.cluster.local:3100
