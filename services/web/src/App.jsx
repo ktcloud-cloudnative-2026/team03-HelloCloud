@@ -6,7 +6,7 @@ import Dashboard from './pages/Dashboard'
 import InviteAccept from './pages/InviteAccept'
 import { getOrganizations, createOrganization } from './api/organizations'
 import { login, register, signUpWithGoogle } from './auth/keycloak'
-import BrandIcon from './brand/BrandIcon'
+import BrandIcon from './brand/BrandIcon.jsx'
 import './App.css'
 
 // 초대 링크(/invite/<토큰>)만 주소로 화면을 고른다. 나머지 화면은 상태로 바꾼다.

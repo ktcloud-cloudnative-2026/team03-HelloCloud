@@ -11,6 +11,15 @@
 3. `npm run dev` → 터미널에 나온 주소로 접속 (터미널을 끄면 꺼집니다)
 4. 로그인·조직 목록·만들기까지 보려면 Keycloak과 user-service(8081)도 켜야 합니다. 순서는 `services/user-service/README.md`
 
+### Windows 로컬 개발 시 주의사항
+
+- `BrandIcon.jsx`와 `brandIcon.js`의 모듈 참조 충돌을 방지하기 위해
+  BrandIcon 컴포넌트의 import 경로에는 `.jsx` 확장자를 명시합니다.
+- 브랜드 테스트에서 파일 경로를 가져올 때는 운영체제별 경로 차이를
+  처리하는 `fileURLToPath()`를 사용합니다.
+- 브랜드 회귀 테스트: `node --test tests/brand.test.mjs`
+  (services/web 디렉터리에서 실행)
+
 ## 로그인 (Keycloak)
 
 로그인 버튼을 누르면 Keycloak 로그인 화면으로 이동하고, 돌아오면 API 요청에 로그인 토큰을 붙입니다.

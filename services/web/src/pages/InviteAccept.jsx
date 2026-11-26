@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { acceptInvitation } from '../api/invitations'
-import BrandIcon from '../brand/BrandIcon'
+import BrandIcon from '../brand/BrandIcon.jsx'
 import './InviteAccept.css'
 
 // 이 코드들은 다시 눌러도 결과가 같으므로 수락 버튼을 숨긴다.
