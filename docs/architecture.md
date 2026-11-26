@@ -196,17 +196,17 @@ flowchart LR
 
 ### 인프라 구성
 
-prod와 dev는 같은 내부망(10.10.24.0/24)에 노드 3대(control plane 1, 워커 2)씩 두고, DB는 환경마다 클러스터 밖 전용 VM에 둡니다. prod만 Cloudflare 터널로 외부에 열고, dev는 팀원이 bastion을 거쳐서만 씁니다. 서비스 사이 보안(Istio)과 로그 수집(Loki)은 지금 dev에만 있습니다.
+prod와 dev는 같은 내부망(10.10.24.0/24)에 노드 3대(control plane 1, 워커 2)씩 두고, DB는 환경마다 클러스터 밖 전용 VM에 둡니다. prod만 Cloudflare 터널로 외부에 열고, dev는 팀원이 bastion을 거쳐서만 씁니다. 로그 수집(Loki)은 두 환경 모두에 있고, 서비스 사이 보안(Istio)은 dev에만 둡니다. prod에는 Istio를 넣지 않기로 했습니다(11/26, 아래 "서비스 사이 보안").
 
 ### 노드 배치
 
-2026-11-25 `kubectl get pods -A` 기준입니다. prod 앱은 두 워커에 하나씩 나눠 떠서, 노드 하나가 멈춰도 서비스가 남습니다. 모든 노드에 하나씩 도는 시스템 파드(calico-node, kube-proxy, MetalLB speaker 등)는 표에서 뺐습니다.
+2026-11-25 `kubectl get pods -A` 기준이고, prod의 metrics-server · Loki · Alloy는 11/26 설치 결과(#253)로 더했습니다. prod 앱은 두 워커에 하나씩 나눠 떠서, 노드 하나가 멈춰도 서비스가 남습니다. 모든 노드에 하나씩 도는 시스템 파드(calico-node, kube-proxy, MetalLB speaker 등)는 표에서 뺐습니다.
 
 | 환경 · 노드 | 주소 | 이 노드에서 도는 것 |
 |---|---|---|
 | prod cp | .21 | 쿠버네티스 관리(etcd, apiserver 등). 앱 pod 없음 |
-| prod w1 | .22 | web · user · file · chat 각 1, Keycloak, SeaweedFS(master · filer), Grafana, Argo CD 일부, Envoy Gateway 컨트롤러 |
-| prod w2 | .23 | Gateway 프록시(요청 입구), web · user · file · chat 각 1, SeaweedFS(volume · s3), Prometheus · AlertManager, Argo CD 서버, MetalLB 컨트롤러 |
+| prod w1 | .22 | web · user · file · chat 각 1, Keycloak, SeaweedFS(master · filer), Grafana, Loki, metrics-server, Argo CD 일부, Envoy Gateway 컨트롤러 |
+| prod w2 | .23 | Gateway 프록시(요청 입구), web · user · file · chat 각 1, SeaweedFS(volume · s3), Prometheus · AlertManager, Alloy, Argo CD 서버, MetalLB 컨트롤러 |
 | prod DB VM | .20 | MySQL 8.4(user · file · Keycloak), MongoDB 8.0(chat), Redis 8.10. Docker |
 | dev cp | .11 | 쿠버네티스 관리. 앱 pod 없음 |
 | dev w1 | .12 | Gateway 프록시(요청 입구), web · user(HPA 1~3) · file · chat 각 1(user · file · chat에 Istio 사이드카), Loki · Alloy, Prometheus · AlertManager, SeaweedFS master |
@@ -232,11 +232,11 @@ prod와 dev는 같은 내부망(10.10.24.0/24)에 노드 3대(control plane 1, �
 | `envoy-gateway-system` | O | O | Envoy Gateway 컨트롤러와 Gateway 프록시(요청 입구, MetalLB VIP). 경로 규칙은 web · Keycloak · user · file · chat · SeaweedFS S3로 나눕니다 |
 | `istio-system` | O | | istiod(사이드카 설정 · 인증서) |
 | `seaweedfs` | O | O | master, filer, volume, s3(파일 내용 저장) |
-| `monitoring` | O | O | Prometheus, AlertManager, Grafana, Prometheus Operator, kube-state-metrics, node-exporter. 경보 규칙과 Discord 연결은 dev |
-| `logging` | O | | Loki, Alloy(파드 로그 수집) |
+| `monitoring` | O | O | Prometheus, AlertManager, Grafana, Prometheus Operator, kube-state-metrics, node-exporter. 5xx 경보와 Discord 연결은 환경마다 따로(prod는 전용 채널) |
+| `logging` | O | O | Loki, Alloy(파드 로그 수집) |
 | `argocd` | O | O | server, application-controller, repo-server, applicationset, redis, dex, notifications. 클러스터마다 하나씩 |
 | `loadtest` | O | | k6 Job. 측정할 때만 올리고 끝나면 지웁니다 |
-| `kube-system` 등 기본 구성 | O | O | CoreDNS, kube-proxy, Calico(파드 네트워크), MetalLB, local-path(노드 디스크 저장), metrics-server(dev). 클러스터를 만들 때 손으로 설치합니다(`deploy/cluster`) |
+| `kube-system` 등 기본 구성 | O | O | CoreDNS, kube-proxy, Calico(파드 네트워크), MetalLB, local-path(노드 디스크 저장), metrics-server. 클러스터를 만들 때 손으로 설치합니다(`deploy/cluster`). metrics-server는 Argo CD로 설치합니다 |
 
 ## 5. 네트워크 · 보안
 
@@ -284,13 +284,14 @@ prod와 dev는 같은 내부망(10.10.24.0/24)에 노드 3대(control plane 1, �
 
 - chat과 file은 조직 데이터 요청마다 user에 소속을 확인합니다(캐시 없음). 멤버가 아니면 403, user가 멈춰 확인할 수 없으면 503으로 막습니다. 확인 실패를 허용으로 넘기지 않습니다
 - 모든 조직 데이터 조회에 조직 ID 조건을 넣습니다. 다른 조직의 ID를 넣어 불러도 소속 확인에서 막힙니다
-- 멤버를 내보내면 user가 행을 지우고 Redis로 알려, chat이 그 사용자의 실시간 연결을 끊습니다. dev 측정(11/25)에서 첫 403까지 최대 57ms, WebSocket 종료 1ms였고, 조직 간 차단 측정에서 다른 조직 데이터 요청 18건이 모두 403이었습니다
+- 멤버를 내보내면 user가 행을 지우고 Redis로 알려, chat이 그 사용자의 실시간 연결을 끊습니다. dev 측정(11/25, keepalive 적용 뒤)에서 첫 403까지 최대 43ms, WebSocket 종료 1ms였고, 조직 간 차단 측정에서 다른 조직 데이터 요청 18건이 모두 403이었습니다
 - 초대 링크는 토큰 해시만 저장하고, 7일 뒤 만료되며 한 번만 쓸 수 있습니다. OWNER는 조직을 나갈 수 없습니다
 
 ### 서비스 사이 보안
 
 - `/internal/...` 주소는 입구(Gateway)에서 외부 요청을 받지 않습니다
-- 서비스끼리의 통신은 Istio로 암호화(mTLS)하고, user 내부 API는 chat과 file만 부를 수 있게 허용 정책을 둡니다. 지금은 dev에 적용했습니다(#217)
+- 서비스끼리의 통신은 Istio로 암호화(mTLS)하고, user 내부 API는 chat과 file만 부를 수 있게 허용 정책을 둡니다. dev에만 적용합니다(#217)
+- prod에는 Istio를 넣지 않기로 했습니다(11/26, #193). dev 측정에서 사이드카를 붙이자 p95가 94 → 256ms로 늘고, 사이드카가 워커 CPU의 약 20%를 썼습니다. 사이드카 requests를 실사용에 맞추면 dev 워커 예약이 넘쳐서, 같은 워커 2대인 prod에 넣으려면 워커 여유가 먼저 필요합니다([최적화 보고서](observability.md#최적화-보고서)). prod 내부 API는 입구의 `/internal` 차단과 로그인 토큰 확인(내부 API도 토큰이 있어야 응답)으로 막습니다. 클러스터 안에서 어느 서비스가 부르는지는 prod에서 따로 제한하지 않는 것이 남는 위험입니다
 - DB 포트(3306 · 27017 · 6379)는 DB VM의 내부 IP에만 엽니다
 - Grafana · Argo CD · Keycloak 관리 화면은 외부에 열지 않고 port-forward로만 봅니다
 
@@ -308,7 +309,7 @@ prod와 dev는 같은 내부망(10.10.24.0/24)에 노드 3대(control plane 1, �
 | 로그인 토큰 위조 · 탈취 | Keycloak 공개 키로 서명 · 만료 확인, 토큰을 주소와 로그에 남기지 않음 |
 | 내보낸 멤버가 계속 접근 | 요청마다 소속 확인, Redis 알림으로 실시간 연결 끊기 |
 | 다른 조직 데이터 조회 | 조직 ID 조건과 소속 확인으로 403 |
-| 내부 API를 바깥에서 호출 | 입구에서 `/internal` 차단, Istio 허용 정책 |
+| 내부 API를 바깥에서 호출 | 입구에서 `/internal` 차단, Istio 허용 정책(dev) |
 | 초대 링크 유출 | 7일 만료, 한 번만 사용, DB에는 해시만 저장 |
 | DB 유출 | 비밀번호 미저장, 초대 토큰 해시, 서비스별 DB 계정 분리 |
 | 비밀값 커밋 | Git 금지, Secret 사용, 커밋하면 즉시 교체 |
@@ -317,6 +318,6 @@ prod와 dev는 같은 내부망(10.10.24.0/24)에 노드 3대(control plane 1, �
 ## 6. 모니터링
 
 - 서비스 상태는 Prometheus가 모으고 Grafana 화면에서 봅니다
-- 모든 서비스가 같은 형식으로 로그를 남기고 Loki에 모읍니다. 지금은 dev에서 모읍니다
+- 모든 서비스가 같은 형식으로 로그를 남기고 Loki에 모읍니다. dev · prod 모두 앱 네임스페이스 로그만 3일 보관합니다
 - 에러율 5%가 5분을 넘으면 AlertManager(장애 알림 도구)가 Discord로 알립니다. 우리 서비스가 멈춰도 알림을 받을 수 있게 외부 채널을 씁니다
 - 지표 식, 성공 기준 측정 결과, 로그 형식, 알림, 부하 테스트는 [관측 설계](observability.md)에 있습니다
