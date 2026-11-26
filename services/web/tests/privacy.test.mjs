@@ -1,9 +1,10 @@
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 
 // Google 로그인 동의 화면의 개인정보처리방침 링크(https://ideaconnection.jpexstudio.com/privacy, #223)
-const webDir = new URL('..', import.meta.url).pathname
+const webDir = fileURLToPath(new URL('..', import.meta.url))
 const page = `${webDir}public/privacy.html`
 
 test('개인정보처리방침은 로그인 없이 열리는 정적 페이지다', () => {
