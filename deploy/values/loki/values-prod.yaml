@@ -1,0 +1,9 @@
+loki:
+  limits_config:
+    # local-path는 크기를 나중에 못 늘린다. dev와 같이 3일 · 5Gi(prod Prometheus와 같은 보관 기간)
+    retention_period: 72h
+
+singleBinary:
+  persistence:
+    storageClass: local-path
+    size: 5Gi

@@ -338,7 +338,7 @@ prod 클러스터의 Argo CD에만 등록하고, 자동 동기화는 켜지 않�
 - `manifests/monitoring/prod`: dev와 같은 5xx 에러율 경보(5분간 5% 초과)를 `ideaconnection-prod`에 걸고, **prod 전용 Discord 채널**로 보냅니다.
   dev 채널(`#alertmanager-관리`)과 섞이지 않게 나눴습니다. 웹후크 Secret(`ideaconnection-discord-webhook`)을 prod cp에 **먼저** 만들고 동기화합니다.
   Secret이 없으면 Alertmanager가 이 설정을 건너뜁니다
-- 11/25 확인: 워커 메모리 약 16Gi에 예약 12~14%라 자리는 충분합니다. metrics-server가 없어 `kubectl top`은 안 됩니다
+- 11/25 확인: 워커 메모리 약 16Gi에 예약 12~14%라 자리는 충분합니다
 - 설치 결과(11/25): monitoring-prod Synced · Healthy, Prometheus PVC 5Gi Bound. 수집 대상 모두 up(prod user · file · chat 각 2,
   node-exporter 3, kubelet · apiserver · coredns · kube-state-metrics)
 - 경보: 차트 기본 규칙(약 30개)은 받는 곳(receiver)이 없어 Grafana · Alertmanager 화면에서만 보입니다.
@@ -346,6 +346,19 @@ prod 클러스터의 Argo CD에만 등록하고, 자동 동기화는 켜지 않�
 - 설치 순서는 dev의 "처음 설치 순서"와 같고, prod cp(`t4-prod-cp`)에서 `monitoring-prod`로 바꿔 실행합니다.
   **Grafana 관리자 Secret(`grafana-admin`)을 먼저 만들고 동기화합니다.** 순서가 바뀌면 Grafana 파드가 뜨지 않습니다.
   Grafana는 dev처럼 port-forward로만 봅니다
+
+### metrics-server · 로그 (prod, #253)
+
+dev의 "metrics-server (dev)", "로그 (dev)"와 같은 차트 · 버전 · 공통 values를 prod 클러스터에 설치합니다(#224 후속).
+앱은 `metrics-server-prod` · `loki-prod` · `alloy-prod`이고 prod Argo CD에만 등록합니다. 자동 동기화는 켜지 않습니다.
+
+- metrics-server: `kubectl top`을 쓰려고 설치합니다. prod values에는 HPA가 없어 파드 수는 그대로 2개입니다
+- Loki: `values/loki/values-prod.yaml`, dev와 같이 `local-path` 5Gi · 3일. Alloy: `ideaconnection-prod` 파드 로그만 모읍니다
+- Grafana: `values/monitoring/values-prod.yaml`에 Loki 데이터 소스. 찾는 방법은 dev와 같고 `namespace="ideaconnection-prod"`
+- 설치 순서: 워커 디스크 확인(Prometheus 5Gi가 이미 w2에 있음) → 앱 3개 등록 → `metrics-server-prod` → `loki-prod` →
+  `alloy-prod` → `monitoring-prod`(데이터 소스) 동기화. 모두 prod cp에서 확인받고 합니다
+- 확인: `kubectl top nodes`, `kubectl top pods -n ideaconnection-prod`, `kubectl get pods -n logging`,
+  prod Grafana Explore에서 `{namespace="ideaconnection-prod"}` 로그
 
 ## 로그 (dev)
 
