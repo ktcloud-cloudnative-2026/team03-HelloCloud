@@ -1,6 +1,6 @@
 
 import { logout } from '../auth/keycloak'
-import BrandIcon from '../brand/BrandIcon'
+import BrandIcon from '../brand/BrandIcon.jsx'
 import './OrganizationSelect.css'
 
 const ROLE_LABELS = { OWNER: '소유자', MEMBER: '멤버' }

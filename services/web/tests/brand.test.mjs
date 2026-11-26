@@ -2,9 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { BRAND_VIEWBOX, brandIconSvg } from '../src/brand/brandIcon.js'
 
-const webDir = new URL('..', import.meta.url).pathname
+const webDir = fileURLToPath(new URL('..', import.meta.url))
 const squash = (svg) => svg.replace(/\s+/g, ' ').replace(/>\s+</g, '><').trim()
 
 function jsxFiles(dir) {
@@ -46,4 +47,11 @@ test('브랜드 아이콘은 32칸 기준이고 파란 전구에 흰 점을 쓴�
   assert.match(brandIconSvg(), /viewBox="0 0 32 32"/)
   assert.match(brandIconSvg(), /#2563eb/)
   assert.match(brandIconSvg(), /#ffffff/)
+})
+
+test('BrandIcon import 경로에 .jsx 확장자를 명시한다', () => {
+  const misuse = jsxFiles(join(webDir, 'src')).filter((file) =>
+    /from\s+['"][^'"]*\/BrandIcon['"]/.test(readFileSync(file, 'utf8')),
+  )
+  assert.deepEqual(misuse, [])
 })
