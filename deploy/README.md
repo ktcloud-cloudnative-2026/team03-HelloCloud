@@ -408,7 +408,7 @@ Keycloak issuer는 토큰의 issuer와 정확히 일치하고 서비스에서도
 
 ## 웹 배포 준비
 
-웹 Dockerfile은 정적 화면을 root가 아닌 Nginx(`nginx-unprivileged`, UID 101)의 8080번 포트에서 제공합니다(#267).
+웹 Dockerfile은 정적 화면을 공식 Nginx 이미지를 root가 아닌 nginx 사용자(UID 101)로 실행해 8080번 포트에서 제공합니다(#267). `nginx-unprivileged` 이미지는 취약점이 고쳐진 버전이 늦게 나와 Trivy에 막혀서, 같은 설정(pid · 임시 파일 위치)을 Dockerfile에서 직접 합니다.
 컨테이너 포트만 8080이고 Service는 그대로 80이라 Gateway 연결은 바뀌지 않습니다.
 prod는 아직 예전 이미지(root · 80번)라 `values-prod.yaml`에서 포트 80과 `securityContext: null`을 유지하고,
 prod 태그를 #267 이후 이미지로 올리는 PR에서 두 값을 지웁니다.

@@ -39,4 +39,4 @@ services/
 | user-service | 1.44GB (JDK · Gradle · 소스) | 537MB (JRE + jar) | 약 63% | UID 10001 |
 | file-service | 1.45GB | 543MB | 약 63% | UID 10001 |
 | chat-service | 673MB (개발용 패키지 포함) | 314MB (운영 패키지만) | 약 53% | `node` (UID 1000) |
-| web | 629MB (Node · 빌드 도구) | 97.9MB (nginx + 정적 파일) | 약 84% | `nginx` (UID 101) |
+| web | 629MB (Node · 빌드 도구) | 109MB (nginx + 정적 파일) | 약 83% | `nginx` (UID 101) |
