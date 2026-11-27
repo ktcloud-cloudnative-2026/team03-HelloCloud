@@ -7,7 +7,12 @@ image:
 
 imagePullSecrets: []
 
-containerPort: 80
+containerPort: 8080
+
+# 컨테이너를 root로 띄우지 않는다. 이미지가 root면 파드가 시작되지 않는다
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
 
 service:
   port: 80

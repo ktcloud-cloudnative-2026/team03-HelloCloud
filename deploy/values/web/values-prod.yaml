@@ -1,3 +1,7 @@
 replicaCount: 2
+# prod 이미지는 아직 root · 80번 포트로 도는 예전 web(#267 이전)이다.
+# prod 태그를 #267 이후 이미지로 올리는 PR에서 아래 두 값을 지운다
+containerPort: 80
+securityContext: null
 image:
   tag: "68db108"

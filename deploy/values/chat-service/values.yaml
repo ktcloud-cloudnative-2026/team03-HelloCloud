@@ -1,6 +1,10 @@
 # chat은 Node(NestJS)지만 상태 확인 주소와 포트 규칙이 같아 공통 차트를 쓴다
 containerPort: 3000
 
+# 이미지의 USER가 이름(node)이라 쿠버네티스가 root 여부를 알 수 있게 번호를 적는다(node = 1000)
+securityContext:
+  runAsUser: 1000
+
 image:
   repository: ghcr.io/ktcloud-cloudnative-2026/idcn-chat-service
 

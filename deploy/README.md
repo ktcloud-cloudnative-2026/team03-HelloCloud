@@ -150,6 +150,8 @@ Gateway의 `Accepted`·`Programmed`, 세 Route의 `Accepted`·`ResolvedRefs`가
 환경별 커밋 SHA는 `values-dev.yaml`, `values-prod.yaml`에 넣습니다.
 dev는 파드 1개,
 prod는 파드 2개로 시작하며, prod의 파드 수는 실제 부하를 확인하고 조정합니다.
+앱 컨테이너는 `securityContext.runAsNonRoot: true`로 root 실행을 막습니다(#267). user · file 이미지는 UID 10001,
+chat은 이미지의 USER가 이름(`node`)이라 `values/chat-service/values.yaml`에 `runAsUser: 1000`을 적습니다.
 
 Helm `v4.3.1`로 검증했습니다. CI는 GitHub Actions를 사용하기로 결정했습니다.
 저장소 루트에서 실행합니다. 아래 이미지 주소와 SHA는 설정 생성만 확인하는
@@ -406,7 +408,10 @@ Keycloak issuer는 토큰의 issuer와 정확히 일치하고 서비스에서도
 
 ## 웹 배포 준비
 
-PR #68의 웹 Dockerfile은 정적 화면을 Nginx의 80번 포트에서 제공합니다.
+웹 Dockerfile은 정적 화면을 공식 Nginx 이미지를 root가 아닌 nginx 사용자(UID 101)로 실행해 8080번 포트에서 제공합니다(#267). `nginx-unprivileged` 이미지는 취약점이 고쳐진 버전이 늦게 나와 Trivy에 막혀서, 같은 설정(pid · 임시 파일 위치)을 Dockerfile에서 직접 합니다.
+컨테이너 포트만 8080이고 Service는 그대로 80이라 Gateway 연결은 바뀌지 않습니다.
+prod는 아직 예전 이미지(root · 80번)라 `values-prod.yaml`에서 포트 80과 `securityContext: null`을 유지하고,
+prod 태그를 #267 이후 이미지로 올리는 PR에서 두 값을 지웁니다.
 Spring 서비스와 상태 확인 주소가 달라 `charts/web/`에 웹 전용 차트를 둡니다.
 startup·liveness·readiness 검사는 모두 `/`의 HTTP 응답을 확인합니다.
 이 검사는 웹 서버의 응답 확인이며 로그인이나 API 연결 성공을 뜻하지 않습니다.
