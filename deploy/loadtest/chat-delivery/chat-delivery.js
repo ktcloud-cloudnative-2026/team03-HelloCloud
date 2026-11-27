@@ -132,10 +132,14 @@ function hasChannel(token) {
     `/api/chat/channels?orgId=${ORG_ID}`,
   );
 
-  const channels = result.items || result;
+  const channels = result?.items ?? result;
+
+  if (!Array.isArray(channels)) {
+    fail('채널 목록 응답이 배열 형식이 아닙니다');
+  }
 
   return channels.some(
-    (channel) => String(channel.id) === CHANNEL_ID,
+    (channel) => String(channel?.id) === CHANNEL_ID,
   );
 }
 
@@ -163,7 +167,7 @@ export function setup() {
     fail('MESSAGE_COUNT는 1~100 사이의 정수여야 합니다');
   }
 
-    if (!__ENV.CHAT_HTTP_URL || !__ENV.WS_URL || !__ENV.SENDER_WS_URL) {
+  if (!__ENV.CHAT_HTTP_URL || !__ENV.WS_URL || !__ENV.SENDER_WS_URL) {
     fail('송신 HTTP 및 송신·수신 WebSocket 주소를 모두 지정해야 합니다');
   }
 
@@ -229,7 +233,30 @@ function openSenderSocket(token) {
     }, TIMEOUT_MS);
 
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
+      let msg;
+
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      if (!msg || typeof msg !== 'object') {
+        return;
+      }
+
+      if (msg.type === 'ERROR') {
+        state.error = true;
+        clearTimeout(timer);
+
+        const reason =
+          `송신자 WebSocket 오류: ${msg.code || 'UNKNOWN'}`;
+
+        console.error(reason);
+        reject(new Error(reason));
+        ws.close();
+        return;
+      }
 
       if (msg.type === 'AUTH_REQUIRED') {
         ws.send(JSON.stringify({
@@ -303,6 +330,23 @@ export default async function (data) {
         try {
           msg = JSON.parse(event.data);
         } catch {
+          return;
+        }
+
+        if (!msg || typeof msg !== 'object') {
+          return;
+        }
+
+        if (msg.type === 'ERROR') {
+          errorCount++;
+          clearTimeout(timer);
+
+          const reason =
+            `수신자 WebSocket 오류: ${msg.code || 'UNKNOWN'}`;
+
+          console.error(reason);
+          reject(new Error(reason));
+          ws.close();
           return;
         }
 
@@ -404,7 +448,7 @@ export default async function (data) {
     await delay(60000);
 
     if (closed || senderSocket.closed || senderSocket.error) {
-       throw new Error('측정 시작 전 WebSocket 연결 이상');
+      throw new Error('측정 시작 전 WebSocket 연결 이상');
     }
 
     startedAt = Date.now();
@@ -466,7 +510,8 @@ export default async function (data) {
     console.error(`측정 오류: ${error.message}`);
 
   } finally {
-    const missingCount = COUNT - delivered.size;
+    const unsentCount = COUNT - sentCount;
+    const missingCount = Math.max(0, sentCount - delivered.size);
     const withinTarget =
       delivered.size - lateCount - invalidCount;
 
@@ -495,6 +540,7 @@ export default async function (data) {
     console.log(`테스트 ID: ${testId}`);
     console.log(`목표 메시지: ${COUNT}건`);
     console.log(`HTTP 전송 성공: ${sentCount}건`);
+    console.log(`미전송(HTTP 성공 미확인): ${unsentCount}건`);
     console.log(`WebSocket 수신: ${delivered.size}건`);
     console.log(`1초 이내 전달: ${withinTarget}건`);
     console.log(`1초 초과: ${lateCount}건`);
