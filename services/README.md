@@ -27,3 +27,16 @@ services/
 |---|---|
 | Keycloak | `http://localhost:8180`, realm `hellocloud`, client `hellocloud-web` (dev와 같은 이름) |
 | database · 계정 | MySQL: `user_service`(compose가 만듦), `file_service`(직접 만듦) · MongoDB: `chat_service` |
+
+## 이미지 크기와 실행 사용자 (#267)
+
+모든 Dockerfile은 빌드 단계와 실행 단계를 나눕니다(멀티스테이지). 실행 이미지에는 빌드 도구와 소스 없이
+실행에 필요한 파일만 넣고, root가 아닌 사용자로 실행합니다. "단일 스테이지"는 빌드 단계 이미지를 그대로
+실행 이미지로 썼을 때의 크기입니다(`docker build --target build`, web은 `builder`). 2026-11-27 로컬 Docker로 쟀습니다.
+
+| 서비스 | 단일 스테이지 | 멀티스테이지 | 줄어든 비율 | 실행 사용자 |
+|---|---|---|---|---|
+| user-service | 1.44GB (JDK · Gradle · 소스) | 537MB (JRE + jar) | 약 63% | UID 10001 |
+| file-service | 1.45GB | 543MB | 약 63% | UID 10001 |
+| chat-service | 673MB (개발용 패키지 포함) | 314MB (운영 패키지만) | 약 53% | `node` (UID 1000) |
+| web | 629MB (Node · 빌드 도구) | 97.9MB (nginx + 정적 파일) | 약 84% | `nginx` (UID 101) |

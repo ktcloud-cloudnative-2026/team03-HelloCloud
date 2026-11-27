@@ -19,6 +19,11 @@ imagePullSecrets: []
 
 containerPort: 8080
 
+# 앱 컨테이너를 root로 띄우지 않는다. Istio가 넣는 컨테이너는 자기 설정을 따로 쓴다
+securityContext:
+  runAsNonRoot: true
+  allowPrivilegeEscalation: false
+
 service:
   port: 80
 
