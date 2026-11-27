@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-chat-delivery
+  namespace: loadtest
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k6-chat-delivery
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/hostname: t4-dev-w2
+      containers:
+        - name: k6
+          image: grafana/k6:2.4.0
+          args:
+            - run
+            - /scripts/chat-delivery.js
+          envFrom:
+            - configMapRef:
+                name: k6-chat-delivery-run
+          env:
+            - name: OWNER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: k6-loadtest-credentials
+                  key: username
+            - name: OWNER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: k6-loadtest-credentials
+                  key: password
+            - name: MEMBER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: k6-access-member-credentials
+                  key: username
+            - name: MEMBER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: k6-access-member-credentials
+                  key: password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: k6-chat-delivery-script

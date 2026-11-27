@@ -1,0 +1,19 @@
+# #240 US-06 채팅 실시간 전달 성능 측정
+# Argo CD 외부에서 임시 실행하고 측정 종료 후 삭제한다.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: loadtest
+
+resources:
+  - job.yaml
+
+configMapGenerator:
+  - name: k6-chat-delivery-script
+    files:
+      - chat-delivery.js
+  - name: k6-chat-delivery-run
+    envs:
+      - run.env
+
+generatorOptions:
+  disableNameSuffixHash: true

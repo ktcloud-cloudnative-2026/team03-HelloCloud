@@ -77,6 +77,189 @@ keepalive 뒤 조건: chat `d48ca96`(Redis Publisher · Subscriber 30초 PING, #
 3회차 17 ~ 43ms(평균 약 30ms)로 첫 확인에서 바로 403이었습니다. 남는 한계: Redis 재시작 · 네트워크 장애로 끊긴 몇 초 사이의
 멤버 제거 알림은 Pub/Sub이라 여전히 사라집니다. 새 요청은 소속 확인으로 막히고, 이미 열린 WebSocket만 해당합니다.
 
+### 채팅 실시간 전달 측정 (dev, #240)
+
+US-06 성공 기준인 다른 파드 사용자에게 메시지 100건을 1초 이내에 전달하는지 확인했습니다.
+k6 스크립트는 [deploy/loadtest/chat-delivery/](../deploy/loadtest/chat-delivery/)에 있습니다.
+
+#### 측정 환경
+
+- 측정 일시: 2026-11-27 11:38:58 ~ 11:40:00 (KST).
+- 환경: dev, `ideaconnection-dev` namespace.
+- chat 이미지: `d48ca96` (Redis Publisher · Subscriber 30초 PING 적용, #249).
+- chat 파드 2개를 서로 다른 워커에 배치한 상태에서 측정했습니다. 두 파드 모두 재시작 0회였습니다.
+- k6 이미지: `grafana/k6:2.4.0`.
+- k6 Job: `loadtest/k6-chat-delivery`, 워커 w2 고정.
+- k6 리소스: CPU requests 100m · limits 500m, 메모리 requests 64Mi · limits 256Mi.
+- 테스트 조직: 7, 채널: `k6-chat-100`.
+- 테스트 계정: `k6-loadtest-credentials`(OWNER), `k6-access-member-credentials`(MEMBER).
+- 비밀번호 · 토큰 · Secret 값은 기록하지 않습니다.
+
+| 역할 | 파드 | 노드 | Pod IP |
+|---|---|---|---|
+| 송신자 (OWNER) | chat-service-59b96d5ffb-m4mpl | t4-dev-w2 | 10.244.150.145 |
+| 수신자 (MEMBER) | chat-service-59b96d5ffb-s6pdx | t4-dev-w1 | 10.244.48.151 |
+| k6 | k6-chat-delivery-zf95p | t4-dev-w2 | 10.244.150.156 |
+
+
+#### 재실행 방법
+
+- [deploy/loadtest/chat-delivery/](../deploy/loadtest/chat-delivery/)의 파일을 cp 임시 폴더에 복사합니다.
+- 현재 chat 파드의 IP와 노드를 확인합니다.
+
+```bash
+kubectl -n ideaconnection-dev get pods -l app.kubernetes.io/instance=chat-service -o wide
+```
+
+- 송신 파드와 k6 Job은 반드시 같은 워커 노드에서 실행합니다.
+  서버의 메시지 시각(sentAt)은 송신 chat 파드에서 저장할 때 생성되므로,
+  k6가 다른 노드에서 실행되면 노드 간 시계 차이가 전달 시간에 섞일 수 있습니다.
+- 현재 job.yaml의 nodeSelector는 t4-dev-w2로 설정되어 있습니다.
+  재측정 시 송신 파드를 w2에서 선택하거나, nodeSelector를 송신 파드가
+  실행 중인 노드에 맞춰 변경합니다.
+- 수신 파드는 송신 파드와 다른 파드를 지정합니다.
+- `run.env`에 테스트 전용 `CHANNEL_ID`와 현재 파드 주소를 지정합니다.
+- `CHAT_HTTP_URL`과 `SENDER_WS_URL`은 같은 송신 파드, `WS_URL`은 다른 수신 파드의 주소를 지정합니다.
+- 두 계정의 조직 소속과 채널 접근 권한을 확인하고, 권한 회수 측정과 실행 시간이 겹치지 않도록 합니다.
+- 필수 주소 누락 · 주소 형식 오류 · 송수신 주소 중복 · 송신 HTTP와 WS 주소 불일치 시 실행을 중단합니다.
+- 기본값인 `MESSAGE_COUNT=1`로 사전 측정한 뒤, 성공하면 Job과 ConfigMap을 삭제하고 `MESSAGE_COUNT=100`으로 변경해 본 측정을 진행합니다.
+
+```bash
+kubectl apply -k .
+kubectl -n loadtest logs -f job/k6-chat-delivery
+```
+
+측정 결과와 Prometheus 지표를 보존한 뒤 테스트 리소스를 정리합니다.
+
+```bash
+kubectl delete -k .
+```
+
+기존 namespace · Secret은 삭제하지 않습니다.
+
+
+#### 측정 방법
+
+- 두 계정의 인증 · 조직 소속 · 채널 접근 권한을 먼저 확인합니다.
+- 서로 다른 chat 파드에 WebSocket을 직접 연결하고 같은 채널을 구독합니다.
+- Prometheus에서 파드별 WebSocket 연결 수를 확인할 수 있도록 60초 대기합니다.
+- 송신 파드의 메시지 전송 API에 고유한 `clientMessageId`를 가진 메시지 100건을 순차 전송합니다.
+- 수신 파드의 `MESSAGE_CREATED` 이벤트를 확인하고 메시지 ID를 대조해 누락 · 중복을 확인합니다.
+- `chat_delivery_ms`: 서버 메시지의 `sentAt`부터 수신자의 WebSocket 이벤트 수신까지 걸린 시간입니다.
+- `chat_e2e_ms`: HTTP 전송 요청 시작부터 WebSocket 이벤트 수신까지 걸린 시간입니다.
+- 전송 후 최대 10초 동안 수신을 기다리고, 추가 1초 동안 중복 수신을 확인합니다.
+- 합격선: 메시지 100건 전송 · 수신, 개별 메시지 전달 시간 1초 이하, 누락 · 중복 · 시간값 오류 · 테스트 오류 0건.
+
+#### 측정 결과
+
+| 날짜 | 측정 | 전송 | 수신 | 1초 이내 | 1초 초과 | 누락 | 중복 | 판정 |
+|---|---|---|---|---|---|---|---|---|
+| 11/27 | 사전 측정 | 1건 | 1건 | 100% | 0건 | 0건 | 0건 | ✅ PASS |
+| 11/27 | 본 측정 | 100건 | 100건 | 100% | 0건 | 0건 | 0건 | ✅ PASS |
+
+본 측정의 전달 시간은 다음과 같습니다.
+
+| 지표 | 최소 | 평균 | 중앙값 | p95 | p99 | 최대 |
+|---|---|---|---|---|---|---|
+| 서버 메시지 시각 → WS 수신 | 2ms | 2.62ms | 3ms | 3ms | 4.02ms | 6ms |
+| HTTP 요청 시작 → WS 수신 | 12ms | 15.15ms | 15ms | 19ms | 22.02ms | 24ms |
+
+- 테스트 ID: `5c8320a7-0f53-488d-9fcf-bc1d706067ac`.
+- HTTP 요청 실패: 0/108건(인증 · 접근 확인 요청 포함).
+- 잘못된 시간값 · 테스트 오류: 0건.
+- k6 Threshold: 8개 모두 통과.
+- 전체 관찰 시간: 2,561ms(100건 순차 전송 및 추가 중복 확인 시간 포함).
+- Job 실행 결과: `Completed`, 재시작 0회.
+
+#### 리뷰 반영 후 추가 검증 (11/27, #264)
+
+- 누락 건수와 미전송(HTTP 성공 미확인) 건수를 분리했습니다.
+- 송신·수신 WebSocket의 ERROR 응답 처리와 JSON 파싱 예외 처리를 보완했습니다.
+- 채널 목록 응답의 배열 여부를 검증하도록 수정했습니다.
+- JavaScript 문법 검사 및 Git 공백 검사를 통과했습니다.
+
+| 독립 로직 검증 | 결과 |
+|---|---|
+| 주소 검증 | 5/5 통과 |
+| 누락·미전송 집계 | 6/6 통과 |
+| 채널 응답 배열 검증 | 7/7 통과 |
+| WebSocket 오류 처리 | 8/8 통과 |
+| 합계 | 26/26 통과 |
+
+수정된 스크립트로 dev 환경에서 메시지 1건을 추가 측정했습니다.
+
+- 측정 일시: 2026-11-27 15:02:07 ~ 15:03:08 (KST).
+- 테스트 ID: `9d4f192d-576f-4f8e-a000-2012dd1a2dcc`.
+- 기존 송신·수신 chat 파드와 동일한 조건에서 실행했습니다.
+- k6 실행 노드: t4-dev-w2 (송신 파드와 동일).
+- 전송·수신: 1/1건, 1초 이내 전달 비율 100%.
+- 메시지 전달 시간: 4ms, HTTP 요청 시작부터 수신까지 23ms.
+- 미전송·누락·중복·1초 초과·시간값 오류·테스트 오류: 모두 0건.
+- k6 Threshold 8개 모두 통과, Job 정상 종료.
+- 측정 로그 저장 후 Job 및 ConfigMap 2개 삭제 완료.
+
+독립 로직 테스트는 가상 입력을 이용한 검증이며,
+실제 서버의 오류 상황을 강제로 발생시키지는 않았습니다.
+오전 100건 본 측정 결과는 유지하며, 오후 측정은
+리뷰 반영 버전의 정상 실행을 확인하기 위한 사전 측정입니다.
+
+#### Prometheus 교차 검증
+
+WebSocket 연결 수는 다음 쿼리로 확인했습니다.
+
+```promql
+chat_websocket_connections{namespace="ideaconnection-dev"}
+```
+
+메시지 전송 API의 HTTP 201 응답 누적값은 다음 쿼리로 확인했습니다.
+
+```promql
+http_server_requests_seconds_count{
+  namespace="ideaconnection-dev",
+  job="chat-service",
+  method="POST",
+  status="201",
+  uri="/api/chat/channels/:id/messages"
+}
+```
+
+| 검증 항목 | 송신 파드 (m4mpl) | 수신 파드 (s6pdx) |
+|---|---|---|
+| 측정 전 WebSocket 연결 수 | 0 | 0 |
+| 측정 중 WebSocket 연결 수 | 1 | 1 |
+| 측정 후 WebSocket 연결 수 | 0 | 0 |
+| HTTP 201 누적 요청 수 | 5 → 105 | 5 → 5 |
+| HTTP 201 증가량 | 100건 | 0건 |
+
+두 파드의 WebSocket 구독 로그와 Prometheus 연결 지표를 대조했습니다.
+송신 파드의 메시지 전송 요청만 100건 증가했고, 수신 파드에서는 증가하지 않았습니다.
+k6 수신 결과까지 함께 확인해 서로 다른 파드 간 메시지 100건의 실시간 전달을 검증했습니다.
+
+#### 측정 범위와 한계
+
+- 채팅 HTTP 전송과 WebSocket 연결은 서로 다른 파드를 확실히 지정하기 위해 Pod IP로 직접 연결했습니다.
+  인증 · 조직 소속 · 채널 접근 확인은 dev Gateway를 경유했습니다.
+- Gateway를 경유하는 채팅 전체 경로의 성능이나 prod 환경의 전달 성능을 측정한 결과는 아닙니다.
+- 메시지 100건을 순차 전송한 1회 본 측정이며, 동시 다수 사용자 부하나 초당 100건 처리량을 검증한 것은 아닙니다.
+- 성공 기준은 100건 전체의 전송 소요 시간이 아니라 각 메시지의 전달 시간이 1초 이내인지 여부입니다.
+- 서버 메시지의 sentAt은 송신 chat 파드에서 메시지를 저장할 때 생성됩니다.
+  이번 측정에서는 송신 파드와 k6 Job을 같은 노드(t4-dev-w2)에 배치하여
+  노드 간 시계 차이의 영향을 피했습니다.
+  재측정 시에도 송신 파드와 k6 Job의 실행 노드를 일치시켜야 합니다.
+- Prometheus 지표는 수집 간격에 따라 실제 연결 · 해제 시각과 차이가 날 수 있습니다.
+- 중복 수신 여부는 테스트 관찰 구간을 기준으로 판정했습니다.
+- 장애 중 메시지 보존 및 재연결 후 복구는 별도 검증 항목입니다(#241, US-07).
+
+#### 정리
+
+- 측정 결과 로그 저장 후 k6 Job 1개와 ConfigMap 2개를 삭제했습니다.
+- 기존 namespace · Secret · 서비스 배포 설정은 변경하지 않았습니다.
+- 테스트 채널 및 메시지는 유지하고, MEMBER 계정도 조직 7에 소속된 상태로 유지했습니다.
+- chat 파드 재시작이나 Redis 장애 주입 없이 측정했습니다.
+
+**결과: dev 환경에서 US-06 교차 파드 메시지 100건 전달 기준 통과.
+1초 이내 전달 비율 100%, p95 3ms, 최대 6ms, 누락 · 중복 0건.**
+
 ## 3. 로그 형식 (모든 서비스 같게)
 ```json
 {"time":"2026-11-04T09:00:00+09:00","level":"info","service":"<서비스>","request_id":"<id>","message":"<내용>"}
