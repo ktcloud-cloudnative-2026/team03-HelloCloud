@@ -1,9 +1,10 @@
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { initial, validDisplayName } from '../src/profile/name.js'
 
-const webDir = new URL('..', import.meta.url).pathname
+const webDir = fileURLToPath(new URL('..', import.meta.url))
 
 test('동그라미에는 이름 첫 글자를 넣고, 이모지는 깨지지 않게 한 글자로 센다', () => {
   assert.equal(initial('  김준형'), '김')
