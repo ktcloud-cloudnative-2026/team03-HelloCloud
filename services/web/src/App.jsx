@@ -141,7 +141,7 @@ function App({ authenticated, authError }) {
           <h1>IdeaConnection</h1>
         </div>
 
-        <p className="subtitle">우리 팀의 협업을 하나로</p>
+        <p className="subtitle">우리 팀의 협업을 하나로 · 배포 시연 v2</p>
 
         {authError && <p role="alert">{authError}</p>}
 
